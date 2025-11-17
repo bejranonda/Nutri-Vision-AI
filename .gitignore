@@ -99,3 +99,4 @@ dump.rdb
 Initial/
 *.xml
 reference.txt
+.claude/settings.local.json
