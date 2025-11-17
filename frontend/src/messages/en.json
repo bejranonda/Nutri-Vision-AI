@@ -1,0 +1,136 @@
+{
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "scan": "Scan Food",
+    "recipes": "Recipes",
+    "chat": "Ask Expert",
+    "profile": "Profile"
+  },
+  "home": {
+    "title": "NutriVision AI",
+    "subtitle": "Smart Nutrition Assistant for Thai Food",
+    "description": "Analyze food with AI, calculate nutrition scores, and get personalized recommendations",
+    "cta": "Get Started",
+    "features": {
+      "scan": {
+        "title": "Food Scanning",
+        "description": "Snap a photo and get instant nutrition information"
+      },
+      "score": {
+        "title": "8-Dimension Health Score",
+        "description": "Complete nutritional analysis across all dimensions"
+      },
+      "chat": {
+        "title": "AI Consultation",
+        "description": "Ask any nutrition question and get expert answers"
+      },
+      "recipes": {
+        "title": "Thai Recipes",
+        "description": "Over 1,000 healthy Thai recipe options"
+      }
+    }
+  },
+  "scan": {
+    "title": "Scan Food",
+    "upload": "Upload Image",
+    "take_photo": "Take Photo",
+    "analyzing": "Analyzing...",
+    "results": "Analysis Results",
+    "detected_items": "Detected Items",
+    "nutrition": "Nutrition Information",
+    "scores": {
+      "blood_sugar": "Blood Sugar Impact",
+      "gut_health": "Gut Health",
+      "inflammation": "Inflammation",
+      "nutrient_density": "Nutrient Density",
+      "processing": "Processing Level",
+      "protein_quality": "Protein Quality",
+      "micronutrient": "Vitamins & Minerals",
+      "overall": "Overall Score"
+    }
+  },
+  "chat": {
+    "title": "Nutrition Expert Consultation",
+    "placeholder": "Ask a nutrition question...",
+    "send": "Send",
+    "examples": {
+      "title": "Example Questions",
+      "1": "How does Som Tam affect blood sugar?",
+      "2": "What foods are good for diabetics?",
+      "3": "How to make Pad Thai healthier?"
+    }
+  },
+  "recipes": {
+    "title": "Recipes",
+    "search": "Search recipes...",
+    "filters": "Filters",
+    "categories": {
+      "all": "All",
+      "main_dish": "Main Dishes",
+      "soup": "Soups/Curries",
+      "salad": "Salads",
+      "dessert": "Desserts",
+      "snack": "Snacks"
+    },
+    "dietary": {
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan",
+      "halal": "Halal",
+      "diabetic_friendly": "Diabetic Friendly",
+      "low_carb": "Low Carb"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "personal_info": "Personal Information",
+    "health_info": "Health Information",
+    "goals": "Goals",
+    "subscription": "Subscription",
+    "usage": "Usage",
+    "fields": {
+      "name": "Full Name",
+      "email": "Email",
+      "age": "Age",
+      "gender": "Gender",
+      "height": "Height (cm)",
+      "weight": "Weight (kg)",
+      "target_weight": "Target Weight (kg)",
+      "goal": "Health Goal",
+      "activity_level": "Activity Level"
+    },
+    "subscription_tiers": {
+      "free": "Free",
+      "premium": "Premium",
+      "family": "Family"
+    },
+    "upgrade": "Upgrade"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "or": "or",
+    "login_with_google": "Login with Google",
+    "login_with_line": "Login with Line",
+    "forgot_password": "Forgot password?"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search"
+  }
+}
