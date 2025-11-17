@@ -1,6 +1,7 @@
-Try to get the reference and knowledge from thalay community, and should also can be later added, for example:
+Try to draw on references and knowledge from the Thalay community, and make it extensible so that it can be added to later. For example:
 https://thalay.eu/how-well-do-you-know-sugar
 https://thalay.eu/how-to-eat-without-spiking-blood-sugar
 https://thalay.eu/sugar-makes-you-old
 https://thalay.eu/glycemic-index
 https://thalay.eu/probiotic-sugar
+This will allow us to build a flexible, evolving knowledge base grounded in community insights.
