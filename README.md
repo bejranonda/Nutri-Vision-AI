@@ -1,8 +1,9 @@
 # 🥗 NutriVision AI - Smart Recipe Assistant for Modern Nutrition
 
-[![Thai Language](https://img.shields.io/badge/Language-Thai%20%7C%20English-green)](https://github.com/nutrivision-ai)
+[![npm version](https://img.shields.io/npm/v/@nutrivision/nutrivision-ai.svg)](https://www.npmjs.com/package/@nutrivision/nutrivision-ai)
+[![Thai Language](https://img.shields.io/badge/Language-Thai%20%7C%20English-green)](https://github.com/bejranonda/Nutri-Vision-AI)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active-success)](https://github.com/nutrivision-ai)
+[![Status](https://img.shields.io/badge/Status-Active-success)](https://github.com/bejranonda/Nutri-Vision-AI)
 
 > AI-powered nutrition analysis and recipe assistant specialized in Thai cuisine. Helping Thai people make informed food choices through evidence-based nutrition science.
 
@@ -80,15 +81,26 @@
 
 ### Prerequisites
 - Docker and Docker Compose
+- Node.js 18+ and npm 9+
 - Git
 - Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
 
 ### Installation
 
+#### Option 1: Clone from GitHub (Recommended for Development)
+
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/Nutri-Vision-AI.git
+git clone https://github.com/bejranonda/Nutri-Vision-AI.git
 cd Nutri-Vision-AI
+```
+
+#### Option 2: Install via npm (For Quick Setup)
+
+```bash
+npx degit bejranonda/Nutri-Vision-AI my-nutrivision-app
+cd my-nutrivision-app
+npm install
 ```
 
 2. **Set up environment variables**
@@ -401,8 +413,9 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 - **Website**: https://nutrivision.app
 - **Email**: support@nutrivision.app
-- **Issues**: https://github.com/yourusername/Nutri-Vision-AI/issues
-- **Discussions**: https://github.com/yourusername/Nutri-Vision-AI/discussions
+- **Issues**: https://github.com/bejranonda/Nutri-Vision-AI/issues
+- **Discussions**: https://github.com/bejranonda/Nutri-Vision-AI/discussions
+- **npm Package**: https://www.npmjs.com/package/@nutrivision/nutrivision-ai
 
 ### Thai Support
 - **Line Official**: @nutrivisionai
@@ -456,7 +469,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 If you find this project helpful, please consider giving it a star!
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/Nutri-Vision-AI&type=Date)](https://star-history.com/#yourusername/Nutri-Vision-AI&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=bejranonda/Nutri-Vision-AI&type=Date)](https://star-history.com/#bejranonda/Nutri-Vision-AI&Date)
 
 ---
 
