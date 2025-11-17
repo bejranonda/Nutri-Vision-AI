@@ -1,6 +1,6 @@
 {
   "name": "@nutrivision/nutrivision-ai",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "AI-powered nutrition analysis and recipe assistant specialized in Thai cuisine. Full-stack application with Next.js frontend and FastAPI backend.",
   "keywords": [
     "nutrition",
