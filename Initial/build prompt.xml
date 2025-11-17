@@ -1,0 +1,190 @@
+<one_shot_fullstack_development>
+You are an expert full-stack developer with 10+ years experience in secure production deployments, CI/CD pipelines, and AI integration. You will build a complete, production-ready application autonomously while maintaining perfect security practices.
+
+<critical_security_requirements>
+BEFORE writing ANY code, create a security checklist and follow it throughout:
+1. NEVER expose credentials in any file that could be committed to git
+2. Create .env.example with placeholder values (never real credentials)
+3. Add .env to .gitignore immediately upon project initialization
+4. Use environment variable validation at application startup
+5. Implement secret scanning pre-commit hooks
+6. Never reference prompt files or internal documentation in any code or commits
+7. Apply GDPR compliance from the start (data minimization, user consent, right to deletion)
+</critical_security_requirements>
+
+<project_definition>
+Project Name: NutriVision AI - Smart Recipe Assistant for Modern Nutrition
+Goal: Create a multimodal AI application that identifies ingredients from images and provides science-backed nutritional guidance using Gemini's free tier.
+
+Core Capabilities:
+- Image-based ingredient recognition using Gemini Vision API
+- Recipe generation with comprehensive nutritional scoring
+- Modern nutrition science integration (gut health, circadian nutrition, anti-inflammatory foods)
+- Educational AI chat interface for nutrition guidance
+- Personalized meal planning with dietary restrictions support
+</project_definition>
+
+<implementation_sequence>
+Execute these phases sequentially, validating each before proceeding:
+
+## Phase 1: Project Foundation & Security (Complete First)
+1. Initialize git repository with comprehensive .gitignore
+2. Create project structure:
+```
+   nutrivision-ai/
+   ├── backend/
+   │   ├── app/
+   │   ├── tests/
+   │   └── requirements.txt
+   ├── frontend/
+   │   ├── src/
+   │   ├── public/
+   │   └── package.json
+   ├── scripts/
+   │   ├── install-all.sh
+   │   └── validate-build.sh
+   ├── docker/
+   ├── .env.example
+   ├── .gitignore
+   ├── docker-compose.yml
+   └── README.md
+```
+3. Create .env.example with ALL required variables:
+```
+   GEMINI_API_KEY=your_gemini_api_key_here
+   DATABASE_URL=postgresql://user:pass@localhost:5432/nutrivision
+   REDIS_URL=redis://localhost:6379
+   JWT_SECRET=generate_random_secret_here
+   ALLOWED_ORIGINS=http://localhost:3000
+   MAX_FILE_SIZE_MB=10
+   RATE_LIMIT_REQUESTS=100
+   RATE_LIMIT_WINDOW_MS=900000
+```
+4. Implement security middleware first (rate limiting, CORS, input validation)
+
+## Phase 2: Backend Core Implementation
+Build in this exact order:
+1. Database schema with migrations (PostgreSQL + Alembic)
+2. Gemini API integration service with error handling and retries
+3. Ingredient recognition endpoint with image validation
+4. Nutrition scoring algorithms (implement all 8 scoring dimensions)
+5. Recipe generation with comprehensive nutritional analysis
+6. User authentication with JWT tokens
+7. Unit tests for each component (minimum 80% coverage)
+
+## Phase 3: Frontend Development
+1. Set up Next.js with TypeScript and Tailwind CSS
+2. Implement secure image upload with client-side validation
+3. Create responsive recipe cards with visual nutrition indicators
+4. Build real-time chat interface for Gemini interaction
+5. Add progressive web app capabilities
+6. Implement error boundaries and loading states
+
+## Phase 4: Integration & Testing
+1. Docker containerization for all services
+2. Integration tests for critical user flows
+3. Performance testing (load testing with k6 or similar)
+4. Security audit using automated tools
+5. Accessibility audit (WCAG 2.1 AA compliance)
+
+## Phase 5: Deployment Preparation
+1. Create production docker-compose configuration
+2. Set up GitHub Actions CI/CD pipeline
+3. Generate comprehensive API documentation
+4. Write user documentation with screenshots
+5. Create demo data and seed scripts
+</implementation_sequence>
+
+<technical_specifications>
+Backend Architecture:
+- Framework: FastAPI with async/await patterns
+- Database: PostgreSQL with connection pooling
+- Cache: Redis for session management and API response caching
+- Queue: Celery for background tasks (image processing, batch analysis)
+- API Design: RESTful with OpenAPI documentation
+- Testing: pytest with fixtures and mocking
+
+Frontend Architecture:
+- Framework: Next.js 14+ with App Router
+- State Management: Zustand or TanStack Query
+- UI Components: Radix UI with Tailwind CSS
+- Image Handling: Sharp for optimization, client-side compression
+- Charts: Recharts for nutrition visualizations
+- PWA: next-pwa for offline capabilities
+
+AI Integration:
+- Use Gemini 1.5 Flash for cost efficiency on free tier
+- Implement token usage monitoring and alerts
+- Cache AI responses aggressively
+- Batch similar requests when possible
+- Implement fallback for API failures
+
+Nutrition Scoring Implementation:
+Create modular scoring system where each dimension returns 0-100:
+1. Blood Sugar Impact: Calculate using glycemic load formula
+2. Gut Health: Score based on fiber (g), prebiotic content, probiotic presence
+3. Inflammation Score: Omega-3:Omega-6 ratio, antioxidant ORAC values
+4. Nutrient Density: Aggregate Nutrient Density Index (ANDI score)
+5. Processing Level: NOVA classification (1=100, 2=75, 3=50, 4=25)
+6. Protein Quality: PDCAAS scoring for complete amino acid profiles
+7. Micronutrient Coverage: % RDI coverage across key vitamins/minerals
+8. Overall Health Score: Weighted average with user goal preferences
+</technical_specifications>
+
+<validation_requirements>
+Create validate-build.sh that verifies:
+1. All environment variables are properly configured
+2. Database migrations run successfully
+3. All tests pass with >80% coverage
+4. Frontend builds without errors
+5. Docker containers start successfully
+6. API endpoints respond correctly
+7. No exposed secrets in codebase (use truffleHog or similar)
+8. Lighthouse scores: Performance >90, Accessibility >95
+
+Exit with error if ANY validation fails, providing clear error messages.
+</validation_requirements>
+
+<deliverables>
+Upon completion, ensure these files exist and are properly configured:
+1. install-all.sh - One-command setup for entire stack
+2. .env.example - Complete with ALL variables and helpful comments
+3. README.md - Professional documentation with:
+   - Architecture diagrams
+   - Setup instructions
+   - API documentation links
+   - Feature screenshots
+   - Performance benchmarks
+   - Security considerations (without exposing sensitive details)
+4. docker-compose.yml - Development environment
+5. docker-compose.prod.yml - Production-ready configuration
+6. GitHub Actions workflows for CI/CD
+7. Comprehensive test suite
+8. API documentation (auto-generated from OpenAPI)
+</deliverables>
+
+<quality_standards>
+- Code must follow language-specific best practices (PEP 8 for Python, ESLint for JS)
+- All functions must have docstrings/JSDoc comments
+- Complex logic must include inline comments
+- Database queries must use parameterized statements
+- All user inputs must be validated and sanitized
+- Error messages must be user-friendly (no stack traces to frontend)
+- Loading states must be smooth with skeleton screens
+- Mobile-first responsive design
+</quality_standards>
+
+<success_criteria>
+The project is complete when:
+1. A user can upload an image and receive ingredient recognition
+2. Recipes generate with all 8 nutrition scores calculated
+3. Chat interface provides accurate nutrition guidance
+4. Application runs without errors for 1 hour under load
+5. All security scans pass without high/critical vulnerabilities
+6. Documentation enables a new developer to run the project in <10 minutes
+7. Lighthouse scores meet minimum thresholds
+8. Test coverage exceeds 80% for backend, 70% for frontend
+</success_criteria>
+
+Remember: Security is paramount. When in doubt, choose the more secure option. Never compromise on credential protection or user data safety.
+</one_shot_fullstack_development>
