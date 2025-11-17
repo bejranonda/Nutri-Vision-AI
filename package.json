@@ -1,0 +1,95 @@
+{
+  "name": "@nutrivision/nutrivision-ai",
+  "version": "1.0.0",
+  "description": "AI-powered nutrition analysis and recipe assistant specialized in Thai cuisine. Full-stack application with Next.js frontend and FastAPI backend.",
+  "keywords": [
+    "nutrition",
+    "ai",
+    "food-recognition",
+    "recipe",
+    "health",
+    "thai-cuisine",
+    "nextjs",
+    "fastapi",
+    "nutrition-analysis",
+    "food-scanner",
+    "gemini-ai",
+    "wellness",
+    "meal-planning",
+    "nutrition-scoring"
+  ],
+  "homepage": "https://github.com/bejranonda/Nutri-Vision-AI#readme",
+  "bugs": {
+    "url": "https://github.com/bejranonda/Nutri-Vision-AI/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bejranonda/Nutri-Vision-AI.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "NutriVision AI",
+    "email": "support@nutrivision.app"
+  },
+  "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt",
+    "dev": "docker-compose up",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload",
+    "build": "cd frontend && npm run build",
+    "start": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && pytest",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && black . && flake8 . && mypy .",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd frontend && npm run lint -- --fix",
+    "format:backend": "cd backend && black . && isort .",
+    "db:migrate": "docker-compose exec backend alembic upgrade head",
+    "db:seed": "docker-compose exec backend python app/db/seed_data.py",
+    "db:reset": "docker-compose down -v && docker-compose up -d && npm run db:migrate && npm run db:seed",
+    "logs": "docker-compose logs -f",
+    "logs:backend": "docker-compose logs -f backend",
+    "logs:frontend": "docker-compose logs -f frontend",
+    "clean": "docker-compose down -v && rm -rf frontend/.next frontend/node_modules node_modules",
+    "prepublishOnly": "npm run lint && npm run test",
+    "preversion": "npm run lint && npm run test",
+    "version": "npm run format && git add -A",
+    "postversion": "git push && git push --tags",
+    "publish:dry": "npm pack --dry-run",
+    "publish:test": "npm pack && npm publish --dry-run"
+  },
+  "files": [
+    "frontend/",
+    "backend/",
+    "scripts/",
+    "docker/",
+    "docker-compose.yml",
+    ".env.example",
+    "README.md",
+    "README-TH.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "PUBLISHING.md",
+    "DEPLOYMENT.md",
+    "PROJECT_PLAN.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
