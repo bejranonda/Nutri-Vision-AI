@@ -13,14 +13,15 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%; /* Rich dark background */
+    --background: 222.2 84% 4.9%;
+    /* Rich dark background */
     --foreground: 210 40% 98%;
     --card: 217 24% 12%;
     --card-foreground: 210 40% 98%;
   }
 
   body {
-    @apply bg-background text-foreground bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-50 to-background dark:from-slate-900 dark:to-background min-h-screen transition-colors duration-300;
+    @apply bg-background text-foreground bg-[radial-gradient(ellipse_at_top, _var(--tw-gradient-stops))] from-sky-50 to-background dark:from-slate-900 dark:to-background min-h-screen transition-colors duration-300;
   }
 }
 

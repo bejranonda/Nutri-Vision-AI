@@ -1,12 +1,14 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { Scan, MessageCircle, BookOpen, TrendingUp, Sparkles, HeartPulse, ChevronRight } from 'lucide-react';
 
 export default function HomePage() {
   const t = useTranslations('home');
   const nav = useTranslations('nav');
+  const auth = useTranslations('auth');
+  const locale = useLocale();
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -26,19 +28,19 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center space-x-6">
-            <Link href="/th/dashboard" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 font-medium transition-colors">
+            <Link href={`/${locale}/dashboard`} className="text-gray-700 dark:text-gray-200 hover:text-primary-600 font-medium transition-colors">
               {nav('dashboard')}
             </Link>
-            <Link href="/th/recipes" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 font-medium transition-colors">
+            <Link href={`/${locale}/recipes`} className="text-gray-700 dark:text-gray-200 hover:text-primary-600 font-medium transition-colors">
               {nav('recipes')}
             </Link>
             <Link
-              href="/th/login"
+              href={`/${locale}/login`}
               className="group relative px-6 py-2.5 font-semibold text-white rounded-xl overflow-hidden shadow-neon"
             >
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500"></span>
               <span className="absolute bottom-0 right-0 block w-64 h-64 mb-32 mr-4 transition duration-500 origin-bottom-left transform rotate-45 translate-x-24 bg-white opacity-10 group-hover:rotate-90 ease"></span>
-              <span className="relative">เข้าสู่ระบบ</span>
+              <span className="relative">{auth('login')}</span>
             </Link>
           </div>
         </nav>
@@ -48,7 +50,7 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-20 text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-primary-600 font-medium mb-8 animate-bounce-light">
           <Sparkles className="w-4 h-4" />
-          <span>คอนเซปต์ใหม่: อร่อย ตาม ลำดับ</span>
+          <span>{t('concept_badge')}</span>
         </div>
 
         <h1 className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white mb-6 tracking-tight">
@@ -63,16 +65,16 @@ export default function HomePage() {
 
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link
-            href="/th/register"
+            href={`/${locale}/register`}
             className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-lg font-bold rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(20,184,166,0.4)]"
           >
             {t('cta')} <ChevronRight className="w-5 h-5" />
           </Link>
           <Link
-            href="/th/demo"
+            href={`/${locale}/demo`}
             className="flex items-center justify-center px-8 py-4 glass-panel text-primary-700 dark:text-primary-300 text-lg font-bold rounded-2xl hover:bg-white/90 transition-all border-2 border-primary-100"
           >
-            ดูตัวอย่าง
+            {t('demo')}
           </Link>
         </div>
       </section>
@@ -82,21 +84,21 @@ export default function HomePage() {
         <div className="glass-panel rounded-3xl p-8 md:p-12 max-w-4xl mx-auto transform hover:-translate-y-2 transition-transform duration-300">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500 mb-4">
-              สูตรลับอายุยืน: กินอย่างไรให้ไม่แก่?
+              {t('concept.title')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 text-lg">
-              นวัตกรรม AI ของเราไม่เพียงนับแคลอรี่ แต่ช่วยจัดลำดับการกิน <span className="font-bold text-primary-600">"ผัก ➔ โปรตีน ➔ แป้ง ➔ หวาน"</span> เพื่อลดน้ำตาลในเลือด
+              {t('concept.description')} <span className="font-bold text-primary-600">{t('concept.sequence_short')}</span>
             </p>
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <SequenceBadge color="bg-nutrition-veggie" step="1" title="ไฟเบอร์" desc="พรีไบโอติกส์" />
+            <SequenceBadge color="bg-nutrition-veggie" step="1" title={t('concept.steps.fiber')} desc={t('concept.steps.fiber_desc')} />
             <ChevronRight className="hidden md:block text-gray-400" />
-            <SequenceBadge color="bg-nutrition-protein" step="2" title="โปรตีน/ไขมัน" desc="ชะลอการย่อย" />
+            <SequenceBadge color="bg-nutrition-protein" step="2" title={t('concept.steps.protein')} desc={t('concept.steps.protein_desc')} />
             <ChevronRight className="hidden md:block text-gray-400" />
-            <SequenceBadge color="bg-nutrition-carb" step="3" title="คาร์โบไฮเดรต" desc="ลดการพุ่งของน้ำตาล" />
+            <SequenceBadge color="bg-nutrition-carb" step="3" title={t('concept.steps.carb')} desc={t('concept.steps.carb_desc')} />
             <ChevronRight className="hidden md:block text-gray-400" />
-            <SequenceBadge color="bg-nutrition-sugar" step="4" title="ของหวาน" desc="ทานสุดท้าย" />
+            <SequenceBadge color="bg-nutrition-sugar" step="4" title={t('concept.steps.sugar')} desc={t('concept.steps.sugar_desc')} />
           </div>
         </div>
       </section>

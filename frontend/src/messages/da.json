@@ -12,6 +12,23 @@
         "subtitle": "Smart Ernæringsassistent til Thaifor mad",
         "description": "Analyser mad med AI, beregn ernæringsscores, og få personlige anbefalinger",
         "cta": "Kom i gang",
+        "demo": "Se Demo",
+        "concept_badge": "Nyt Koncept: Lækkert i Rækkefølge",
+        "concept": {
+            "title": "Hemmeligheden bag et langt liv: Hvordan spiser man uden at ældes?",
+            "description": "Vores AI tæller ikke kun kalorier — den hjælper dig med at spise i den rigtige rækkefølge:",
+            "sequence_short": "\"Grøntsager ➔ Protein ➔ Kulhydrater ➔ Sødt\"",
+            "steps": {
+                "fiber": "Fibre",
+                "fiber_desc": "Præbiotika",
+                "protein": "Protein/Fedt",
+                "protein_desc": "Forsinker fordøjelsen",
+                "carb": "Kulhydrater",
+                "carb_desc": "Reducerer sukkerspidser",
+                "sugar": "Søde sager",
+                "sugar_desc": "Spis til sidst"
+            }
+        },
         "features": {
             "scan": {
                 "title": "Madscanning",

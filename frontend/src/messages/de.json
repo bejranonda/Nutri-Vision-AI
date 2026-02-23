@@ -12,6 +12,23 @@
         "subtitle": "Intelligenter Ernährungsassistent für thailändisches Essen",
         "description": "Analysieren Sie Lebensmittel mit KI, berechnen Sie Ernährungswerte und erhalten Sie personalisierte Empfehlungen",
         "cta": "Loslegen",
+        "demo": "Demo ansehen",
+        "concept_badge": "Neues Konzept: Köstlich in der richtigen Reihenfolge",
+        "concept": {
+            "title": "Das Geheimnis der Langlebigkeit: Wie isst man ohne zu altern?",
+            "description": "Unsere KI zählt nicht nur Kalorien — sie hilft Ihnen, Ihre Mahlzeiten in der richtigen Reihenfolge zu essen:",
+            "sequence_short": "\"Gemüse ➔ Protein ➔ Kohlenhydrate ➔ Süßes\"",
+            "steps": {
+                "fiber": "Ballaststoffe",
+                "fiber_desc": "Präbiotika",
+                "protein": "Protein/Fett",
+                "protein_desc": "Verlangsamt Verdauung",
+                "carb": "Kohlenhydrate",
+                "carb_desc": "Reduziert Zuckerspitzen",
+                "sugar": "Süßigkeiten",
+                "sugar_desc": "Zuletzt essen"
+            }
+        },
         "features": {
             "scan": {
                 "title": "Lebensmittel-Scan",

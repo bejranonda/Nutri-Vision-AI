@@ -12,6 +12,23 @@
     "subtitle": "Smart Nutrition Assistant for Thai Food",
     "description": "Analyze food with AI, calculate nutrition scores, and get personalized recommendations",
     "cta": "Get Started",
+    "demo": "See Demo",
+    "concept_badge": "New Concept: Delicious in Order",
+    "concept": {
+      "title": "The Secret to Longevity: How to Eat Without Aging?",
+      "description": "Our AI doesn't just count calories — it helps you sequence your meals:",
+      "sequence_short": "\"Veggies ➔ Protein ➔ Carbs ➔ Sweets\"",
+      "steps": {
+        "fiber": "Fiber",
+        "fiber_desc": "Prebiotics",
+        "protein": "Protein/Fat",
+        "protein_desc": "Slows digestion",
+        "carb": "Carbohydrates",
+        "carb_desc": "Reduces sugar spikes",
+        "sugar": "Sweets",
+        "sugar_desc": "Eat last"
+      }
+    },
     "features": {
       "scan": {
         "title": "Food Scanning",
