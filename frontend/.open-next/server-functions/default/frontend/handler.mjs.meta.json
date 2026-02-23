@@ -2307,13 +2307,13 @@
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js": {
-      "bytes": 5096,
+    ".open-next/server-functions/default/frontend/.next/server/app/_not-found/page_client-reference-manifest.js": {
+      "bytes": 4557,
       "imports": [],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/frontend/.next/server/app/_not-found/page_client-reference-manifest.js": {
-      "bytes": 4557,
+    ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js": {
+      "bytes": 5096,
       "imports": [],
       "format": "cjs"
     },
@@ -2331,14 +2331,14 @@
           "external": true
         },
         {
-          "path": ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js",
-          "kind": "require-call",
-          "original": "D:\\Git\\Werapol\\Nutri-Vision-AI\\frontend\\.open-next\\server-functions\\default\\frontend\\.next\\server\\app\\[locale]\\page_client-reference-manifest.js"
-        },
-        {
           "path": ".open-next/server-functions/default/frontend/.next/server/app/_not-found/page_client-reference-manifest.js",
           "kind": "require-call",
           "original": "D:\\Git\\Werapol\\Nutri-Vision-AI\\frontend\\.open-next\\server-functions\\default\\frontend\\.next\\server\\app\\_not-found\\page_client-reference-manifest.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js",
+          "kind": "require-call",
+          "original": "D:\\Git\\Werapol\\Nutri-Vision-AI\\frontend\\.open-next\\server-functions\\default\\frontend\\.next\\server\\app\\[locale]\\page_client-reference-manifest.js"
         }
       ],
       "format": "cjs"
@@ -4648,11 +4648,11 @@
         ".open-next/server-functions/default/node_modules/next/dist/compiled/lru-cache/index.js": {
           "bytesInOutput": 9708
         },
-        ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js": {
-          "bytesInOutput": 4846
-        },
         ".open-next/server-functions/default/frontend/.next/server/app/_not-found/page_client-reference-manifest.js": {
-          "bytesInOutput": 4310
+          "bytesInOutput": 4309
+        },
+        ".open-next/server-functions/default/frontend/.next/server/app/[locale]/page_client-reference-manifest.js": {
+          "bytesInOutput": 4847
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/load-manifest.js": {
           "bytesInOutput": 9684

@@ -86,9 +86,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.1] - 2026-02-23
+## [0.2.2] - 2026-02-23
 
 ### Fixed
+- 🚀 **Cloudflare Deployment**: Resolved OpenNext compatibility issues by updating `compatibility_date` to `2024-09-23`.
+- ☁️ **Cloudflare D1 Setup**: Successfully initialized D1 database `nutri-vision-d1` and mapped its ID in `wrangler.toml`.
+- ⚙️ **Deployment Script**: Fixed Powershell execution issues for deployment scripts.
+
+---
+
+## [0.2.1] - 2026-02-23
 - 🛠️ **i18n Refinements**: Replaced hardcoded Thai strings in the UI with dynamic translation keys.
 - 🔗 **Locale Routing**: Fixed hardcoded locale paths in navigation links to use current user locale.
 - 🚀 **SEO & Performance**: 

@@ -1,8 +1,48 @@
 # 🚀 Deployment Guide - NutriVision AI
 
-This guide covers deploying NutriVision AI to production.
+This guide covers deploying NutriVision AI to production using Cloudflare Workers (Recommended) or Docker.
 
-## Quick Deployment (Docker)
+## ☁️ Cloudflare Pages / Workers (Recommended)
+
+Thanks to OpenNext, NutriVision AI can be fully deployed to Cloudflare as a Serverless Edge application.
+
+### Prerequisites
+- Cloudflare Account
+- Cloudflare API Token (with D1, Workers, AI, and Pages Edit permissions)
+- Node.js 18+
+
+### Setup & Deployment
+
+1. **Configure Environment**
+Set the `CLOUDFLARE_API_TOKEN` environment variable in `frontend/.env.local`:
+```env
+CLOUDFLARE_API_TOKEN=your_token_here
+```
+
+2. **Initialize D1 Database**
+```bash
+cd frontend
+npx wrangler d1 create nutri-vision-d1
+```
+Copy the returned `database_id` and update it in `frontend/wrangler.toml`:
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "nutri-vision-d1"
+database_id = "your-database-id"
+```
+
+3. **Build and Deploy**
+```bash
+npm run pages:build
+npx @opennextjs/cloudflare deploy
+```
+
+Your app will be deployed globally on Cloudflare's Edge network with D1 and AI bindings automatically configured via `wrangler.toml`.
+
+---
+
+## 🐳 Quick Deployment (Docker)
 
 ### Prerequisites
 - VPS or cloud server (2GB+ RAM recommended)

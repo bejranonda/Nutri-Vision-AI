@@ -1,3 +1,3 @@
 CREATE TABLE IF NOT EXISTS tags (tag TEXT NOT NULL, path TEXT NOT NULL, UNIQUE(tag, path) ON CONFLICT REPLACE);
      CREATE TABLE IF NOT EXISTS revalidations (tag TEXT NOT NULL, revalidatedAt INTEGER NOT NULL, UNIQUE(tag) ON CONFLICT REPLACE);
-INSERT INTO tags (tag, path) VALUES ("7-0trDKm5NBSm98G_G7Ro/_N_T_/layout", "7-0trDKm5NBSm98G_G7Ro/_not-found"), ("7-0trDKm5NBSm98G_G7Ro/_N_T_/_not-found/layout", "7-0trDKm5NBSm98G_G7Ro/_not-found"), ("7-0trDKm5NBSm98G_G7Ro/_N_T_/_not-found/page", "7-0trDKm5NBSm98G_G7Ro/_not-found"), ("7-0trDKm5NBSm98G_G7Ro/_N_T_/_not-found", "7-0trDKm5NBSm98G_G7Ro/_not-found");
+INSERT INTO tags (tag, path) VALUES ("ff3G9xGhRbDL9QOJQZXlW/_N_T_/layout", "ff3G9xGhRbDL9QOJQZXlW/_not-found"), ("ff3G9xGhRbDL9QOJQZXlW/_N_T_/_not-found/layout", "ff3G9xGhRbDL9QOJQZXlW/_not-found"), ("ff3G9xGhRbDL9QOJQZXlW/_N_T_/_not-found/page", "ff3G9xGhRbDL9QOJQZXlW/_not-found"), ("ff3G9xGhRbDL9QOJQZXlW/_N_T_/_not-found", "ff3G9xGhRbDL9QOJQZXlW/_not-found");

@@ -84,59 +84,44 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose
 - Node.js 18+ and npm 9+
 - Git
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
+- Cloudflare Account & API Token (with D1, Workers AI permissions)
+- Google Gemini API key (Optional for some capabilities)
 
 ### Installation
-
-#### Option 1: Clone from GitHub (Recommended for Development)
 
 1. **Clone the repository**
 ```bash
 git clone https://github.com/bejranonda/Nutri-Vision-AI.git
-cd Nutri-Vision-AI
-```
-
-#### Option 2: Install via npm (For Quick Setup)
-
-```bash
-npx degit bejranonda/Nutri-Vision-AI my-nutrivision-app
-cd my-nutrivision-app
-npm install
+cd Nutri-Vision-AI/frontend
 ```
 
 2. **Set up environment variables**
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Edit `.env` and add your credentials:
+Edit `.env.local` and add your credentials:
 ```env
+CLOUDFLARE_API_TOKEN=your_cloudflare_token
 GEMINI_API_KEY=your_gemini_api_key_here
-SECRET_KEY=your_secret_key_here  # Generate with: openssl rand -hex 32
-JWT_SECRET_KEY=your_jwt_secret_here
 ```
 
-3. **Start the application**
+3. **Initialize Database (Cloudflare D1)**
 ```bash
-docker-compose up -d
+npx wrangler d1 create nutri-vision-d1
 ```
+*Note: Ensure to copy the generated `database_id` into your `wrangler.toml` file.*
 
-4. **Initialize database**
+4. **Install and Run**
 ```bash
-# Run migrations
-docker-compose exec backend alembic upgrade head
-
-# Seed Thai food data
-docker-compose exec backend python app/db/seed_data.py
+npm install
+npm run dev
 ```
 
 5. **Access the application**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
 
 ---
 
