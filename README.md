@@ -51,7 +51,7 @@
 ---
 
 - **🌐 Multi-Language Support**: Full support for Thai, English, German, and Danish via `next-intl`
-- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Pages, D1, and Workers AI
+- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Workers (via OpenNext), D1, and Workers AI
 - **⚡ SEO & Performance**: Optimized font loading, metadata management, and edge-side rendering for a professional global experience.
 
 ---
@@ -75,7 +75,7 @@
 - Recharts - Data visualization
 
 **Infrastructure**
-- Cloudflare Pages - Frontend & API hosting
+- Cloudflare Workers - Frontend & API hosting (via OpenNext)
 - Wrangler - CLI for Cloudflare services
 - GitHub Actions - CI/CD
 

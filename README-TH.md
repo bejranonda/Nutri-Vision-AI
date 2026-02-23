@@ -44,7 +44,7 @@
 - **AI พูดภาษาไทย**: สนทนาธรรมชาติเป็นภาษาไทย
 
 - **🌐 รองรับหลายภาษา**: รองรับภาษาไทย, อังกฤษ, เยอรมัน และเดนมาร์ค ผ่าน `next-intl`
-- **☁️ Cloudflare Edge Deployment**: รันบน Cloudflare Pages, D1 และ Workers AI
+- **☁️ Cloudflare Edge Deployment**: รันบน Cloudflare Workers (ผ่าน OpenNext), D1 และ Workers AI
 - **⚡ ประสิทธิภาพสูง**: ปรับแต่ง SEO, การโหลดฟอนต์ และการประมวลผลบน Edge เพื่อประสบการณ์การใช้งานระดับโลก
 
 ---
@@ -68,7 +68,7 @@
 - Recharts - การแสดงผลข้อมูล
 
 **โครงสร้างพื้นฐาน (Infrastructure)**
-- Cloudflare Pages - โฮสติ้ง Frontend & API
+- Cloudflare Workers - โฮสติ้ง Frontend & API (ผ่าน OpenNext)
 - Wrangler - เครื่องมือจัดการบริการ Cloudflare
 - GitHub Actions - CI/CD
 

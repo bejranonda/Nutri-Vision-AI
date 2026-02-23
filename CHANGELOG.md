@@ -111,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - ☁️ **Infrastructure Paradigm Shift**: Migrated from Dockerized FastAPI & PostgreSQL to a fully serverless Cloudflare architecture.
   - Replaced PostgreSQL with **Cloudflare D1** (SQLite) using Drizzle ORM.
-  - Switched Next.js builds to Edge Worker compatibility via `@cloudflare/next-on-pages`.
+  - Switched Next.js builds to Edge Worker compatibility via **OpenNext** (`@opennextjs/cloudflare`).
   - Shifted AI services to use the Cloudflare Workers AI token.
 
 ### Removed
