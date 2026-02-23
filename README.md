@@ -1,11 +1,13 @@
-# 🥗 NutriVision AI - Smart Recipe Assistant for Modern Nutrition
+# 🍽️ EatInOrder - Smart Food Sequencing for Better Health
 
-[![npm version](https://img.shields.io/npm/v/@nutrivision/nutrivision-ai.svg)](https://www.npmjs.com/package/@nutrivision/nutrivision-ai)
-[![Thai Language](https://img.shields.io/badge/Language-Thai%20%7C%20English-green)](https://github.com/bejranonda/Nutri-Vision-AI)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active-success)](https://github.com/bejranonda/Nutri-Vision-AI)
+[![Version](https://img.shields.io/badge/Version-1.0.0-orange)](https://github.com/bejranonda/Nutri-Vision-AI)
+[![Languages](https://img.shields.io/badge/Languages-TH%20%7C%20EN%20%7C%20DE%20%7C%20DA-blue)](https://github.com/bejranonda/Nutri-Vision-AI)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Pages-purple)](https://pages.cloudflare.com/)
 
-> AI-powered nutrition analysis and recipe assistant specialized in Thai cuisine. Helping Thai people make informed food choices through evidence-based nutrition science.
+> **อร่อย ตาม ลำดับ** — Discover how eating in the right order can reduce blood sugar spikes by up to 70%
+
+**Eat Smart, Live Long** — AI-powered food sequencing and nutrition analysis that helps you enjoy food while protecting your health.
 
 **อ่านภาษาไทย:** [README-TH.md](README-TH.md)
 
@@ -13,46 +15,36 @@
 
 ## 🌟 Features
 
+### 🎯 The "อร่อย ตาม ลำดับ" Concept
+**EatInOrder** is built on the scientifically-proven concept that the **order in which you eat your food matters**:
+
+```
+🥦 Vegetables → 🍗 Protein → 🍚 Carbs → 🍰 Sweets
+   (1st)          (2nd)        (3rd)      (4th)
+```
+
+Following this sequence can reduce blood sugar spikes by up to **70%**!
+
 ### Core Capabilities
-- **🔍 AI Food Recognition**: Snap a photo and instantly identify ingredients using Google Gemini Vision API
-- **📊 8-Dimension Nutrition Scoring**: Comprehensive health analysis including:
-  - Blood Sugar Impact (crucial for Thai diet)
-  - Gut Health Score
-  - Inflammation Score
-  - Nutrient Density
-  - Processing Level
-  - Protein Quality
-  - Micronutrient Coverage
-  - Overall Health Score
+- **🔍 AI Food Scanner**: Snap a photo and instantly identify ingredients with optimal eating sequence
+- **📊 8-Dimension Nutrition Scoring**: Comprehensive health analysis:
+  - 🩸 Blood Sugar Impact
+  - 🦠 Gut Health Score
+  - 🔥 Inflammation Score
+  - 🥬 Nutrient Density
+  - 🏭 Processing Level
+  - 💪 Protein Quality
+  - 💊 Micronutrient Coverage
+  - ⭐ Overall Health Score
 
-- **🍜 Thai Food Specialization**:
-  - 1000+ Thai recipes with nutrition data
-  - Common Thai ingredients database
-  - Cultural context and traditional wisdom
-  - Thai measurement conversions
+- **👨‍🍳 Nong Oishii Mascot**: Your friendly AI nutrition buddy who guides you through food sequencing
 
-- **💬 AI Nutrition Coach**:
-  - Chat with AI nutritionist in Thai or English
-  - Evidence-based recommendations
-  - Personalized advice based on your goals
+- **🎮 Gamification**: Earn points, maintain streaks, and level up your eating habits:
+  - Daily streaks with 🔥 fire effects
+  - Achievement badges
+  - Levels: Beginner → Learner → Practitioner → Master → Blood Sugar Ninja
 
-- **📱 Mobile-First PWA**:
-  - Works like a native app
-  - Offline mode for saved recipes
-  - Quick camera access
-
-### Unique Thai Market Features
-- **Blood Sugar Management**: Specialized for Thai rice-heavy diet
-- **Eating Sequence Education**: Vegetables → Protein → Fat → Carbs → Sweets (70% blood sugar reduction)
-- **Thai Payment Integration**: PromptPay, TrueMoney, Rabbit Line Pay
-- **Line Login**: Popular Thai messaging app integration
-- **Thai Language AI**: Natural Thai conversation with nutrition AI
-
----
-
-- **🌐 Multi-Language Support**: Full support for Thai, English, German, and Danish via `next-intl`
-- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Workers (via OpenNext), D1, and Workers AI
-- **⚡ SEO & Performance**: Optimized font loading, metadata management, and edge-side rendering for a professional global experience.
+- **🌍 Multi-Language**: Full support for Thai, English, German, and Danish
 
 ---
 
@@ -60,24 +52,23 @@
 
 ### Tech Stack
 
-**Serverless Backend (TypeScript)**
-- Next.js Edge APIs - High-performance serverless functions
-- Cloudflare D1 - Primary SQLite-based edge database
-- Cloudflare Workers AI - Llama 3 & and other models for chat and analysis
-- Drizzle ORM - Type-safe database management
-
 **Frontend (TypeScript)**
-- Next.js 14 - React framework with App Router
-- Tailwind CSS - Utility-first styling with Glassmorphism
-- next-intl - Internationalization (Thai, English, German, Danish)
-- TanStack Query - Server state management
-- Zustand - Client state management
-- Recharts - Data visualization
+- Next.js 14 with App Router
+- Tailwind CSS with custom brand design system
+- next-intl for i18n (Thai, English, German, Danish)
+- Glassmorphism UI with playful animations
 
-**Infrastructure**
-- Cloudflare Workers - Frontend & API hosting (via OpenNext)
-- Wrangler - CLI for Cloudflare services
-- GitHub Actions - CI/CD
+**Cloudflare Edge (Serverless)**
+- Cloudflare Pages for deployment
+- Cloudflare D1 for SQLite database
+- Cloudflare Workers AI for nutrition analysis
+- OpenNext adapter for edge compatibility
+
+**Brand Design System**
+- **Primary**: Coral Red (#FF6B6B) - Energy & Appetite
+- **Secondary**: Teal (#4ECDC4) - Health & Freshness
+- **Accent**: Warm Yellow (#FFE66D) - Joy & Optimism
+- **Fonts**: Plus Jakarta Sans, Prompt (Thai), Inter
 
 ---
 
@@ -86,8 +77,7 @@
 ### Prerequisites
 - Node.js 18+ and npm 9+
 - Git
-- Cloudflare Account & API Token (with D1, Workers AI permissions)
-- Google Gemini API key (Optional for some capabilities)
+- Cloudflare Account (free tier works)
 
 ### Installation
 
@@ -102,26 +92,25 @@ cd Nutri-Vision-AI/frontend
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and add your credentials:
-```env
-CLOUDFLARE_API_TOKEN=your_cloudflare_token
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-3. **Initialize Database (Cloudflare D1)**
-```bash
-npx wrangler d1 create nutri-vision-d1
-```
-*Note: Ensure to copy the generated `database_id` into your `wrangler.toml` file.*
-
-4. **Install and Run**
+3. **Install and Run**
 ```bash
 npm install
 npm run dev
 ```
 
-5. **Access the application**
-- Frontend: http://localhost:3000
+4. **Access the application**
+- Local: http://localhost:3000
+- Select your language: 🇹🇭 ไทย | 🇬🇧 EN | 🇩🇪 DE | 🇩🇰 DA
+
+### Deploy to Cloudflare Pages
+
+```bash
+# Build for production
+npm run build
+
+# Deploy with Wrangler
+npx wrangler pages deploy
+```
 
 ---
 
@@ -415,10 +404,10 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 🙏 Acknowledgments
 
-- **Thalay Community** - For nutrition education insights and content inspiration
-- **Google Gemini** - For powerful AI capabilities
+- **Shinny** - For the "อยู่เพื่อกินบำนาญ" philosophy and nutrition education content
+- **Thalay Community** - For evidence-based nutrition research and articles
+- **Cloudflare** - For providing an excellent free-tier edge platform
 - **Thai Food Community** - For recipe contributions and cultural context
-- **Early Beta Testers** - For valuable feedback
 
 ---
 
@@ -462,6 +451,8 @@ If you find this project helpful, please consider giving it a star!
 
 ---
 
-**Made with ❤️ for the Thai community**
+**Made with ❤️ for food lovers everywhere**
 
-*"อยู่ได้นานพร้อมกับกินอาหารอร่อย" - Live long while eating well*
+**"อร่อย ตาม ลำดับ" — Delicious in Order**
+
+*Eat smart, live long, and enjoy every bite!*

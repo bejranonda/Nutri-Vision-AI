@@ -1,153 +1,238 @@
 {
-    "nav": {
-        "home": "Hjem",
-        "dashboard": "Dashboard",
-        "scan": "Scan Mad",
-        "recipes": "Opskrifter",
-        "chat": "Spørg Ekspert",
-        "profile": "Profil"
+  "brand": {
+    "name": "EatInOrder",
+    "tagline": "Lækkert i Rækkefølge",
+    "tagline_thai": "อร่อย ตาม ลำดับ"
+  },
+  "mascot": {
+    "name": "Nong Oishii",
+    "greeting": "Hej! Jeg er Nong Oishii, din makker til madrækkefølge!",
+    "encourage": "Godt gået! Du spiser i den rigtige rækkefølge!",
+    "nudge": "Psst... prøv at spise dine grøntsager først for at reducere blodsukkerstigninger!",
+    "celebrate": "Fantastisk! Du har sekvenseret dit måltid perfekt!"
+  },
+  "nav": {
+    "home": "Hjem",
+    "dashboard": "Dashboard",
+    "scan": "Scan Mad",
+    "recipes": "Opskrifter",
+    "learn": "Lær",
+    "profile": "Profil"
+  },
+  "home": {
+    "title": "EatInOrder",
+    "subtitle": "Spis klogt, lev længe",
+    "description": "Opdag hvordan den rigtige madrækkefølge kan reducere blodsukkerstigninger med op til 70%",
+    "cta": "Begynd at scanne",
+    "demo": "Se hvordan det virker",
+    "concept_badge": "Hemmeligheden: Lækkert i Rækkefølge",
+    "concept": {
+      "title": "Hvordan spiser man uden at ældes?",
+      "description": "Vores AI tæller ikke kun kalorier — den hjælper dig med at sekvensere dine måltider for maksimale sundhedsmæssige fordele:",
+      "sequence_short": "Grøntsager → Protein → Kulhydrater → Sødt",
+      "spike_reduction": "Op til 70% blodsukkerreduktion",
+      "steps": {
+        "fiber": "1. Grøntsager",
+        "fiber_desc": "Fibre beklæder din tarm og bremser sukkeroptagelsen",
+        "protein": "2. Protein & Fedt",
+        "protein_desc": "Udløser GLP-1 hormon for bedre insulinrespons",
+        "carb": "3. Kulhydrater",
+        "carb_desc": "Fibre-skjoldet reducerer sukkerstigningen",
+        "sugar": "4. Søde sager (Valgfrit)",
+        "sugar_desc": "Bedst nydt til sidst når beskyttelsen er på plads"
+      }
     },
-    "home": {
-        "title": "NutriVision AI",
-        "subtitle": "Smart Ernæringsassistent til Thaifor mad",
-        "description": "Analyser mad med AI, beregn ernæringsscores, og få personlige anbefalinger",
-        "cta": "Kom i gang",
-        "demo": "Se Demo",
-        "concept_badge": "Nyt Koncept: Lækkert i Rækkefølge",
-        "concept": {
-            "title": "Hemmeligheden bag et langt liv: Hvordan spiser man uden at ældes?",
-            "description": "Vores AI tæller ikke kun kalorier — den hjælper dig med at spise i den rigtige rækkefølge:",
-            "sequence_short": "\"Grøntsager ➔ Protein ➔ Kulhydrater ➔ Sødt\"",
-            "steps": {
-                "fiber": "Fibre",
-                "fiber_desc": "Præbiotika",
-                "protein": "Protein/Fedt",
-                "protein_desc": "Forsinker fordøjelsen",
-                "carb": "Kulhydrater",
-                "carb_desc": "Reducerer sukkerspidser",
-                "sugar": "Søde sager",
-                "sugar_desc": "Spis til sidst"
-            }
-        },
-        "features": {
-            "scan": {
-                "title": "Madscanning",
-                "description": "Tag et billede og få øjeblikkelig ernæringsinformation"
-            },
-            "score": {
-                "title": "8-dimensionel Sundhedsscore",
-                "description": "Komplet ernæringsanalyse på tværs af alle dimensioner"
-            },
-            "chat": {
-                "title": "AI Konsultation",
-                "description": "Stil alle ernæringsspørgsmål og få ekspert svar"
-            },
-            "recipes": {
-                "title": "Thailandske Opskrifter",
-                "description": "Over 1.000 sunde thailandske opskriftsmuligheder"
-            }
-        }
-    },
-    "scan": {
-        "title": "Scan Mad",
-        "upload": "Upload Billede",
-        "take_photo": "Tag Foto",
-        "analyzing": "Analyserer...",
-        "results": "Analyseresultater",
-        "detected_items": "Registrerede Elementer",
-        "nutrition": "Ernæringsinformation",
-        "scores": {
-            "blood_sugar": "Blodsukkerpåvirkning",
-            "gut_health": "Tarmsundhed",
-            "inflammation": "Inflammation",
-            "nutrient_density": "Næringsstoftæthed",
-            "processing": "Forarbejdningsniveau",
-            "protein_quality": "Proteinkvalitet",
-            "micronutrient": "Vitaminer & Mineraler",
-            "overall": "Samlet Score"
-        }
-    },
-    "chat": {
-        "title": "Ernæringsekspert Konsultation",
-        "placeholder": "Stil et ernæringsspørgsmål...",
-        "send": "Send",
-        "examples": {
-            "title": "Eksempel Spørgsmål",
-            "1": "Hvordan påvirker Som Tam blodsukkeret?",
-            "2": "Hvilke fødevarer er gode for diabetikere?",
-            "3": "Hvordan gør man Pad Thai sundere?"
-        }
-    },
-    "recipes": {
-        "title": "Opskrifter",
-        "search": "Søg opskrifter...",
-        "filters": "Filtre",
-        "categories": {
-            "all": "Alle",
-            "main_dish": "Hovedretter",
-            "soup": "Supper/Karryretter",
-            "salad": "Salater",
-            "dessert": "Desserter",
-            "snack": "Snacks"
-        },
-        "dietary": {
-            "vegetarian": "Vegetarisk",
-            "vegan": "Vegansk",
-            "halal": "Halal",
-            "diabetic_friendly": "Diabetikervenlig",
-            "low_carb": "Low Carb"
-        }
-    },
-    "profile": {
-        "title": "Profil",
-        "personal_info": "Personlige Oplysninger",
-        "health_info": "Sundhedsinformation",
-        "goals": "Mål",
-        "subscription": "Abonnement",
-        "usage": "Brug",
-        "fields": {
-            "name": "Fulde Navn",
-            "email": "E-mail",
-            "age": "Alder",
-            "gender": "Køn",
-            "height": "Højde (cm)",
-            "weight": "Vægt (kg)",
-            "target_weight": "Målvægt (kg)",
-            "goal": "Sundhedsmål",
-            "activity_level": "Aktivitetsniveau"
-        },
-        "subscription_tiers": {
-            "free": "Gratis",
-            "premium": "Premium",
-            "family": "Familie"
-        },
-        "upgrade": "Opgrader"
-    },
-    "auth": {
-        "login": "Log ind",
-        "register": "Registrer",
-        "logout": "Log ud",
-        "email": "E-mail",
-        "password": "Adgangskode",
-        "confirm_password": "Bekræft Adgangskode",
-        "or": "eller",
-        "login_with_google": "Log ind med Google",
-        "login_with_line": "Log ind med Line",
-        "forgot_password": "Glemt adgangskode?"
-    },
-    "common": {
-        "loading": "Indlæser...",
-        "error": "Fejl",
-        "success": "Succes",
-        "save": "Gem",
-        "cancel": "Annuller",
-        "delete": "Slet",
-        "edit": "Rediger",
-        "close": "Luk",
-        "confirm": "Bekræft",
-        "back": "Tilbage",
-        "next": "Næste",
-        "previous": "Forrige",
-        "search": "Søg"
+    "features": {
+      "scan": {
+        "title": "Smart Mad-Scanner",
+        "description": "Tag et billede og få øjeblikkelig ernæringsanalyse med rækkefølge-anbefalinger"
+      },
+      "sequence": {
+        "title": "Rækkefølge-Visualisering",
+        "description": "Se den optimale spiserækkefølge for ethvert måltid"
+      },
+      "score": {
+        "title": "8-dimensional Sundhedsscore",
+        "description": "Komplet ernæringsanalyse på tværs af alle sundhedsdimensioner"
+      },
+      "gamify": {
+        "title": "Gamificeret Sundhed",
+        "description": "Optjen point, hold streaks, og forbedre dine spisevaner"
+      }
     }
+  },
+  "scan": {
+    "title": "Scan Din Mad",
+    "upload": "Upload Billede",
+    "take_photo": "Tag Foto",
+    "analyzing": "Analyserer...",
+    "results": "Analyseresultater",
+    "detected_items": "Registrerede Ingredienser",
+    "nutrition": "Ernæringsinformation",
+    "sequence": {
+      "title": "Optimal Spiserækkefølge",
+      "subtitle": "Følg denne rækkefølge for at reducere blodsukkerstigninger",
+      "spike_reduction": "Estimeret stigningsreduktion",
+      "current_step": "Nuværende trin",
+      "completed": "Rækkefølge gennemført!"
+    },
+    "scores": {
+      "blood_sugar": "Blodsukkerpåvirkning",
+      "gut_health": "Tarmsundhed",
+      "inflammation": "Inflammation",
+      "nutrient_density": "Næringsstoftæthed",
+      "processing": "Forarbejdningsniveau",
+      "protein_quality": "Proteinkvalitet",
+      "micronutrient": "Vitaminer & Mineraler",
+      "overall": "Samlet Score"
+    },
+    "suggestions": {
+      "add_fiber": "Tilføj grøntsager for at reducere blodsukkerstigningen",
+      "great_balance": "God balance! Dette måltid har alle komponenter."
+    }
+  },
+  "learn": {
+    "title": "Lær",
+    "subtitle": "Forstå ernæring for et længere, sundere liv",
+    "articles": {
+      "sugar_basics": {
+        "title": "Hvor godt kender du sukker?",
+        "description": "Lær om det skjulte sukker i din mad og hvordan det påvirker din krop"
+      },
+      "blood_sugar": {
+        "title": "Spis uden blodsukkerstigninger",
+        "description": "Mestrer kunsten at sekvensere mad for bedre glukosekontrol"
+      },
+      "sugar_aging": {
+        "title": "Sukker gør dig gammel",
+        "description": "Opdag hvordan sukker accelererer ældning gennem glykation"
+      },
+      "glycemic_index": {
+        "title": "Forstå Glykæmisk Indeks",
+        "description": "Lær hvilke fødevarer der får dit blodsukker til at stige"
+      },
+      "probiotics": {
+        "title": "Probiotisk Sukker & Tarmsundhed",
+        "description": "Hvordan tarmbakterier påvirker dit stofskifte"
+      }
+    },
+    "progress": "Dit Fremskridt",
+    "quiz": "Tag Quiz"
+  },
+  "chat": {
+    "title": "Spørg Nong Oishii",
+    "subtitle": "Din AI Ernæringsmakker",
+    "placeholder": "Spørg om mad, ernæring eller spiserækkefølge...",
+    "send": "Send",
+    "examples": {
+      "title": "Prøv at spørge:",
+      "1": "Hvordan påvirker Pad Thai mit blodsukker?",
+      "2": "Hvad er den bedste rækkefølge for Som Tam?",
+      "3": "Kan jeg stadig spise sødt? Hvordan?"
+    }
+  },
+  "recipes": {
+    "title": "Sunde Opskrifter",
+    "search": "Søg opskrifter...",
+    "filters": "Filtre",
+    "categories": {
+      "all": "Alle",
+      "main_dish": "Hovedretter",
+      "soup": "Supper/Karryretter",
+      "salad": "Salater",
+      "dessert": "Desserter",
+      "snack": "Snacks"
+    },
+    "dietary": {
+      "vegetarian": "Vegetarisk",
+      "vegan": "Vegansk",
+      "halal": "Halal",
+      "diabetic_friendly": "Diabetikervenlig",
+      "low_carb": "Low Carb"
+    },
+    "sequence_hint": "Bedste spiserækkefølge for denne opskrift"
+  },
+  "gamification": {
+    "points": "Point",
+    "level": "Niveau",
+    "streak": {
+      "title": "Daglig Serie",
+      "days": "dage",
+      "keep_going": "Fortsæt!",
+      "on_fire": "Du brænder!"
+    },
+    "levels": {
+      "beginner": "Begynder",
+      "learner": "Lærende",
+      "practitioner": "Praktiker",
+      "master": "Mester",
+      "ninja": "Blodsukker-Ninja"
+    },
+    "achievements": {
+      "title": "Bedrifter",
+      "first_scan": "Første Scan",
+      "first_sequence": "Rækkefølge-Pro",
+      "week_streak": "Uge-Kriger",
+      "month_streak": "Måned-Mester",
+      "perfect_score": "Perfekt Score"
+    },
+    "daily_challenge": {
+      "title": "Daglig Udfordring",
+      "complete": "Færdig",
+      "claimed": "Hentet!"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "personal_info": "Personlige Oplysninger",
+    "health_info": "Sundhedsoplysninger",
+    "goals": "Mål",
+    "subscription": "Abonnement",
+    "usage": "Forbrugsstatistik",
+    "fields": {
+      "name": "Fulde Navn",
+      "email": "E-mail",
+      "age": "Alder",
+      "gender": "Køn",
+      "height": "Højde (cm)",
+      "weight": "Vægt (kg)",
+      "target_weight": "Målvægt (kg)",
+      "goal": "Sundhedsmål",
+      "activity_level": "Aktivitetsniveau"
+    },
+    "subscription_tiers": {
+      "free": "Gratis",
+      "premium": "Premium",
+      "family": "Familie"
+    },
+    "upgrade": "Opgrader"
+  },
+  "auth": {
+    "login": "Log ind",
+    "register": "Opret konto",
+    "logout": "Log ud",
+    "email": "E-mail",
+    "password": "Adgangskode",
+    "confirm_password": "Bekræft Adgangskode",
+    "or": "eller",
+    "login_with_google": "Log ind med Google",
+    "login_with_line": "Log ind med Line",
+    "forgot_password": "Glemt adgangskode?"
+  },
+  "common": {
+    "loading": "Indlæser...",
+    "error": "Fejl",
+    "success": "Succes",
+    "save": "Gem",
+    "cancel": "Annuller",
+    "delete": "Slet",
+    "edit": "Rediger",
+    "close": "Luk",
+    "confirm": "Bekræft",
+    "back": "Tilbage",
+    "next": "Næste",
+    "previous": "Forrige",
+    "search": "Søg",
+    "language": "Sprog"
+  }
 }

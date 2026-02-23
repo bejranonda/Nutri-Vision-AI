@@ -1,14 +1,14 @@
-name = "nutrivision-ai-frontend"
+name = "eatinorder"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 main = ".open-next/worker.js"
 
 [vars]
-# We will use .env for local dev, and Cloudflare dashboard for production tokens
+# Environment variables set via Cloudflare dashboard
 
 [[d1_databases]]
 binding = "DB"
-database_name = "nutri-vision-d1"
+database_name = "eatinorder-db"
 database_id = "0fde5517-dda7-47e5-8f49-e33027069c1a"
 
 [ai]

@@ -1,61 +1,81 @@
 {
+  "brand": {
+    "name": "EatInOrder",
+    "tagline": "Delicious in Order",
+    "tagline_thai": "อร่อย ตาม ลำดับ"
+  },
+  "mascot": {
+    "name": "Nong Oishii",
+    "greeting": "Hi there! I'm Nong Oishii, your food sequencing buddy!",
+    "encourage": "Great job! You're eating in the right order!",
+    "nudge": "Psst... try eating your veggies first to reduce blood sugar spikes!",
+    "celebrate": "Amazing! You sequenced your meal perfectly!"
+  },
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
     "scan": "Scan Food",
     "recipes": "Recipes",
-    "chat": "Ask Expert",
+    "learn": "Learn",
     "profile": "Profile"
   },
   "home": {
-    "title": "NutriVision AI",
-    "subtitle": "Smart Nutrition Assistant for Thai Food",
-    "description": "Analyze food with AI, calculate nutrition scores, and get personalized recommendations",
-    "cta": "Get Started",
-    "demo": "See Demo",
-    "concept_badge": "New Concept: Delicious in Order",
+    "title": "EatInOrder",
+    "subtitle": "Eat Smart, Live Long",
+    "description": "Discover how eating in the right order can reduce blood sugar spikes by up to 70%",
+    "cta": "Start Scanning",
+    "demo": "See How It Works",
+    "concept_badge": "The Secret: Delicious in Order",
     "concept": {
-      "title": "The Secret to Longevity: How to Eat Without Aging?",
-      "description": "Our AI doesn't just count calories — it helps you sequence your meals:",
-      "sequence_short": "\"Veggies ➔ Protein ➔ Carbs ➔ Sweets\"",
+      "title": "How to Eat Without Aging?",
+      "description": "Our AI doesn't just count calories — it helps you sequence your meals for maximum health benefits:",
+      "sequence_short": "Veggies → Protein → Carbs → Sweets",
+      "spike_reduction": "Up to 70% blood sugar spike reduction",
       "steps": {
-        "fiber": "Fiber",
-        "fiber_desc": "Prebiotics",
-        "protein": "Protein/Fat",
-        "protein_desc": "Slows digestion",
-        "carb": "Carbohydrates",
-        "carb_desc": "Reduces sugar spikes",
-        "sugar": "Sweets",
-        "sugar_desc": "Eat last"
+        "fiber": "1. Vegetables",
+        "fiber_desc": "Fiber coats your gut and slows sugar absorption",
+        "protein": "2. Protein & Fat",
+        "protein_desc": "Triggers GLP-1 hormone for better insulin response",
+        "carb": "3. Carbohydrates",
+        "carb_desc": "The fiber shield reduces the sugar spike",
+        "sugar": "4. Sweets (Optional)",
+        "sugar_desc": "Best enjoyed last when protection is in place"
       }
     },
     "features": {
       "scan": {
-        "title": "Food Scanning",
-        "description": "Snap a photo and get instant nutrition information"
+        "title": "Smart Food Scanner",
+        "description": "Snap a photo and get instant nutrition analysis with sequence recommendations"
+      },
+      "sequence": {
+        "title": "Sequence Visualizer",
+        "description": "See the optimal eating order for any meal"
       },
       "score": {
         "title": "8-Dimension Health Score",
-        "description": "Complete nutritional analysis across all dimensions"
+        "description": "Complete nutritional analysis across all health dimensions"
       },
-      "chat": {
-        "title": "AI Consultation",
-        "description": "Ask any nutrition question and get expert answers"
-      },
-      "recipes": {
-        "title": "Thai Recipes",
-        "description": "Over 1,000 healthy Thai recipe options"
+      "gamify": {
+        "title": "Gamified Health",
+        "description": "Earn points, maintain streaks, and level up your eating habits"
       }
     }
   },
   "scan": {
-    "title": "Scan Food",
+    "title": "Scan Your Food",
     "upload": "Upload Image",
     "take_photo": "Take Photo",
     "analyzing": "Analyzing...",
     "results": "Analysis Results",
-    "detected_items": "Detected Items",
+    "detected_items": "Detected Ingredients",
     "nutrition": "Nutrition Information",
+    "sequence": {
+      "title": "Optimal Eating Order",
+      "subtitle": "Follow this sequence to reduce blood sugar spike",
+      "spike_reduction": "Estimated spike reduction",
+      "current_step": "Current step",
+      "completed": "Sequence completed!"
+    },
     "scores": {
       "blood_sugar": "Blood Sugar Impact",
       "gut_health": "Gut Health",
@@ -65,27 +85,60 @@
       "protein_quality": "Protein Quality",
       "micronutrient": "Vitamins & Minerals",
       "overall": "Overall Score"
+    },
+    "suggestions": {
+      "add_fiber": "Add some vegetables to reduce the blood sugar spike",
+      "great_balance": "Great balance! This meal has all components."
     }
   },
+  "learn": {
+    "title": "Learn",
+    "subtitle": "Understanding nutrition for a longer, healthier life",
+    "articles": {
+      "sugar_basics": {
+        "title": "How Well Do You Know Sugar?",
+        "description": "Learn the hidden sugars in your food and how they affect your body"
+      },
+      "blood_sugar": {
+        "title": "Eat Without Spiking Blood Sugar",
+        "description": "Master the art of food sequencing for better glucose control"
+      },
+      "sugar_aging": {
+        "title": "Sugar Makes You Old",
+        "description": "Discover how sugar accelerates aging through glycation"
+      },
+      "glycemic_index": {
+        "title": "Understanding Glycemic Index",
+        "description": "Learn which foods spike your blood sugar and which don't"
+      },
+      "probiotics": {
+        "title": "Probiotic Sugar & Gut Health",
+        "description": "How gut bacteria affect your metabolism and cravings"
+      }
+    },
+    "progress": "Your Progress",
+    "quiz": "Take Quiz"
+  },
   "chat": {
-    "title": "Nutrition Expert Consultation",
-    "placeholder": "Ask a nutrition question...",
+    "title": "Ask Nong Oishii",
+    "subtitle": "Your AI Nutrition Companion",
+    "placeholder": "Ask about food, nutrition, or eating order...",
     "send": "Send",
     "examples": {
-      "title": "Example Questions",
-      "1": "How does Som Tam affect blood sugar?",
-      "2": "What foods are good for diabetics?",
-      "3": "How to make Pad Thai healthier?"
+      "title": "Try asking:",
+      "1": "How does Pad Thai affect my blood sugar?",
+      "2": "What's the best order to eat Som Tam?",
+      "3": "Can I still eat sweets? How?"
     }
   },
   "recipes": {
-    "title": "Recipes",
+    "title": "Healthy Recipes",
     "search": "Search recipes...",
     "filters": "Filters",
     "categories": {
       "all": "All",
       "main_dish": "Main Dishes",
-      "soup": "Soups/Curries",
+      "soup": "Soups & Curries",
       "salad": "Salads",
       "dessert": "Desserts",
       "snack": "Snacks"
@@ -96,6 +149,37 @@
       "halal": "Halal",
       "diabetic_friendly": "Diabetic Friendly",
       "low_carb": "Low Carb"
+    },
+    "sequence_hint": "Best eating order for this recipe"
+  },
+  "gamification": {
+    "points": "Points",
+    "level": "Level",
+    "streak": {
+      "title": "Daily Streak",
+      "days": "days",
+      "keep_going": "Keep going!",
+      "on_fire": "You're on fire!"
+    },
+    "levels": {
+      "beginner": "Beginner Eater",
+      "learner": "Food Learner",
+      "practitioner": "Sequence Practitioner",
+      "master": "Sequence Master",
+      "ninja": "Blood Sugar Ninja"
+    },
+    "achievements": {
+      "title": "Achievements",
+      "first_scan": "First Scan",
+      "first_sequence": "Sequence Pro",
+      "week_streak": "Week Warrior",
+      "month_streak": "Month Champion",
+      "perfect_score": "Perfect Score"
+    },
+    "daily_challenge": {
+      "title": "Daily Challenge",
+      "complete": "Complete",
+      "claimed": "Claimed!"
     }
   },
   "profile": {
@@ -104,7 +188,7 @@
     "health_info": "Health Information",
     "goals": "Goals",
     "subscription": "Subscription",
-    "usage": "Usage",
+    "usage": "Usage Statistics",
     "fields": {
       "name": "Full Name",
       "email": "Email",
@@ -125,7 +209,7 @@
   },
   "auth": {
     "login": "Login",
-    "register": "Register",
+    "register": "Sign Up",
     "logout": "Logout",
     "email": "Email",
     "password": "Password",
@@ -148,6 +232,7 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "search": "Search"
+    "search": "Search",
+    "language": "Language"
   }
 }
