@@ -50,29 +50,32 @@
 
 ---
 
+- **🌐 Multi-Language Support**: Full support for Thai, English, German, and Danish via `next-intl`
+- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Pages, D1, and Workers AI for maximum performance at the edge.
+
+---
+
 ## 🏗️ Architecture
 
 ### Tech Stack
 
-**Backend (Python)**
-- FastAPI - Modern async API framework
-- PostgreSQL - Primary database
-- Redis - Caching and sessions
-- Google Gemini AI - Image recognition and chat
-- SQLAlchemy - ORM
-- Alembic - Database migrations
+**Serverless Backend (TypeScript)**
+- Next.js Edge APIs - High-performance serverless functions
+- Cloudflare D1 - Primary SQLite-based edge database
+- Cloudflare Workers AI - Llama 3 & and other models for chat and analysis
+- Drizzle ORM - Type-safe database management
 
 **Frontend (TypeScript)**
 - Next.js 14 - React framework with App Router
-- Tailwind CSS - Utility-first styling
-- next-intl - Internationalization (Thai + English)
+- Tailwind CSS - Utility-first styling with Glassmorphism
+- next-intl - Internationalization (Thai, English, German, Danish)
 - TanStack Query - Server state management
 - Zustand - Client state management
 - Recharts - Data visualization
 
 **Infrastructure**
-- Docker & Docker Compose - Containerization
-- Nginx - Reverse proxy
+- Cloudflare Pages - Frontend & API hosting
+- Wrangler - CLI for Cloudflare services
 - GitHub Actions - CI/CD
 
 ---

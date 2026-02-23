@@ -1,0 +1,136 @@
+{
+    "nav": {
+        "home": "Hjem",
+        "dashboard": "Dashboard",
+        "scan": "Scan Mad",
+        "recipes": "Opskrifter",
+        "chat": "Spørg Ekspert",
+        "profile": "Profil"
+    },
+    "home": {
+        "title": "NutriVision AI",
+        "subtitle": "Smart Ernæringsassistent til Thaifor mad",
+        "description": "Analyser mad med AI, beregn ernæringsscores, og få personlige anbefalinger",
+        "cta": "Kom i gang",
+        "features": {
+            "scan": {
+                "title": "Madscanning",
+                "description": "Tag et billede og få øjeblikkelig ernæringsinformation"
+            },
+            "score": {
+                "title": "8-dimensionel Sundhedsscore",
+                "description": "Komplet ernæringsanalyse på tværs af alle dimensioner"
+            },
+            "chat": {
+                "title": "AI Konsultation",
+                "description": "Stil alle ernæringsspørgsmål og få ekspert svar"
+            },
+            "recipes": {
+                "title": "Thailandske Opskrifter",
+                "description": "Over 1.000 sunde thailandske opskriftsmuligheder"
+            }
+        }
+    },
+    "scan": {
+        "title": "Scan Mad",
+        "upload": "Upload Billede",
+        "take_photo": "Tag Foto",
+        "analyzing": "Analyserer...",
+        "results": "Analyseresultater",
+        "detected_items": "Registrerede Elementer",
+        "nutrition": "Ernæringsinformation",
+        "scores": {
+            "blood_sugar": "Blodsukkerpåvirkning",
+            "gut_health": "Tarmsundhed",
+            "inflammation": "Inflammation",
+            "nutrient_density": "Næringsstoftæthed",
+            "processing": "Forarbejdningsniveau",
+            "protein_quality": "Proteinkvalitet",
+            "micronutrient": "Vitaminer & Mineraler",
+            "overall": "Samlet Score"
+        }
+    },
+    "chat": {
+        "title": "Ernæringsekspert Konsultation",
+        "placeholder": "Stil et ernæringsspørgsmål...",
+        "send": "Send",
+        "examples": {
+            "title": "Eksempel Spørgsmål",
+            "1": "Hvordan påvirker Som Tam blodsukkeret?",
+            "2": "Hvilke fødevarer er gode for diabetikere?",
+            "3": "Hvordan gør man Pad Thai sundere?"
+        }
+    },
+    "recipes": {
+        "title": "Opskrifter",
+        "search": "Søg opskrifter...",
+        "filters": "Filtre",
+        "categories": {
+            "all": "Alle",
+            "main_dish": "Hovedretter",
+            "soup": "Supper/Karryretter",
+            "salad": "Salater",
+            "dessert": "Desserter",
+            "snack": "Snacks"
+        },
+        "dietary": {
+            "vegetarian": "Vegetarisk",
+            "vegan": "Vegansk",
+            "halal": "Halal",
+            "diabetic_friendly": "Diabetikervenlig",
+            "low_carb": "Low Carb"
+        }
+    },
+    "profile": {
+        "title": "Profil",
+        "personal_info": "Personlige Oplysninger",
+        "health_info": "Sundhedsinformation",
+        "goals": "Mål",
+        "subscription": "Abonnement",
+        "usage": "Brug",
+        "fields": {
+            "name": "Fulde Navn",
+            "email": "E-mail",
+            "age": "Alder",
+            "gender": "Køn",
+            "height": "Højde (cm)",
+            "weight": "Vægt (kg)",
+            "target_weight": "Målvægt (kg)",
+            "goal": "Sundhedsmål",
+            "activity_level": "Aktivitetsniveau"
+        },
+        "subscription_tiers": {
+            "free": "Gratis",
+            "premium": "Premium",
+            "family": "Familie"
+        },
+        "upgrade": "Opgrader"
+    },
+    "auth": {
+        "login": "Log ind",
+        "register": "Registrer",
+        "logout": "Log ud",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "confirm_password": "Bekræft Adgangskode",
+        "or": "eller",
+        "login_with_google": "Log ind med Google",
+        "login_with_line": "Log ind med Line",
+        "forgot_password": "Glemt adgangskode?"
+    },
+    "common": {
+        "loading": "Indlæser...",
+        "error": "Fejl",
+        "success": "Succes",
+        "save": "Gem",
+        "cancel": "Annuller",
+        "delete": "Slet",
+        "edit": "Rediger",
+        "close": "Luk",
+        "confirm": "Bekræft",
+        "back": "Tilbage",
+        "next": "Næste",
+        "previous": "Forrige",
+        "search": "Søg"
+    }
+}

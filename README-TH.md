@@ -43,6 +43,34 @@
 - **เข้าสู่ระบบด้วย Line**: รองรับแอปยอดนิยมของคนไทย
 - **AI พูดภาษาไทย**: สนทนาธรรมชาติเป็นภาษาไทย
 
+- **🌐 รองรับหลายภาษา**: รองรับภาษาไทย, อังกฤษ, เยอรมัน และเดนมาร์ค ผ่าน `next-intl`
+- **☁️ Cloudflare Edge Deployment**: รันบน Cloudflare Pages, D1 และ Workers AI เพื่อความเร็วสูงสุด
+
+---
+
+## 🏗️ สถาปัตยกรรม (Architecture)
+
+### Tech Stack
+
+**Serverless Backend (TypeScript)**
+- Next.js Edge APIs - ฟังก์ชันไร้เซิร์ฟเวอร์ประสิทธิภาพสูง
+- Cloudflare D1 - ฐานข้อมูล SQLite บน Edge
+- Cloudflare Workers AI - Llama 3 และโมเดลอื่นๆ สำหรับการสนทนา
+- Drizzle ORM - จัดการฐานข้อมูลแบบ Type-safe
+
+**Frontend (TypeScript)**
+- Next.js 14 - React framework พร้อม App Router
+- Tailwind CSS - สไตล์แบบ Glassmorphism
+- next-intl - ระบบหลายภาษา (TH, EN, DE, DA)
+- TanStack Query - จัดการสถานะฝั่งเซิร์ฟเวอร์
+- Zustand - จัดการสถานะฝั่งไคลเอนต์
+- Recharts - การแสดงผลข้อมูล
+
+**โครงสร้างพื้นฐาน (Infrastructure)**
+- Cloudflare Pages - โฮสติ้ง Frontend & API
+- Wrangler - เครื่องมือจัดการบริการ Cloudflare
+- GitHub Actions - CI/CD
+
 ---
 
 ## 🚀 เริ่มต้นใช้งาน

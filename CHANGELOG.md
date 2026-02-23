@@ -86,6 +86,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-02-23
+
+### Added
+- 🌍 **Internationalization (i18n)**: Added Danish (`da`) and German (`de`) language support via `next-intl`.
+- 🎨 **UI/UX Revolution**: 
+  - Dynamic Glassmorphism aesthetic.
+  - "อร่อย ตาม ลำดับ" (Delicious in Order) active sequencing guide component.
+  - New modern typography (`Inter`, `Outfit`) integrated alongside `Sarabun`.
+
+### Changed
+- ☁️ **Infrastructure Paradigm Shift**: Migrated from Dockerized FastAPI & PostgreSQL to a fully serverless Cloudflare architecture.
+  - Replaced PostgreSQL with **Cloudflare D1** (SQLite) using Drizzle ORM.
+  - Switched Next.js builds to Edge Worker compatibility via `@cloudflare/next-on-pages`.
+  - Shifted AI services to use the Cloudflare Workers AI token.
+
+### Removed
+- Removed Docker/docker-compose requirements and FastAPI backend codebase dependencies.
+
+---
+
 ## [Unreleased]
 
 ### Planned Features

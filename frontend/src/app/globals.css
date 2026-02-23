@@ -1,27 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222.2 84% 4.9%; /* Rich dark background */
     --foreground: 210 40% 98%;
+    --card: 217 24% 12%;
+    --card-foreground: 210 40% 98%;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-50 to-background dark:from-slate-900 dark:to-background min-h-screen transition-colors duration-300;
   }
 }
 
-/* Thai font support */
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+/* Glassmorphism utility classes */
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/20 dark:border-slate-700/50 shadow-glass;
+  }
+}
 
 [lang="th"],
 [lang="th"] * {
-  font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
+  font-family: 'Sarabun', 'Inter', system-ui, -apple-system, sans-serif;
 }

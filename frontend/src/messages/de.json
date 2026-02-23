@@ -1,0 +1,136 @@
+{
+    "nav": {
+        "home": "Startseite",
+        "dashboard": "Dashboard",
+        "scan": "Essen scannen",
+        "recipes": "Rezepte",
+        "chat": "Experten fragen",
+        "profile": "Profil"
+    },
+    "home": {
+        "title": "NutriVision AI",
+        "subtitle": "Intelligenter Ernährungsassistent für thailändisches Essen",
+        "description": "Analysieren Sie Lebensmittel mit KI, berechnen Sie Ernährungswerte und erhalten Sie personalisierte Empfehlungen",
+        "cta": "Loslegen",
+        "features": {
+            "scan": {
+                "title": "Lebensmittel-Scan",
+                "description": "Machen Sie ein Foto und erhalten Sie sofortige Nährwertinformationen"
+            },
+            "score": {
+                "title": "8-dimensionale Gesundheitsbewertung",
+                "description": "Vollständige Nährwertanalyse über alle Dimensionen"
+            },
+            "chat": {
+                "title": "KI-Beratung",
+                "description": "Stellen Sie Ernährungsfragen und erhalten Sie Expertenantworten"
+            },
+            "recipes": {
+                "title": "Thailändische Rezepte",
+                "description": "Über 1.000 gesunde thailändische Rezeptoptionen"
+            }
+        }
+    },
+    "scan": {
+        "title": "Essen scannen",
+        "upload": "Bild hochladen",
+        "take_photo": "Foto machen",
+        "analyzing": "Analysiere...",
+        "results": "Analyseergebnisse",
+        "detected_items": "Erkannte Artikel",
+        "nutrition": "Nährwertinformationen",
+        "scores": {
+            "blood_sugar": "Blutzuckerspiegel",
+            "gut_health": "Darmgesundheit",
+            "inflammation": "Entzündung",
+            "nutrient_density": "Nährstoffdichte",
+            "processing": "Verarbeitungsgrad",
+            "protein_quality": "Proteinqualität",
+            "micronutrient": "Vitamine & Mineralien",
+            "overall": "Gesamtbewertung"
+        }
+    },
+    "chat": {
+        "title": "Beratung durch Ernährungsexperten",
+        "placeholder": "Stellen Sie eine Ernährungsfrage...",
+        "send": "Senden",
+        "examples": {
+            "title": "Beispielfragen",
+            "1": "Wie beeinflusst Som Tam den Blutzucker?",
+            "2": "Welche Lebensmittel sind gut für Diabetiker?",
+            "3": "Wie macht man Pad Thai gesünder?"
+        }
+    },
+    "recipes": {
+        "title": "Rezepte",
+        "search": "Rezepte suchen...",
+        "filters": "Filter",
+        "categories": {
+            "all": "Alle",
+            "main_dish": "Hauptgerichte",
+            "soup": "Suppen/Currys",
+            "salad": "Salate",
+            "dessert": "Desserts",
+            "snack": "Snacks"
+        },
+        "dietary": {
+            "vegetarian": "Vegetarisch",
+            "vegan": "Vegan",
+            "halal": "Halal",
+            "diabetic_friendly": "Diabetikerfreundlich",
+            "low_carb": "Low Carb"
+        }
+    },
+    "profile": {
+        "title": "Profil",
+        "personal_info": "Persönliche Daten",
+        "health_info": "Gesundheitsdaten",
+        "goals": "Ziele",
+        "subscription": "Abonnement",
+        "usage": "Nutzung",
+        "fields": {
+            "name": "Vollständiger Name",
+            "email": "E-Mail",
+            "age": "Alter",
+            "gender": "Geschlecht",
+            "height": "Größe (cm)",
+            "weight": "Gewicht (kg)",
+            "target_weight": "Zielgewicht (kg)",
+            "goal": "Gesundheitsziel",
+            "activity_level": "Aktivitätsniveau"
+        },
+        "subscription_tiers": {
+            "free": "Kostenlos",
+            "premium": "Premium",
+            "family": "Familie"
+        },
+        "upgrade": "Upgrade"
+    },
+    "auth": {
+        "login": "Anmelden",
+        "register": "Registrieren",
+        "logout": "Abmelden",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "confirm_password": "Passwort bestätigen",
+        "or": "oder",
+        "login_with_google": "Mit Google anmelden",
+        "login_with_line": "Mit Line anmelden",
+        "forgot_password": "Passwort vergessen?"
+    },
+    "common": {
+        "loading": "Lädt...",
+        "error": "Fehler",
+        "success": "Erfolg",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "delete": "Löschen",
+        "edit": "Bearbeiten",
+        "close": "Schließen",
+        "confirm": "Bestätigen",
+        "back": "Zurück",
+        "next": "Weiter",
+        "previous": "Vorherige",
+        "search": "Suche"
+    }
+}
