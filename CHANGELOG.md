@@ -86,6 +86,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-02-23
+
+### Fixed
+- 🛠️ **i18n Refinements**: Replaced hardcoded Thai strings in the UI with dynamic translation keys.
+- 🔗 **Locale Routing**: Fixed hardcoded locale paths in navigation links to use current user locale.
+- 🚀 **SEO & Performance**: 
+  - Added SEO metadata to the main layout.
+  - Optimized font loading for `Inter` and `Sarabun` (Thai).
+  - Added `antialiased` class for smoother text rendering.
+  - Added missing `drizzle-orm` dependency for edge database schema.
+
+---
+
 ## [0.2.0] - 2026-02-23
 
 ### Added

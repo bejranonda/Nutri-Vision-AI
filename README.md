@@ -51,7 +51,8 @@
 ---
 
 - **🌐 Multi-Language Support**: Full support for Thai, English, German, and Danish via `next-intl`
-- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Pages, D1, and Workers AI for maximum performance at the edge.
+- **☁️ Cloudflare Edge Deployment**: Optimized for Cloudflare Pages, D1, and Workers AI
+- **⚡ SEO & Performance**: Optimized font loading, metadata management, and edge-side rendering for a professional global experience.
 
 ---
 
