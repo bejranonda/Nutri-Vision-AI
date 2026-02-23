@@ -1,7 +1,12 @@
-# NutriVision AI - Comprehensive Project Plan
+# EatInOrder - Comprehensive Project Plan
+
+> **อร่อย ตาม ลำดับ** — Smart Food Sequencing for Better Health
 
 ## 🎯 Project Vision
-A smart nutrition assistant app that empowers Thai users (and later European users) to make informed food choices through AI-powered image recognition, personalized guidance, and evidence-based nutrition education.
+
+A food sequencing app that helps users enjoy food while protecting their health through the scientifically-proven concept of eating in the right order: **Vegetables → Protein → Carbs → Sweets**.
+
+Following this sequence can reduce blood sugar spikes by up to **70%**!
 
 ## 🇹🇭 Thai Market Strategy
 

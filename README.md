@@ -341,23 +341,34 @@ meal_plans
 
 ## 🌍 Internationalization
 
-Supports Thai (default) and English:
+Full support for 4 languages:
+
+| Language | Code | Default |
+|----------|------|---------|
+| 🇹🇭 Thai | `th` | ✅ Yes |
+| 🇬🇧 English | `en` | |
+| 🇩🇪 German | `de` | |
+| 🇩🇰 Danish | `da` | |
 
 ```typescript
 // Access translations
 const t = useTranslations('namespace');
 
-// Thai
-<h1>{t('title')}</h1>  // "NutriVision AI"
+// Example usage
+<h1>{t('title')}</h1>  // "EatInOrder" / "อร่อย ตาม ลำดับ"
 
 // Language switch
-<Link href="/en/dashboard">English</Link>
-<Link href="/th/dashboard">ไทย</Link>
+<Link href="/th">🇹🇭 ไทย</Link>
+<Link href="/en">🇬🇧 EN</Link>
+<Link href="/de">🇩🇪 DE</Link>
+<Link href="/da">🇩🇰 DA</Link>
 ```
 
 Translation files:
 - `frontend/src/messages/th.json`
 - `frontend/src/messages/en.json`
+- `frontend/src/messages/de.json`
+- `frontend/src/messages/da.json`
 
 ---
 
@@ -389,16 +400,10 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 📞 Contact & Support
 
-- **Website**: https://nutrivision.app
-- **Email**: support@nutrivision.app
+- **Live Demo**: https://eatinorder.bwerapol.workers.dev
+- **Repository**: https://github.com/bejranonda/Nutri-Vision-AI
 - **Issues**: https://github.com/bejranonda/Nutri-Vision-AI/issues
 - **Discussions**: https://github.com/bejranonda/Nutri-Vision-AI/discussions
-- **npm Package**: https://www.npmjs.com/package/@nutrivision/nutrivision-ai
-
-### Thai Support
-- **Line Official**: @nutrivisionai
-- **Facebook**: facebook.com/nutrivisionai
-- **Email (Thai)**: support.th@nutrivision.app
 
 ---
 
@@ -413,33 +418,33 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 📈 Roadmap
 
-### Phase 1 (Current) ✅
-- [x] Core food scanning
-- [x] 8-dimension scoring
-- [x] Thai/English support
-- [x] Basic recipe database
-- [x] AI chat
+### v1.0.0 (Current) ✅
+- [x] Rebrand to EatInOrder ("อร่อย ตาม ลำดับ")
+- [x] Food sequencing concept implementation
+- [x] Nong Oishii mascot
+- [x] Gamification (streaks, points, achievements)
+- [x] 4-language support (th, en, de, da)
+- [x] Cloudflare Pages deployment
+- [x] 8-dimension scoring system
 
-### Phase 2 (Q2 2024) 🚧
+### v1.1.0 (Next) 🚧
+- [ ] Food scanner with AI analysis
+- [ ] Sequence visualizer for meals
+- [ ] User authentication
+- [ ] Personal dashboard
+
+### v1.2.0 (Planned) 📋
+- [ ] Recipe database with Thai dishes
+- [ ] GI database integration
+- [ ] AI nutrition coach chat
+- [ ] Meal planning
+
+### v2.0.0 (Future) 🔮
 - [ ] Restaurant menu scanning
 - [ ] Barcode scanner
 - [ ] Fitness tracker integration
-- [ ] Voice input
-- [ ] Meal comparison
-
-### Phase 3 (Q3 2024) 📋
-- [ ] AI meal coach
-- [ ] Recipe creator
-- [ ] Marketplace
-- [ ] Nutritionist consultation
-- [ ] Corporate wellness
-
-### Phase 4 (Q4 2024) 🔮
 - [ ] Smartwatch app
 - [ ] AR food scanning
-- [ ] Blood glucose integration
-- [ ] DNA-based nutrition
-- [ ] International expansion
 
 ---
 
