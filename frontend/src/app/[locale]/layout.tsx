@@ -1,11 +1,12 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
-import { Inter, Sarabun } from "next/font/google";
+import { Inter, Sarabun, Outfit } from "next/font/google";
 import "../globals.css";
 import type { Metadata } from 'next';
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const sarabun = Sarabun({ subsets: ["thai", "latin"], weight: ["300", "400", "500", "600", "700"], variable: '--font-sarabun' });
+const outfit = Outfit({ subsets: ["latin"], variable: '--font-outfit' });
 
 export const metadata: Metadata = {
   title: 'NutriVision AI — Smart Nutrition Assistant',
@@ -22,7 +23,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${sarabun.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${sarabun.variable} ${outfit.variable}`}>
       <body className={`${inter.className} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
