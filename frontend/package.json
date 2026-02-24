@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "pages:build": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion",
+    "pages:build": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion && bash scripts/prepare-pages.sh",
     "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
-    "deploy": "npm run pages:build && npx wrangler pages deploy",
+    "deploy": "npm run pages:build && npx wrangler pages deploy .open-next/assets --project-name=nutri-vision-ai --commit-dirty=true",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
