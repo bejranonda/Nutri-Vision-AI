@@ -14,10 +14,12 @@ Thanks to OpenNext, NutriVision AI can be fully deployed to Cloudflare as a Serv
 ### Setup & Deployment
 
 1. **Configure Environment**
-Set the `CLOUDFLARE_API_TOKEN` environment variable in `frontend/.env.local`:
+Set the `CLOUDFLARE_API_TOKEN` environment variable in `frontend/.env.local` or the root `.env`:
 ```env
 CLOUDFLARE_API_TOKEN=your_token_here
 ```
+
+> **⚠️ Security Tip:** Storing tokens in `.env` files is much safer than hardcoding them. Ensure your `.env` files are included in `.gitignore` to prevent accidental leaks.
 
 2. **Initialize D1 Database**
 ```bash

@@ -91,6 +91,7 @@ cd Nutri-Vision-AI/frontend
 ```bash
 cp .env.example .env.local
 ```
+> **Security Note:** Fill in your API keys in `.env.local`. Never commit your actual `.env` files to Git.
 
 3. **Install and Run**
 ```bash
