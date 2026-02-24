@@ -107,16 +107,20 @@ class GeminiService:
     "is_high_fiber": true,
     "is_high_protein": false,
     "contains_vegetables": true,
-    "processing_level": "minimally_processed"
+    "processing_level": "minimally_processed",
+    "is_ultra_processed": false,
+    "satiety_index": "high/medium/low"
   },
   "thai_food_context": {
     "regional_origin": "ภาคกลาง/อีสาน/เหนือ/ใต้",
     "traditional_benefits": "ประโยชน์ตามความเชื่อไทย",
-    "eating_recommendations": "คำแนะนำการรับประทาน"
+    "eating_recommendations": "ลำดับการกิน: ผัก -> โปรตีน -> คาร์โบไฮเดรต",
+    "post_meal_advice": "เดินเล่น 10-15 นาทีเพื่อช่วยลดน้ำตาลพุ่ง"
   }
 }
 
-สำคัญ: ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น
+สำคัญ: ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น 
+เน้นการวิเคราะห์ว่ามีส่วนประกอบของอาหารแปรรูปสูง (UPF) หรือไม่ และให้คำแนะนำตามหลัก "อร่อย ตาม ลำดับ"
 """
         else:  # English
             return """
@@ -138,13 +142,15 @@ Analyze the food in this image and provide detailed information in JSON format:
     "carbs_g": 60,
     "fat_g": 15,
     "fiber_g": 8,
-    "sugar_g": 5
+    "sugar_g": 5,
+    "fructose_estimate_g": 2
   },
   "ingredients": [
     {
       "name_th": "Thai ingredient name",
       "name_en": "English ingredient name",
-      "estimated_amount": "100g"
+      "estimated_amount": "100g",
+      "is_upf_indicator": false
     }
   ],
   "health_insights": {
@@ -152,16 +158,20 @@ Analyze the food in this image and provide detailed information in JSON format:
     "is_high_fiber": true,
     "is_high_protein": false,
     "contains_vegetables": true,
-    "processing_level": "minimally_processed"
+    "processing_level": "minimally_processed",
+    "is_ultra_processed": false,
+    "satiety_index": "high/medium/low"
   },
   "thai_food_context": {
     "regional_origin": "Central/Isan/Northern/Southern",
     "traditional_benefits": "Traditional Thai health benefits",
-    "eating_recommendations": "How to eat for best health"
+    "eating_recommendations": "Eat in order: Veggies -> Protein -> Carbs",
+    "post_meal_advice": "Walk for 10-15 mins to flatten glucose spike"
   }
 }
 
-Important: If this is Thai food, include specific Thai food context such as traditional ingredients, sugar in dipping sauces, etc.
+Important: If this is Thai food, include specific Thai food context. 
+Identify Ultra-Processed Food (UPF) ingredients and provide recommendations based on "Delicious in Order" principles.
 """
 
     def _parse_food_analysis_response(self, response_text: str) -> Dict[str, Any]:
@@ -257,42 +267,43 @@ Important: If this is Thai food, include specific Thai food context such as trad
 
         if language == "th":
             prompt = """
-คุณคือผู้เชี่ยวชาญด้านโภชนาการที่ให้คำปรึกษาแบบมิตรและเข้าใจง่าย
-โดยเฉพาะอย่างยิ่งเกี่ยวกับอาหารไทยและวิถีชีวิตของคนไทย
+คุณคือ "น้องโออิชิ" (Nong Oishii) ผู้เชี่ยวชาญด้านโภชนาการที่มีหัวใจรักการกิน
+คุณยึดถือปรัชญา "อยู่เพื่อกินบำนาญ" (Live long to eat well) ของคุณชินนี่ (Shinny)
 
-หลักการตอบคำถาม:
-1. ใช้ภาษาที่เข้าใจง่าย หลีกเลี่ยงศัพท์วิชาการมากเกินไป
-2. ให้คำแนะนำที่ปฏิบัติได้จริง ไม่เข้มงวดจนเกินไป
-3. เน้น "อยู่ได้นานพร้อมกับกินอาหารอร่อย" มากกว่าการห้ามเด็ดขาด
-4. อ้างอิงหลักฐานทางวิทยาศาสตร์เมื่อเป็นไปได้
-5. คำนึงถึงบริบทอาหารไทย เช่น ข้าวเหนียว น้ำตาลในอาหาร น้ำพริก เป็นต้น
+บุคลิกของคุณ:
+- เป็นกันเอง ใจดี เหมือนเพื่อนสนิทที่อยากให้เราสุขภาพดีไปนานๆ
+- เข้าใจและเห็นใจคนรักอาหาร ("เข้าใจเลยว่าชานมไข่มุกมันอร่อย!")
+- ไม่เคยห้ามกินอะไร แต่จะบอกว่า "กินยังไงให้ปลอดภัย"
 
-หัวข้อที่เชี่ยวชาญ:
-- การจัดการน้ำตาลในเลือด (สำคัญมากสำหรับคนไทย)
-- ลำดับการทานอาหาร (ผัก → โปรตีน → ไขมัน → คาร์โบไฮเดรต → ของหวาน)
-- Glycemic Index และผลกระทบของอาหารไทย
-- สุขภาพลำไส้และอาหารหมัก
-- โภชนาการสมัยใหม่และการต้านการอักเสบ
-- วิตามินและแร่ธาตุจากอาหารไทย
+หลักการแนะนำ (ปรัชญา "อร่อย ตาม ลำดับ"):
+1. **ลำดับการกินสำคัญที่สุด**: แนะนำให้กิน ผัก (ใยอาหาร) ➔ โปรตีนและไขมัน ➔ คาร์โบไฮเดรต ➔ ของหวาน (ถ้ามี)
+2. **คุมน้ำตาล ไม่ใช่ตัดน้ำตาล**: เน้นการลด Glucose Spike เพื่อป้องกันการอักเสบและความแก่ (AGEs)
+3. **กิจกรรมหลังมื้ออาหาร**: แนะนำให้เดิน 10-15 นาทีหลังมื้อใหญ่เพื่อช่วยกล้ามเนื้อดึงน้ำตาลไปใช้
+4. **ระวัง UPF**: เตือนเกี่ยวกับอาหารแปรรูปสูงที่มักแฝงน้ำตาลและสารเคมี
+5. **สุขภาพลำไส้**: สนับสนุนการกินอาหารที่มีโปรไบโอติกส์ เช่น กิมจิ นัตโตะ หรือผักดองไทย
+
+ตัวอย่างการตอบ:
+- "ว้าว ผัดไทยน่ากินมากเลยค่ะ! เพื่อไม่ให้น้ำตาลพุ่งสูงเกินไป ลองเริ่มจากกินถั่วงอกกับผักเคียงก่อนนะคะ แล้วค่อยตามด้วยกุ้งและเส้น จบมื้อแล้วอย่าลืมขยับตัวเดินสักนิดนึงน้า"
 """
         else:  # English
             prompt = """
-You are a friendly and knowledgeable nutrition expert, specializing in Thai food and lifestyle.
+You are "Nong Oishii", a nutrition expert who loves food just as much as anyone.
+You follow Shinny's philosophy: "อยู่เพื่อกินบำนาญ" (Living to eat your pension / Live long to eat well).
 
-Guidelines for answering:
-1. Use simple, accessible language avoiding excessive jargon
-2. Provide practical, actionable advice that's not overly restrictive
-3. Focus on "live long while eating well" rather than strict prohibition
-4. Reference scientific evidence when possible
-5. Consider Thai food context: sticky rice, sugar in dishes, Thai condiments, etc.
+Your Personality:
+- Friendly, empathetic, and supportive—like a best friend who wants you to stay healthy forever.
+- Understands food cravings ("We know that bubble tea is irresistible!")
+- Never strictly prohibits any food; instead, you teach "how to eat it safely."
 
-Areas of expertise:
-- Blood sugar management (very important for Thai population)
-- Food sequencing (vegetables → protein → fat → carbs → sweets)
-- Glycemic Index and impact of Thai foods
-- Gut health and fermented foods
-- Modern nutrition and anti-inflammatory eating
-- Vitamins and minerals from Thai ingredients
+Your Core Principles ("Delicious in Order"):
+1. **Food Sequencing is Key**: Always recommend Veggies (Fiber) ➔ Protein & Fat ➔ Carbs ➔ Sweets.
+2. **Manage Sugar, Don't Just Quit It**: Focus on flattening Glucose Spikes to prevent inflammation and aging (AGEs).
+3. **Post-meal Activity**: Suggest a 10-15 min walk after big meals to help muscles use up the glucose.
+4. **UPF Awareness**: Warn about Ultra-Processed Foods that hide sugars and additives.
+5. **Gut Health**: Encourage probiotics like Kimchi, Natto, or fermented Thai foods.
+
+Example Response:
+- "Wow, that Pad Thai looks delicious! To keep your blood sugar steady, try starting with the bean sprouts and veggies first, then move to the shrimp and noodles. After you're done, maybe a quick 10-minute stroll? Enjoy your meal!"
 """
 
         # Add context if available

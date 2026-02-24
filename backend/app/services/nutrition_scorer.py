@@ -50,18 +50,13 @@ class NutritionScorer:
         """
         Calculate blood sugar impact score (0-100).
         Based on glycemic load, fiber content, and carb quality.
-
-        Score breakdown:
-        - 90-100: Very low impact (GL < 10)
-        - 70-89: Low impact (GL 10-19)
-        - 50-69: Medium impact (GL 20-29)
-        - 30-49: High impact (GL 30-39)
-        - 0-29: Very high impact (GL > 40)
+        Includes penalties for fructose and bonuses for fiber-to-carb ratio.
         """
         try:
             carbs = nutrition_data.get("carbs_g", 0)
             fiber = nutrition_data.get("fiber_g", 0)
             sugar = nutrition_data.get("sugar_g", 0)
+            fructose = nutrition_data.get("fructose_estimate_g", 0)
             glycemic_index = nutrition_data.get("glycemic_index", 70)  # Default medium GI
 
             # Calculate glycemic load: (GI × carbs) / 100
@@ -80,15 +75,28 @@ class NutritionScorer:
             else:
                 base_score = max(0, 40 - (glycemic_load - 40) * 2)
 
-            # Bonus for high fiber
+            # Bonus for high fiber (Protective shield)
             if fiber > 0:
-                fiber_bonus = min(15, fiber * 2)
-                base_score += fiber_bonus
+                # Fiber-to-carb ratio (ideal is 1:5 or better)
+                if net_carbs > 0:
+                    ratio = fiber / net_carbs
+                    if ratio >= 0.2:
+                        base_score += 15
+                    elif ratio >= 0.1:
+                        base_score += 5
+                else:
+                    base_score += 10
 
             # Penalty for high sugar
             if sugar > 20:
                 sugar_penalty = min(20, (sugar - 20) * 2)
                 base_score -= sugar_penalty
+
+            # Specific penalty for fructose (Liver burden)
+            if fructose > 10:
+                base_score -= 15
+            elif fructose > 5:
+                base_score -= 5
 
             return max(0, min(100, int(base_score)))
 
@@ -284,15 +292,12 @@ class NutritionScorer:
     ) -> int:
         """
         Calculate processing level score (0-100).
-        Based on NOVA classification.
-        NOVA 1 (unprocessed) = 100
-        NOVA 2 (processed culinary ingredients) = 75
-        NOVA 3 (processed foods) = 50
-        NOVA 4 (ultra-processed) = 25
+        Based on NOVA classification and UPF indicators.
         """
         try:
             # Get NOVA classification if available
             nova = nutrition_data.get("nova_classification", None)
+            is_upf = nutrition_data.get("is_ultra_processed", False)
 
             if nova:
                 nova_scores = {1: 100, 2: 75, 3: 50, 4: 25}
@@ -305,13 +310,15 @@ class NutritionScorer:
                 if ingredients:
                     processed_indicators = [
                         "artificial", "preservative", "flavoring",
-                        "coloring", "emulsifier", "sweetener"
+                        "coloring", "emulsifier", "sweetener", "maltodextrin",
+                        "high fructose corn syrup", "hydrogenated"
                     ]
 
                     for ingredient in ingredients:
                         if isinstance(ingredient, dict):
-                            name = ingredient.get("name_en", "").lower()
-                            if any(ind in name for ind in processed_indicators):
+                            name = (ingredient.get("name_en", "") + " " + 
+                                   str(ingredient.get("is_upf_indicator", ""))).lower()
+                            if any(ind in name for ind in processed_indicators) or "true" in name:
                                 base_score -= 10
 
                 # High sodium often indicates processing
@@ -321,10 +328,10 @@ class NutritionScorer:
                 elif sodium > 400:
                     base_score -= 5
 
-                # High sugar in non-fruit items
-                sugar = nutrition_data.get("sugar_g", 0)
-                if sugar > 15 and not nutrition_data.get("is_fruit", False):
-                    base_score -= 10
+            # Significant penalty for explicit UPF flag
+            if is_upf:
+                base_score = min(base_score, 30)
+                base_score -= 10
 
             return max(0, min(100, int(base_score)))
 

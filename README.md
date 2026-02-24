@@ -27,17 +27,13 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 
 ### Core Capabilities
 - **🔍 AI Food Scanner**: Snap a photo and instantly identify ingredients with optimal eating sequence
-- **📊 8-Dimension Nutrition Scoring**: Comprehensive health analysis:
-  - 🩸 Blood Sugar Impact
-  - 🦠 Gut Health Score
-  - 🔥 Inflammation Score
-  - 🥬 Nutrient Density
-  - 🏭 Processing Level
-  - 💪 Protein Quality
-  - 💊 Micronutrient Coverage
-  - ⭐ Overall Health Score
-
-- **👨‍🍳 Nong Oishii Mascot**: Your friendly AI nutrition buddy who guides you through food sequencing
+- **🧪 Advanced Metabolic Analysis**: Detects **Ultra-Processed Foods (UPF)** and estimates **fructose** content (The Liver's Burden)
+- **📊 8-Dimension Nutrition Scoring**: Comprehensive health analysis including:
+  - 🩸 **Blood Sugar Impact**: Now with fructose penalties and fiber-to-carb ratio bonuses
+  - 🏭 **Processing Level Score**: Heavy penalties for UPFs and industrial additives
+  - 🧬 **Satiety Index**: Prediction of how long you'll stay full based on fiber + protein
+- **👨‍🍳 Nong Oishii Mascot**: Your friendly AI nutrition buddy who follows the **"Live Long to Eat Well"** philosophy
+- **🚶‍♂️ Post-Meal "Glucose Walk"**: Proactive prompts for 10-15 min walks to flatten glucose spikes
 
 - **🎮 Gamification**: Earn points, maintain streaks, and level up your eating habits:
   - Daily streaks with 🔥 fire effects
@@ -410,7 +406,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 🙏 Acknowledgments
 
-- **Shinny** - For the "อยู่เพื่อกินบำนาญ" philosophy and nutrition education content
+- **Shinny (ชินนี่)** - For the "อยู่เพื่อกินบำนาญ" (Live long to eat well) philosophy, YouTube series, and nutrition education content
 - **Thalay Community** - For evidence-based nutrition research and articles
 - **Cloudflare** - For providing an excellent free-tier edge platform
 - **Thai Food Community** - For recipe contributions and cultural context

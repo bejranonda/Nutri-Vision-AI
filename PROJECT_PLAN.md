@@ -27,17 +27,15 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 - Recognition of Thai ingredients: galangal, lemongrass, kaffir lime
 - Thai market/street food identification
 
-#### 2. **Thai-Specific Nutrition Education** (Based on Thalay.eu approach)
+#### 2. **Thai-Specific Nutrition Education** (Based on Thalay.eu and "อยู่เพื่อกินบำนาญ" approach)
 - **Blood Sugar Management**: Critical for Thai diet (high rice consumption)
-  - Eating sequence education: vegetables → protein → fat → carbs → sweets
-  - 70% reduction in blood sugar spikes when following proper sequence
-  - Glycemic Index (GI) education for Thai foods
-  - Sticky rice (GI: 90) vs Brown rice (GI: 50) comparisons
+  - **"อร่อย ตาม ลำดับ" (Food Sequencing)**: ผัก → โปรตีน → ไขมัน → คาร์โบไฮเดรต → ของหวาน (ลดน้ำตาลพุ่ง 70%)
+  - **"Glucose Walk"**: Encouraging a 10-15 minute walk immediately after meals to help muscles absorb glucose.
+  - **Fructose Awareness**: Educating on the "Liver's Burden" from fruit juices and hidden sugars in Thai sauces.
 
-- **Sugar Awareness**:
-  - Thai-style sweetened beverages analysis
-  - Bubble tea / Thai tea nutrition facts
-  - Hidden sugars in Thai sauces and condiments
+- **Ultra-Processed Foods (UPF) Awareness**:
+  - Detection and scoring of industrial additives and hyper-palatable formulations.
+  - Focus on whole foods vs. "ingredients not found in a home kitchen."
 
 - **Traditional Wisdom Integration**:
   - Thai herbal ingredients benefits
@@ -191,11 +189,11 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 - **Substitution Suggestions**: Healthier alternatives for ingredients
 - **Portion Recommendations**: Based on user goals
 
-### 4. AI Nutrition Chat
-- **Gemini-Powered**: Natural conversation in Thai or English
-- **Context-Aware**: Remembers user's dietary preferences and goals
-- **Evidence-Based**: Cites scientific sources
-- **Thai Food Expertise**: Specialized knowledge of Thai cuisine
+### 4. AI Nutrition Chat ("Ask Nong Oishii")
+- **Gemini-Powered**: Natural conversation in Thai or English with a friendly, empathetic personality.
+- **"Live Long to Eat Well" Philosophy**: Based on Shinny's "อยู่เพื่อกินบำนาญ" concept—focusing on how to eat safely rather than strict prohibition.
+- **Context-Aware**: Remembers user's dietary preferences and goals.
+- **Evidence-Based**: Cites scientific sources regarding Glucose Spikes, AGEs, and metabolic health.
 - **Question Examples**:
   - "Som Tam มีผลต่อน้ำตาลในเลือดอย่างไร?" (How does Som Tam affect blood sugar?)
   - "อาหารไหนดีสำหรับเบาหวาน?" (What foods are good for diabetes?)

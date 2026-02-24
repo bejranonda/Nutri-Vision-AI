@@ -9,7 +9,9 @@
     "greeting": "Hi there! I'm Nong Oishii, your food sequencing buddy!",
     "encourage": "Great job! You're eating in the right order!",
     "nudge": "Psst... try eating your veggies first to reduce blood sugar spikes!",
-    "celebrate": "Amazing! You sequenced your meal perfectly!"
+    "celebrate": "Amazing! You sequenced your meal perfectly!",
+    "walking": "This meal was a bit heavy. How about a 10-minute walk to help manage that sugar spike?",
+    "upf_alert": "Oops! This meal seems to have many ultra-processed (UPF) ingredients. Eat mindfully!"
   },
   "nav": {
     "home": "Home",

@@ -75,31 +75,41 @@ A healthy microbiome ferments fiber into **short-chain fatty acids (SCFAs)**, wh
 
 ---
 
-## Source Articles (thalay.eu)
+## Expanded Insights (from "อยู่เพื่อกินบำนาญ" Series)
 
-1. **How Well Do You Know Sugar?**
-   - Hidden sugars in everyday foods
-   - Sugar's effect on metabolism
+### 4. Post-Meal Activity: The "Glucose Walk"
+Walking for just 10-15 minutes immediately after a meal helps muscles absorb glucose from the bloodstream, significantly flattening the glucose spike without requiring more insulin.
 
-2. **How to Eat Without Spiking Blood Sugar**
-   - Food sequencing methodology
-   - Practical tips for everyday meals
+### 5. Ultra-Processed Foods (UPF)
+UPFs are engineered to be hyper-palatable and often lack the cellular structure of whole foods.
+- **Impact**: They bypass the natural digestion signals, leading to overeating and rapid sugar spikes.
+- **Detection**: Look for "ingredients you wouldn't find in a home kitchen" (emulsifiers, stabilizers, flavor enhancers).
 
-3. **Sugar Makes You Old**
-   - Glycation process explained
-   - Anti-aging through blood sugar control
+### 6. Fructose: The Liver's Burden
+Unlike glucose, which every cell can use, fructose is primarily processed by the liver.
+- **Excess Fructose**: Leads to Non-Alcoholic Fatty Liver Disease (NAFLD) and increased uric acid.
+- **Hidden Sources**: High-fructose corn syrup in sauces, dressings, and even "healthy" fruit juices (which lack the fiber of the whole fruit).
 
-4. **Understanding Glycemic Index**
-   - GI values for common foods
-   - How to use GI for better food choices
-
-5. **Probiotic Sugar & Gut Health**
-   - Microbiome's role in metabolism
-   - Prebiotics vs probiotics
+### 7. Blood Fats & Satiety
+- **Lipid Impact**: High sugar intake (especially fructose) increases triglycerides and small dense LDL particles (the dangerous kind).
+- **False Hunger**: Sugar spikes followed by crashes trigger "ghrelin" (hunger hormone), making you feel hungry even after a large meal.
 
 ---
 
-## Integration Plan for EatInOrder
+## Source Articles & Videos
+
+### YouTube Playlist: อยู่เพื่อกินบำนาญ
+1. **Understanding Sugar**: How it hides in Thai food.
+2. **Food Sequencing**: The 🥦 → 🍗 → 🍚 method.
+3. **Glycation & Aging**: How sugar "rusts" your body.
+4. **Spotting Spikes**: Learning to read nutrition labels and ingredients.
+5. **Sugar & Probiotics**: The battle in your gut.
+6. **Fructose deep-dive**: Why fruit juice isn't the same as fruit.
+7. **UPF Awareness**: Part 1 & 2 on how industrial food affects metabolism.
+
+---
+
+## Integration Plan for Nutri-Vision-AI
 
 ### 1. Visual "อร่อย ตาม ลำดับ" Indicator
 When a user scans a meal (e.g., Pad Thai), the app will:
@@ -108,16 +118,15 @@ When a user scans a meal (e.g., Pad Thai), the app will:
 - Display a step-by-step progress bar (🥦 ➔ 🍗 ➔ 🍚)
 
 ### 2. Health Score Enhancement
-The 8-dimension scoring system heavily weights "Blood Sugar Impact":
-- Fiber presence relative to carbs
-- Protein content for GLP-1 stimulation
-- Proactive suggestions: "Add a side of leafy greens to lower the blood sugar spike by 40%!"
+- **Blood Sugar Score**: Penalize high fructose and UPF indicators.
+- **Satiety Index**: New internal metric based on fiber + protein vs. refined carbs.
+- **Activity Prompt**: "Ready for a 10-minute stroll? It'll help manage your blood sugar after this meal!"
 
 ### 3. Nong Oishii AI Coach
 The mascot adopts Shinny's empathetic tone:
 - Acknowledges the love for food
 - Gently guides users on safe eating sequences
-- Celebrates good choices with encouragement
+- Explains the "Why" (e.g., "This walk helps your muscles eat the sugar before it turns to fat!")
 
 ---
 
