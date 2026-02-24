@@ -7,7 +7,7 @@
     "build": "next build",
     "pages:build": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion",
     "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
-    "deploy": "npm run pages:build && npx @opennextjs/cloudflare deploy",
+    "deploy": "npm run pages:build && npx wrangler pages deploy",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },

@@ -1,7 +1,7 @@
 name = "eatinorder"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-main = ".open-next/worker.js"
+pages_build_output_dir = ".open-next/assets"
 
 [vars]
 # Environment variables set via Cloudflare dashboard
