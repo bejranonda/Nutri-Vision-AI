@@ -66,6 +66,7 @@ db.sqlite3
 # IDEs
 .vscode/
 .idea/
+.dev/
 *.swp
 *.swo
 *~
