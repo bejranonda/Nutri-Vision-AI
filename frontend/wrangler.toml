@@ -1,7 +1,7 @@
 name = "nutri-vision-ai"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".open-next/assets"
+pages_build_output_dir = "./.open-next/assets"
 
 [vars]
 # Environment variables set via Cloudflare dashboard
