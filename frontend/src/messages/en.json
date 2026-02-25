@@ -235,6 +235,14 @@
     "next": "Next",
     "previous": "Previous",
     "search": "Search",
-    "language": "Language"
+    "language": "Language",
+    "back_to_home": "Back to Home"
+  },
+  "coming_soon": {
+    "scan": "This feature is coming soon! Our AI is still learning the optimal eating orders.",
+    "demo": "This feature is coming soon! Our interactive demo is currently under construction.",
+    "login": "This feature is coming soon! Authentication is currently being implemented.",
+    "dashboard": "This feature is coming soon! Your personal dashboard is being prepared by our AI.",
+    "recipes": "This feature is coming soon! Our chefs and AI are cooking up some recipes."
   }
 }

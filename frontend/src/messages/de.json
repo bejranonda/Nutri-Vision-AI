@@ -233,6 +233,14 @@
     "next": "Weiter",
     "previous": "Vorherige",
     "search": "Suche",
-    "language": "Sprache"
+    "language": "Sprache",
+    "back_to_home": "Zurück zur Startseite"
+  },
+  "coming_soon": {
+    "scan": "Dieses Feature kommt bald! Unsere KI lernt noch die optimale Essensreihenfolge.",
+    "demo": "Dieses Feature kommt bald! Unsere interaktive Demo ist gerade im Aufbau.",
+    "login": "Dieses Feature kommt bald! Die Authentifizierung wird gerade implementiert.",
+    "dashboard": "Dieses Feature kommt bald! Dein persönliches Dashboard wird von unserer KI vorbereitet.",
+    "recipes": "Dieses Feature kommt bald! Unsere Köche und KI kochen gerade einige Rezepte."
   }
 }

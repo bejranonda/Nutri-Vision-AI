@@ -40,7 +40,9 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
   - Achievement badges
   - Levels: Beginner → Learner → Practitioner → Master → Blood Sugar Ninja
 
-- **🌍 Multi-Language**: Full support for Thai, English, German, and Danish
+- **🌐 Multi-Language**: Full support for Thai, English, German, and Danish with space-saving **Dropdown Language Switcher**.
+- **📱 Responsive Design**: Fully mobile-optimized header with hamburger menu for smaller screens.
+- **🚀 Seamless UX**: Interactive "Coming Soon" placeholder pages for all featured sections ensuring a high-quality user journey even for features currently in development.
 
 ---
 

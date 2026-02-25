@@ -233,6 +233,14 @@
     "next": "Næste",
     "previous": "Forrige",
     "search": "Søg",
-    "language": "Sprog"
+    "language": "Sprog",
+    "back_to_home": "Tilbage til forsiden"
+  },
+  "coming_soon": {
+    "scan": "Denne funktion kommer snart! Vores AI lærer stadig den optimale spiserækkefølge.",
+    "demo": "Denne funktion kommer snart! Vores interaktive demo er under opbygning.",
+    "login": "Denne funktion kommer snart! Autentificering er under implementering.",
+    "dashboard": "Denne funktion kommer snart! Dit personlige dashboard forberedes af vores AI.",
+    "recipes": "Denne funktion kommer snart! Vores kokke og AI laver opskrifter."
   }
 }

@@ -134,6 +134,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📂 **Business Strategy Research**: Added comprehensive business documentation under `research/business/` covering concept, approach, and monetization strategies.
 - 🌍 **Internationalization Updates**: Updated mascot name and persona across all supported languages (TH, EN, DE, DA).
 - 🎨 **Visual Identity**: Replaced chef mascot emoji with teacher/expert emoji to better reflect Shinny's role as a nutrition guru.
+- 🔗 **Routing Fixes**: Added themed "Coming Soon" placeholder pages for `/scan`, `/demo`, `/login`, `/dashboard`, and `/recipes` to improve the visitor user journey.
+- 🌍 **UX/i18n Improvements**:
+  - Implemented a space-saving **Dropdown Language Switcher**.
+  - Added `coming_soon` translation keys across all 4 supported languages.
+- 📱 **Mobile Responsiveness**: Added a hamburger menu and optimized the header layout for mobile screens.
 
 ### Planned Features
 - Restaurant menu scanning

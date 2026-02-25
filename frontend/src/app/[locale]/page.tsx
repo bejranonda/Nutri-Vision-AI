@@ -1,8 +1,9 @@
 'use client';
 
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Scan, MessageCircle, BookOpen, Sparkles, HeartPulse, ChevronRight, Utensils, Award, Flame, Languages } from 'lucide-react';
+import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Utensils, Award, Flame, Menu, X } from 'lucide-react';
 
 export default function HomePage() {
   const t = useTranslations('home');
@@ -12,6 +13,7 @@ export default function HomePage() {
   const tMascot = useTranslations('mascot');
   const tGamify = useTranslations('gamification');
   const locale = useLocale();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50">
@@ -21,19 +23,20 @@ export default function HomePage() {
       <div className="absolute -bottom-1/4 left-1/4 w-1/2 h-1/2 bg-brand-accent-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '4s' }}></div>
 
       {/* Header */}
-      <header className="container mx-auto px-4 py-6 relative z-10 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
+      <header className="container mx-auto px-4 py-4 md:py-6 relative z-10 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-2xl flex items-center justify-center shadow-brand transform hover:rotate-6 transition-transform">
-              <Utensils className="text-white w-6 h-6" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-2xl flex items-center justify-center shadow-brand transform hover:rotate-6 transition-transform">
+              <Utensils className="text-white w-5 h-5 md:w-6 md:h-6" />
             </div>
             <div>
-              <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500">{tBrand('name')}</span>
-              <p className="text-xs text-brand-neutral/60 font-medium">{tBrand('tagline')}</p>
+              <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500">{tBrand('name')}</span>
+              <p className="text-xs text-brand-neutral/60 font-medium hidden sm:block">{tBrand('tagline')}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-6">
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center space-x-6">
             <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors">
               {tNav('dashboard')}
             </Link>
@@ -53,7 +56,37 @@ export default function HomePage() {
               <span className="relative">{tAuth('login')}</span>
             </Link>
           </div>
+
+          {/* Mobile Hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <LanguageSwitcher currentLocale={locale} />
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+            </button>
+          </div>
         </nav>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pt-4 border-t border-gray-200/50 flex flex-col gap-3 animate-slide-up">
+            <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              {tNav('dashboard')}
+            </Link>
+            <Link href={`/${locale}/recipes`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              {tNav('recipes')}
+            </Link>
+            <Link
+              href={`/${locale}/login`}
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-center px-6 py-2.5 font-semibold text-white rounded-xl bg-gradient-to-r from-brand-primary-400 via-brand-secondary-400 to-brand-accent-400 shadow-brand"
+            >
+              {tAuth('login')}
+            </Link>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -209,6 +242,9 @@ export default function HomePage() {
 }
 
 function LanguageSwitcher({ currentLocale }: { currentLocale: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const locales = [
     { code: 'th', flag: '🇹🇭', name: 'ไทย' },
     { code: 'en', flag: '🇬🇧', name: 'EN' },
@@ -216,21 +252,47 @@ function LanguageSwitcher({ currentLocale }: { currentLocale: string }) {
     { code: 'da', flag: '🇩🇰', name: 'DA' },
   ];
 
+  const activeLocale = locales.find((l) => l.code === currentLocale) || locales[0];
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
-      {locales.map((loc) => (
-        <Link
-          key={loc.code}
-          href={`/${loc.code}`}
-          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-            currentLocale === loc.code
-              ? 'bg-white text-brand-primary-500 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          {loc.flag}
-        </Link>
-      ))}
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 bg-white/80 hover:bg-white backdrop-blur-sm border border-gray-200 rounded-xl shadow-sm transition-all focus:outline-none"
+      >
+        <span className="text-xl leading-none">{activeLocale.flag}</span>
+        <span className="text-sm font-semibold text-gray-700 hidden sm:block">{activeLocale.name}</span>
+        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-36 bg-white rounded-2xl shadow-glass-hover border border-gray-100 overflow-hidden z-50 animate-bounce-in origin-top-right">
+          <div className="py-2">
+            {locales.map((loc) => (
+              <Link
+                key={loc.code}
+                href={`/${loc.code}`}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2 hover:bg-brand-primary-50 transition-colors ${currentLocale === loc.code ? 'bg-brand-primary-50/50 text-brand-primary-600 font-bold' : 'text-gray-700 font-medium'
+                  }`}
+              >
+                <span className="text-xl leading-none">{loc.flag}</span>
+                <span className="text-sm">{loc.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
