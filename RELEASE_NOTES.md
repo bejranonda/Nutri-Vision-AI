@@ -24,7 +24,7 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 
 ### ✨ New Features
 
-#### 👨‍🍳 Nong Oishii Mascot
+#### 👩‍🏫 Shinny Mascot
 - Friendly AI nutrition buddy
 - Guides users through food sequencing
 - Encourages healthy eating habits

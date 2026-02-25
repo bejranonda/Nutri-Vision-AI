@@ -5,8 +5,8 @@
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
   "mascot": {
-    "name": "Nong Oishii",
-    "greeting": "Hi there! I'm Nong Oishii, your food sequencing buddy!",
+    "name": "Shinny",
+    "greeting": "Hi there! I'm Shinny, your food sequencing buddy!",
     "encourage": "Great job! You're eating in the right order!",
     "nudge": "Psst... try eating your veggies first to reduce blood sugar spikes!",
     "celebrate": "Amazing! You sequenced your meal perfectly!",
@@ -122,7 +122,7 @@
     "quiz": "Take Quiz"
   },
   "chat": {
-    "title": "Ask Nong Oishii",
+    "title": "Ask Shinny",
     "subtitle": "Your AI Nutrition Companion",
     "placeholder": "Ask about food, nutrition, or eating order...",
     "send": "Send",

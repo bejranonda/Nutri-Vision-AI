@@ -32,7 +32,7 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
   - 🩸 **Blood Sugar Impact**: Now with fructose penalties and fiber-to-carb ratio bonuses
   - 🏭 **Processing Level Score**: Heavy penalties for UPFs and industrial additives
   - 🧬 **Satiety Index**: Prediction of how long you'll stay full based on fiber + protein
-- **👨‍🍳 Nong Oishii Mascot**: Your friendly AI nutrition buddy who follows the **"Live Long to Eat Well"** philosophy
+- **👩‍🏫 Shinny Mascot**: Your friendly AI nutrition buddy who follows the **"Live Long to Eat Well"** philosophy
 - **🚶‍♂️ Post-Meal "Glucose Walk"**: Proactive prompts for 10-15 min walks to flatten glucose spikes
 
 - **🎮 Gamification**: Earn points, maintain streaks, and level up your eating habits:
@@ -418,7 +418,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 ### v1.0.0 (Current) ✅
 - [x] Rebrand to EatInOrder ("อร่อย ตาม ลำดับ")
 - [x] Food sequencing concept implementation
-- [x] Nong Oishii mascot
+- [x] Shinny mascot
 - [x] Gamification (streaks, points, achievements)
 - [x] 4-language support (th, en, de, da)
 - [x] Cloudflare Pages deployment

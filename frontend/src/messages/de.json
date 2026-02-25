@@ -5,8 +5,8 @@
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
   "mascot": {
-    "name": "Nong Oishii",
-    "greeting": "Hallo! Ich bin Nong Oishii, dein Begleiter für die richtige Essensreihenfolge!",
+    "name": "Shinny",
+    "greeting": "Hallo! Ich bin Shinny, dein Begleiter für die richtige Essensreihenfolge!",
     "encourage": "Toll gemacht! Du isst in der richtigen Reihenfolge!",
     "nudge": "Psst... versuch dein Gemüse zuerst zu essen, um Blutzuckerspitzen zu reduzieren!",
     "celebrate": "Fantastisch! Du hast deine Mahlzeit perfekt sequenziert!"
@@ -120,7 +120,7 @@
     "quiz": "Quiz machen"
   },
   "chat": {
-    "title": "Frag Nong Oishii",
+    "title": "Frag Shinny",
     "subtitle": "Dein KI-Ernährungsbegleiter",
     "placeholder": "Frag über Essen, Ernährung oder Essensreihenfolge...",
     "send": "Senden",

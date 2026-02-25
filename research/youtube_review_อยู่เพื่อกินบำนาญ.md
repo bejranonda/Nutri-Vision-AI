@@ -46,7 +46,7 @@ Detailed analysis of the YouTube playlist by Shinny (ชินนี่) regardi
 | Technique | Implementation |
 |-----------|----------------|
 | **Food Sequencing** | Step-by-step progress bar in scan results (Veggies ➔ Protein ➔ Carbs). |
-| **Walking after meals** | "Nong Oishii" prompt: "Go for a 10-min walk to flatten the spike!" |
+| **Walking after meals** | "Shinny" prompt: "Go for a 10-min walk to flatten the spike!" |
 | **UPF Awareness** | Penalty in "Processing Level Score" and alert for UPF ingredients. |
 | **Fructose Management** | Estimation of fructose in fruit juices and sauces with specific warnings. |
 | **Satiety Focus** | Highlighting the Fiber + Protein combination to keep you full longer. |

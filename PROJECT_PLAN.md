@@ -189,7 +189,7 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 - **Substitution Suggestions**: Healthier alternatives for ingredients
 - **Portion Recommendations**: Based on user goals
 
-### 4. AI Nutrition Chat ("Ask Nong Oishii")
+### 4. AI Nutrition Chat ("Ask Shinny")
 - **Gemini-Powered**: Natural conversation in Thai or English with a friendly, empathetic personality.
 - **"Live Long to Eat Well" Philosophy**: Based on Shinny's "อยู่เพื่อกินบำนาญ" concept—focusing on how to eat safely rather than strict prohibition.
 - **Context-Aware**: Remembers user's dietary preferences and goals.

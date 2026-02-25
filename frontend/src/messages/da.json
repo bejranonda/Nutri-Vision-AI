@@ -5,8 +5,8 @@
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
   "mascot": {
-    "name": "Nong Oishii",
-    "greeting": "Hej! Jeg er Nong Oishii, din makker til madrækkefølge!",
+    "name": "Shinny",
+    "greeting": "Hej! Jeg er Shinny, din makker til madrækkefølge!",
     "encourage": "Godt gået! Du spiser i den rigtige rækkefølge!",
     "nudge": "Psst... prøv at spise dine grøntsager først for at reducere blodsukkerstigninger!",
     "celebrate": "Fantastisk! Du har sekvenseret dit måltid perfekt!"
@@ -120,7 +120,7 @@
     "quiz": "Tag Quiz"
   },
   "chat": {
-    "title": "Spørg Nong Oishii",
+    "title": "Spørg Shinny",
     "subtitle": "Din AI Ernæringsmakker",
     "placeholder": "Spørg om mad, ernæring eller spiserækkefølge...",
     "send": "Send",

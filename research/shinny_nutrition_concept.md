@@ -122,7 +122,7 @@ When a user scans a meal (e.g., Pad Thai), the app will:
 - **Satiety Index**: New internal metric based on fiber + protein vs. refined carbs.
 - **Activity Prompt**: "Ready for a 10-minute stroll? It'll help manage your blood sugar after this meal!"
 
-### 3. Nong Oishii AI Coach
+### 3. Shinny AI Coach
 The mascot adopts Shinny's empathetic tone:
 - Acknowledges the love for food
 - Gently guides users on safe eating sequences

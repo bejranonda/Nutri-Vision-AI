@@ -61,7 +61,7 @@ export default function HomePage() {
         {/* Mascot Greeting */}
         <div className="mb-8 animate-bounce-in">
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-brand-primary-100 to-brand-secondary-100 text-brand-primary-600 font-medium shadow-glass">
-            <span className="text-2xl">👨‍🍳</span>
+            <span className="text-2xl">👩‍🏫</span>
             <span>{tMascot('greeting')}</span>
           </div>
         </div>

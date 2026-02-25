@@ -128,6 +128,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- 👩‍🏫 **Shinny Mascot Integration**: Rebranded "Nong Oishii" to **Shinny**, aligning the AI coach with the "Live long to eat well" (อยู่เพื่อกินบำนาญ) philosophy.
+- 📂 **Business Strategy Research**: Added comprehensive business documentation under `research/business/` covering concept, approach, and monetization strategies.
+- 🌍 **Internationalization Updates**: Updated mascot name and persona across all supported languages (TH, EN, DE, DA).
+- 🎨 **Visual Identity**: Replaced chef mascot emoji with teacher/expert emoji to better reflect Shinny's role as a nutrition guru.
+
 ### Planned Features
 - Restaurant menu scanning
 - Barcode scanner integration
