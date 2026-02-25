@@ -55,7 +55,8 @@ const routes = {
 
 fs.writeFileSync(path.join(ASSETS_DIR, '_routes.json'), JSON.stringify(routes, null, 2));
 
-console.log("Assets prepared successfully!");
+console.log(`Assets prepared successfully!`);
+console.log(`Assets directory: ${path.resolve(ASSETS_DIR)}`);
 
 // Count files
 function countFiles(dir) {
