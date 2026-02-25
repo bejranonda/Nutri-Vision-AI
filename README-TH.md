@@ -78,42 +78,42 @@
 
 ## 🚀 เริ่มต้นใช้งาน
 
-### ข้อกำหนดเบื้องต้น
-- Docker และ Docker Compose
-- Git
-- Google Gemini API key ([สมัครที่นี่](https://makersuite.google.com/app/apikey))
-
-### ติดตั้ง
+### ติดตั้งและเริ่มต้นใช้งาน
 
 1. **โคลนโปรเจค**
 ```bash
-git clone https://github.com/yourusername/Nutri-Vision-AI.git
-cd Nutri-Vision-AI
+git clone https://github.com/bejranonda/Nutri-Vision-AI.git
+cd Nutri-Vision-AI/frontend
 ```
 
 2. **ตั้งค่า environment variables**
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-แก้ไขไฟล์ `.env` และใส่ข้อมูลของคุณ:
-```env
-GEMINI_API_KEY=ใส่_api_key_ของคุณ_ที่นี่
-SECRET_KEY=สุ่ม_secret_key  # สร้างด้วย: openssl rand -hex 32
-JWT_SECRET_KEY=สุ่ม_jwt_secret
-```
+แก้ไขไฟล์ `.env.local` และใส่ข้อมูลของคุณ (เช่น GEMINI_API_KEY)
 
-3. **เริ่มระบบ (ติดตั้งทั้งหมดอัตโนมัติ)**
+3. **ติดตั้งและรัน**
 ```bash
-chmod +x scripts/install-all.sh
-./scripts/install-all.sh
+npm install
+npm run dev
 ```
 
 4. **เข้าใช้งานแอป**
 - หน้าเว็บ: http://localhost:3000
-- Backend API: http://localhost:8000
-- เอกสาร API: http://localhost:8000/docs
 
+---
+
+### การ Deploy ไปยัง Cloudflare Pages
+
+```bash
+cd frontend
+# สร้างไฟล์ build (ใช้ OpenNext)
+npm run pages:build
+
+# Deploy ด้วย Wrangler
+npm run deploy
+```
 ---
 
 ## 📖 วิธีใช้งาน

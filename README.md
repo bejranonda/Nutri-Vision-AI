@@ -102,11 +102,12 @@ npm run dev
 ### Deploy to Cloudflare Pages
 
 ```bash
-# Build for production
-npm run build
+cd frontend
+# Build for production (uses OpenNext)
+npm run pages:build
 
 # Deploy with Wrangler
-npx wrangler pages deploy
+npm run deploy
 ```
 
 ---
@@ -159,11 +160,9 @@ npm run dev
 
 #### Run Tests
 ```bash
-# Backend tests
-docker-compose exec backend pytest
-
 # Frontend tests
-docker-compose exec frontend npm test
+cd frontend
+npm test
 ```
 
 ---
