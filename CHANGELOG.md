@@ -131,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - 👩‍🏫 **Custom AI Avatar**: Replaced generic emojis with dynamic Shinny AI avatars (`Analyzing`, `Explaining`, and `Celebrating` postures) for a more personalized UX.
+- 🎨 **App Favicons**: Added new custom Shinny AI avatar as the app's `icon.png` and `apple-icon.png` for a cohesive brand identity.
 - 🔒 **Edge-native Security**: Replaced client-side `localStorage` authentication with secure Next.js Edge APIs (`/api/auth/*`) backed by Cloudflare D1 + Web Crypto + HttpOnly cookies.
 - 🎟️ **Secure Promo Codes**: Moved promotion code validation and redemption logic (`/api/promo/redeem`) securely to the backend.
 - 🧠 **Workers AI Integration**: Built `/api/analyze` to handle image scanning via Cloudflare Workers AI with fallback mechanisms and rate-limiting.
