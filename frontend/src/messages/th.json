@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "EatInOrder",
+    "name": "Shinny Guide",
     "tagline": "อร่อย ตาม ลำดับ",
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
@@ -25,7 +25,7 @@
     "pricing": "ราคา"
   },
   "home": {
-    "title": "EatInOrder",
+    "title": "Shinny Guide",
     "subtitle": "กินอย่างฉลาด อายุยืนยาว",
     "description": "ค้นพบวิธีกินตามลำดับที่ช่วยลดการพุ่งของน้ำตาลในเลือดได้ถึง 70%",
     "cta": "เริ่มสแกนเลย",
@@ -120,7 +120,7 @@
     }
   },
   "demo": {
-    "title": "EatInOrder ทำงานอย่างไร",
+    "title": "Shinny Guide ทำงานอย่างไร",
     "subtitle": "เรียนรู้ศาสตร์การกินตามลำดับใน 4 ขั้นตอนง่ายๆ",
     "step_label": "ขั้นตอน",
     "steps": {
@@ -297,7 +297,7 @@
     "login_subtitle": "เข้าสู่ระบบเพื่อใช้แดชบอร์ดโภชนาการส่วนตัว",
     "register_subtitle": "เริ่มต้นเส้นทางการกินตามลำดับวันนี้",
     "login_success": "เข้าสู่ระบบสำเร็จ! กำลังเปลี่ยนหน้า...",
-    "register_success": "สร้างบัญชีสำเร็จ! ยินดีต้อนรับสู่ EatInOrder!",
+    "register_success": "สร้างบัญชีสำเร็จ! ยินดีต้อนรับสู่ Shinny Guide!",
     "validation": {
       "email_required": "กรุณากรอกอีเมล",
       "email_invalid": "กรุณากรอกอีเมลที่ถูกต้อง",

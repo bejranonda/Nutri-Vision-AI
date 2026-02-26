@@ -1,4 +1,4 @@
-# 🍜 EatInOrder (Nutri-Vision AI)
+# 🍜 Shinny Guide (Nutri-Vision AI)
 
 **อร่อย ตาม ลำดับ — Delicious in Order**
 
@@ -7,9 +7,9 @@
 [![Cloudflare Pages](https://img.shields.io/badge/deploy-Cloudflare_Pages-F38020?logo=cloudflare)](https://nutri-vision-ai.pages.dev)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
 
-## EatInOrder คืออะไร?
+## Shinny Guide คืออะไร?
 
-EatInOrder คือแอป AI ที่ช่วยจัดลำดับการกินอาหารไทย (และอาหารทุกชนิด) เพื่อลดการพุ่งของน้ำตาลในเลือดได้ถึง **70%** ตามหลักวิทยาศาสตร์จริง — กิน **ผัก → โปรตีน → แป้ง → หวาน**
+Shinny Guide คือแอป AI ที่ช่วยจัดลำดับการกินอาหารไทย (และอาหารทุกชนิด) เพื่อลดการพุ่งของน้ำตาลในเลือดได้ถึง **70%** ตามหลักวิทยาศาสตร์จริง — กิน **ผัก → โปรตีน → แป้ง → หวาน**
 
 พบกับ **ชินนี่** (Shinny) AI โค้ชโภชนาการที่แนะนำทุกมื้อ!
 

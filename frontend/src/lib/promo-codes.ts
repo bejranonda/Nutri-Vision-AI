@@ -1,5 +1,5 @@
 /**
- * EatInOrder — Promotion / Voucher Code System
+ * Shinny Guide — Promotion / Voucher Code System
  * Supports: TRIAL, DISCOUNT, FANCLUB, REFERRAL code types
  * Client-side implementation; ready for D1 backend swap
  */
@@ -100,8 +100,8 @@ const BUILT_IN_CODES: PromoCode[] = [
     },
 ];
 
-const STORAGE_KEY = 'eatinorder_promo_codes';
-const REDEMPTION_KEY = 'eatinorder_redemptions';
+const STORAGE_KEY = 'shinnyguide_promo_codes';
+const REDEMPTION_KEY = 'shinnyguide_redemptions';
 
 function getStoredCodes(): PromoCode[] {
     if (typeof window === 'undefined') return BUILT_IN_CODES;

@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "EatInOrder",
+    "name": "Shinny Guide",
     "tagline": "Lækker i den rigtige rækkefølge",
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
@@ -25,7 +25,7 @@
     "pricing": "Priser"
   },
   "home": {
-    "title": "EatInOrder",
+    "title": "Shinny Guide",
     "subtitle": "Spis klogt, lev længe",
     "description": "Opdag, hvordan den rigtige spiserækkefølge kan reducere blodsukkertoppe med op til 70%",
     "cta": "Start scanning",
@@ -120,7 +120,7 @@
     }
   },
   "demo": {
-    "title": "Sådan virker EatInOrder",
+    "title": "Sådan virker Shinny Guide",
     "subtitle": "Mester kunsten at sekvensere mad i 4 enkle trin",
     "step_label": "Trin",
     "steps": {
@@ -297,7 +297,7 @@
     "login_subtitle": "Log ind for at tilgå dit personlige ernæringsdashboard",
     "register_subtitle": "Start din madsekvensering rejse i dag",
     "login_success": "Login lykkedes! Omdirigerer...",
-    "register_success": "Konto oprettet! Velkommen til EatInOrder!",
+    "register_success": "Konto oprettet! Velkommen til Shinny Guide!",
     "validation": {
       "email_required": "E-mail er påkrævet",
       "email_invalid": "Indtast venligst en gyldig e-mailadresse",

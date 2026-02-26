@@ -1,5 +1,5 @@
 /**
- * EatInOrder — Feature Tier Configuration
+ * Shinny Guide — Feature Tier Configuration
  * Maps features to subscription tiers (free/premium/family)
  * Designed for freemium → subscription business model
  */

@@ -10,12 +10,12 @@ const prompt = Prompt({ subsets: ["thai", "latin"], weight: ["300", "400", "500"
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
 
 export const metadata: Metadata = {
-  title: 'EatInOrder — Smart Food Sequencing for Better Health',
+  title: 'Shinny Guide — Smart Food Sequencing for Better Health',
   description: 'AI-powered nutrition analysis with "อร่อย ตาม ลำดับ" (Delicious in Order) food sequencing. Reduce blood sugar spikes by 70% while enjoying the foods you love.',
   keywords: ['nutrition', 'food sequencing', 'blood sugar', 'glycemic index', 'Thai food', 'healthy eating', 'AI nutrition'],
-  authors: [{ name: 'EatInOrder Team' }],
+  authors: [{ name: 'Shinny Guide Team' }],
   openGraph: {
-    title: 'EatInOrder — Smart Food Sequencing',
+    title: 'Shinny Guide — Smart Food Sequencing',
     description: 'Discover how eating in the right order can transform your health. Veggies → Protein → Carbs → Sweets',
     type: 'website',
     locale: 'en_US',
@@ -31,7 +31,7 @@ export default async function LocaleLayout({
   params: { locale: string };
 }) {
   const messages = await getMessages();
-  
+
   // Server-side logging for Cloudflare Pages
   logger.info(`Rendering layout for locale: ${locale}`);
 

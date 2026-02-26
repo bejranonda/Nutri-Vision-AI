@@ -4,7 +4,7 @@ import { sessions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateId } from './crypto';
 
-const SESSION_COOKIE_NAME = 'eatinorder_session';
+const SESSION_COOKIE_NAME = 'shinnyguide_session';
 
 export async function createSession(env: any, userId: string): Promise<string> {
     const db = getDb(env);

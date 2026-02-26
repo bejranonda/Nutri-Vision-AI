@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "EatInOrder",
+    "name": "Shinny Guide",
     "tagline": "Lecker in der richtigen Reihenfolge",
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
@@ -25,7 +25,7 @@
     "pricing": "Preise"
   },
   "home": {
-    "title": "EatInOrder",
+    "title": "Shinny Guide",
     "subtitle": "Clever essen, länger leben",
     "description": "Entdecke, wie die richtige Essreihenfolge Blutzuckerspitzen um bis zu 70% reduzieren kann",
     "cta": "Jetzt scannen",
@@ -120,7 +120,7 @@
     }
   },
   "demo": {
-    "title": "So funktioniert EatInOrder",
+    "title": "So funktioniert Shinny Guide",
     "subtitle": "Meistere die Kunst des Food Sequencing in 4 einfachen Schritten",
     "step_label": "Schritt",
     "steps": {
@@ -297,7 +297,7 @@
     "login_subtitle": "Melde dich an, um dein persönliches Ernährungs-Dashboard zu nutzen",
     "register_subtitle": "Starte heute deine Food Sequencing Reise",
     "login_success": "Anmeldung erfolgreich! Weiterleitung...",
-    "register_success": "Konto erstellt! Willkommen bei EatInOrder!",
+    "register_success": "Konto erstellt! Willkommen bei Shinny Guide!",
     "validation": {
       "email_required": "E-Mail ist erforderlich",
       "email_invalid": "Bitte gib eine gültige E-Mail-Adresse ein",

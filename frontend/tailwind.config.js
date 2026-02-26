@@ -13,7 +13,7 @@ module.exports = {
         foreground: 'hsl(var(--foreground))',
         card: 'hsl(var(--card))',
         'card-foreground': 'hsl(var(--card-foreground))',
-        // EatInOrder Brand Colors
+        // Shinny Guide Brand Colors
         brand: {
           primary: {
             50: '#fff5f5',
