@@ -379,6 +379,8 @@ Full support for 4 languages:
 | 🇩🇪 German | `de` | |
 | 🇩🇰 Danish | `da` | |
 
+> **Note:** We use high-quality SVG icons from `country-flag-icons` for reliable cross-platform rendering (especially on Windows).
+
 ```typescript
 // Access translations
 const t = useTranslations('namespace');
