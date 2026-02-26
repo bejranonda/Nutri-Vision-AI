@@ -7,6 +7,7 @@ import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star } f
 import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 /** Structured type for food analysis results (mock or API). */
 export interface SequenceStep {
@@ -204,11 +205,14 @@ export default function ScanPage() {
                     <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
                         <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
                     </Link>
-                    {isAuthenticated && (
-                        <div className="text-sm text-gray-500">
-                            {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{tier === 'premium' || tier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {isAuthenticated && (
+                            <div className="text-sm text-gray-500">
+                                {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{tier === 'premium' || tier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
+                            </div>
+                        )}
+                        <LanguageSwitcher currentLocale={locale} />
+                    </div>
                 </div>
             </div>
 

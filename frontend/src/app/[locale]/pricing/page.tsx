@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Star, Gift, ChevronRight, Building } from 'lucide-rea
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_PRICING } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function PricingPage() {
     const t = useTranslations('pricing');
@@ -90,9 +91,12 @@ export default function PricingPage() {
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
 
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-10">
-                <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                    <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                </Link>
+                <div className="flex items-center justify-between">
+                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
+                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
+                    </Link>
+                    <LanguageSwitcher currentLocale={locale} />
+                </div>
             </div>
 
             <div className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">

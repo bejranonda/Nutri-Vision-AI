@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { logger } from '@/lib/logger';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
@@ -82,11 +83,12 @@ export default function LoginPage() {
             <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-brand-primary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float"></div>
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
 
-            {/* Back button */}
-            <div className="absolute top-4 left-4 z-20">
+            {/* Back button + Language */}
+            <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
                 <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
                     <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
                 </Link>
+                <LanguageSwitcher currentLocale={locale} />
             </div>
 
             {/* Success state */}

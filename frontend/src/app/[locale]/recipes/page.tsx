@@ -3,6 +3,7 @@
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { ArrowLeft, BookOpen } from 'lucide-react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function RecipesPage() {
     const t = useTranslations('nav');
@@ -14,6 +15,11 @@ export default function RecipesPage() {
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center p-4">
             <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-brand-primary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float"></div>
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
+
+            {/* Language Switcher */}
+            <div className="absolute top-4 right-4 z-20">
+                <LanguageSwitcher currentLocale={locale} />
+            </div>
 
             <div className="z-10 backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-12 max-w-lg w-full mx-auto shadow-glass text-center transform hover:-translate-y-2 transition-transform duration-300">
                 <div className="w-20 h-20 mx-auto bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-3xl flex items-center justify-center shadow-brand mb-6">
