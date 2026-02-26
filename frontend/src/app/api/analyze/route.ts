@@ -25,7 +25,8 @@ Respond ONLY with a valid minified JSON object matching this exact schema:
     "micronutrient": 0-100
   },
   "sequence": ["1. Name (Fiber/Veggies)", "2. Name (Protein/Fat)", "3. Name (Carbs)", "4. Name (Sweets)"],
-  "tip": "One short sentence of helpful advice for managing blood sugar."
+  "tip": "One short sentence of helpful advice for managing blood sugar.",
+  "confidence": 0-100
 }
 `;
 
@@ -105,7 +106,8 @@ export async function POST(req: NextRequest) {
                     "3. เส้นจันท์ผัด (Carbs)",
                     "4. น้ำตาลที่เติม (Sugar)"
                 ],
-                tip: "บีบมะนาวเยอะๆ ช่วยลดการเกิดปฏิกิริยาของน้ำตาลในเลือดได้นะ!"
+                tip: "บีบมะนาวเยอะๆ ช่วยลดการเกิดปฏิกิริยาของน้ำตาลในเลือดได้นะ!",
+                confidence: 90
             };
         }
 
@@ -149,6 +151,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             result: resultJson,
             overallScore: scoreOverall,
+            confidence: resultJson.confidence || 90,
             limitReached: activeUser ? (activeUser.scansThisMonth + 1) >= (TIER_LIMITS[currentTier]?.scansPerMonth || 10) : false
         }, { status: 200 });
 

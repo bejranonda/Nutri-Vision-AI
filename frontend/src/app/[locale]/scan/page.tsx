@@ -24,9 +24,10 @@ export interface AnalysisResult {
     sequence: SequenceStep[];
     spikeReduction: number;
     tip?: string;
+    confidence?: number;
 }
 
-// Mock analysis data for demo
+// ... mock data omitted for brevity, but make sure the types matches ...
 const MOCK_ANALYSES: AnalysisResult[] = [
     {
         name: 'pad_thai',
@@ -40,6 +41,7 @@ const MOCK_ANALYSES: AnalysisResult[] = [
             { step: 4, emoji: '🍬', items: 'Tamarind Sauce (sweet)', category: 'sugar' },
         ],
         spikeReduction: 65,
+        confidence: 95
     },
     {
         name: 'som_tam',
@@ -53,6 +55,7 @@ const MOCK_ANALYSES: AnalysisResult[] = [
             { step: 4, emoji: '🍬', items: 'Palm Sugar (in dressing)', category: 'sugar' },
         ],
         spikeReduction: 72,
+        confidence: 92
     },
     {
         name: 'green_curry',
@@ -66,6 +69,7 @@ const MOCK_ANALYSES: AnalysisResult[] = [
             { step: 4, emoji: '🍬', items: 'Palm Sugar (in curry)', category: 'sugar' },
         ],
         spikeReduction: 58,
+        confidence: 88
     },
 ];
 
@@ -147,7 +151,8 @@ export default function ScanPage() {
                         return { step: i + 1, emoji: '💡', items: s, category: cat };
                     }),
                     spikeReduction: 60, // Mock
-                    tip: data.result.tip
+                    tip: data.result.tip,
+                    confidence: data.confidence || 90
                 });
 
                 // Sync store
@@ -213,8 +218,9 @@ export default function ScanPage() {
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
                         {t('title')}
                     </h1>
-                    <p className="text-gray-500 flex items-center justify-center gap-2">
-                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-8 h-8 rounded-full border-2 border-white shadow-sm" /> {tMascot('scan_tip')}
+                    <p className="text-gray-500 flex items-center justify-center gap-3">
+                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
+                        <span className="font-medium text-lg">{tMascot('scan_tip')}</span>
                     </p>
                 </div>
 
@@ -263,12 +269,12 @@ export default function ScanPage() {
                                 <img src={uploadedImage} alt="Food" className="w-full h-full object-cover" />
                             </div>
                         )}
-                        <div className="flex items-center justify-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-brand-primary-400 shadow-sm relative">
+                        <div className="flex flex-col items-center justify-center gap-4 mb-4 mt-6">
+                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg relative">
                                 <img src="/images/shinny_avatar_analyzing.png" alt="Shinny Analyzing" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 border-2 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 border-4 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
                             </div>
-                            <span className="text-lg font-semibold text-gray-700">{t('shinny_analyzing')}</span>
+                            <span className="text-xl font-bold text-gray-700 bg-white/50 px-4 py-1 rounded-full">{t('shinny_analyzing')}</span>
                         </div>
                         <p className="text-gray-400 text-sm">{t('analyzing')}</p>
                     </div>
@@ -278,7 +284,27 @@ export default function ScanPage() {
                 {analysis && !isAnalyzing && (
                     <div className="space-y-6 animate-slide-up">
                         {/* Food Image + Detected Items */}
-                        <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                        <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass relative overflow-hidden">
+                            {/* Low Confidence Warning */}
+                            {analysis.confidence !== undefined && analysis.confidence < 70 && (
+                                <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-start gap-4 animate-slide-up">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-orange-200">
+                                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny Warning" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-orange-800 font-bold mb-1">
+                                            {t('low_confidence.title') || "Shinny is not sure!"}
+                                        </h3>
+                                        <p className="text-orange-700 text-sm">
+                                            {t('low_confidence.message') || "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try taking a closer, clearer photo of your meal."}
+                                        </p>
+                                        <p className="text-orange-600/70 text-xs mt-2 font-mono">
+                                            Confidence Score: {analysis.confidence}%
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex flex-col md:flex-row gap-6">
                                 {uploadedImage && (
                                     <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">

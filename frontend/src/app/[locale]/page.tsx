@@ -100,8 +100,8 @@ export default function HomePage() {
         {/* Mascot Greeting */}
         <div className="mb-8 animate-bounce-in">
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-brand-primary-100 to-brand-secondary-100 text-brand-primary-600 font-medium shadow-glass">
-            <img src="/images/shinny_avatar.png" alt="Shinny" className="w-8 h-8 rounded-full border-2 border-white shadow-sm" />
-            <span>{tMascot('greeting')}</span>
+            <img src="/images/shinny_avatar.png" alt="Shinny" className="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
+            <span className="text-lg">{tMascot('greeting')}</span>
           </div>
         </div>
 

@@ -86,8 +86,8 @@ export default function DemoPage() {
                             <p className="text-gray-600 leading-relaxed mb-4">
                                 {t(`steps.${STEP_KEYS[activeStep]}.description`)}
                             </p>
-                            <div className="flex items-center gap-2 px-4 py-3 bg-brand-primary-50 rounded-xl">
-                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-6 h-6 rounded-full border border-brand-primary-200" />
+                            <div className="flex items-center gap-3 px-4 py-3 bg-brand-primary-50 rounded-xl">
+                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-10 h-10 rounded-full border-2 border-brand-primary-200 shadow-sm" />
                                 <p className="text-brand-primary-700 text-sm font-medium italic">
                                     &ldquo;{t(`steps.${STEP_KEYS[activeStep]}.tip`)}&rdquo;
                                 </p>
