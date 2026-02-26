@@ -69,11 +69,11 @@ export default function LoginPage() {
         }
     }
 
-    function handlePromoRedeem() {
+    async function handlePromoRedeem() {
         if (!promoInput.trim()) return;
-        const result = redeemCode(promoInput);
+        const result = await redeemCode(promoInput);
         setPromoSuccess(result.success);
-        setPromoMessage(locale === 'th' ? result.messageTh : result.message);
+        setPromoMessage(result.message);
     }
 
     return (

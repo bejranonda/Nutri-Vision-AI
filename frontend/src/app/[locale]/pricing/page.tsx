@@ -24,19 +24,19 @@ export default function PricingPage() {
         logger.trackFeature('Pricing Page', 'loading', { locale });
     }, [locale]);
 
-    function handlePromo() {
+    async function handlePromo() {
         if (!promoInput.trim()) return;
         if (!isAuthenticated) {
             setPromoMsg(locale === 'th' ? 'กรุณาเข้าสู่ระบบก่อน' : 'Please login first');
             setPromoOk(false);
             return;
         }
-        const result = redeemCode(promoInput);
+        const result = await redeemCode(promoInput);
         setPromoOk(result.success);
-        setPromoMsg(locale === 'th' ? result.messageTh : result.message);
+        setPromoMsg(result.message);
     }
 
-    const currentTier = user?.tier || 'free';
+    const currentTier = user?.subscriptionTier || 'free';
 
     const tiers = [
         {
@@ -164,8 +164,8 @@ export default function PricingPage() {
                                 </div>
                             ) : (
                                 <Link href={tier.key === 'free' ? `/${locale}/login` : `/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
-                                        ? 'bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white shadow-brand hover:shadow-brand-lg'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    ? 'bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white shadow-brand hover:shadow-brand-lg'
+                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}>
                                     {tier.cta} <ChevronRight className="w-4 h-4 inline" />
                                 </Link>

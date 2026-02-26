@@ -17,7 +17,7 @@ export default function DashboardPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { user, isAuthenticated, getEffectiveTier, logout } = useAuthStore();
+    const { user, isAuthenticated, logout } = useAuthStore();
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -37,7 +37,8 @@ export default function DashboardPage() {
         );
     }
 
-    const tier = getEffectiveTier();
+    const rawTier = user.subscriptionTier || 'free';
+    const tier = (['free', 'premium', 'family'].includes(rawTier) ? rawTier : 'free') as 'free' | 'premium' | 'family';
     const limits = TIER_LIMITS[tier];
     const trialDaysLeft = user.trialExpiresAt
         ? Math.max(0, Math.ceil((new Date(user.trialExpiresAt).getTime() - Date.now()) / 86400000))
