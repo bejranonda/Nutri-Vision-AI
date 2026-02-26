@@ -61,8 +61,8 @@ export default function DemoPage() {
                             key={i}
                             onClick={() => setActiveStep(i)}
                             className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300 ${activeStep === i
-                                    ? `${STEP_COLORS[i]} text-white scale-110 shadow-lg`
-                                    : 'bg-white/80 hover:bg-white shadow-sm'
+                                ? `${STEP_COLORS[i]} text-white scale-110 shadow-lg`
+                                : 'bg-white/80 hover:bg-white shadow-sm'
                                 }`}
                         >
                             {STEP_EMOJIS[i]}
@@ -87,7 +87,7 @@ export default function DemoPage() {
                                 {t(`steps.${STEP_KEYS[activeStep]}.description`)}
                             </p>
                             <div className="flex items-center gap-2 px-4 py-3 bg-brand-primary-50 rounded-xl">
-                                <span className="text-xl">👩‍🏫</span>
+                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-6 h-6 rounded-full border border-brand-primary-200" />
                                 <p className="text-brand-primary-700 text-sm font-medium italic">
                                     &ldquo;{t(`steps.${STEP_KEYS[activeStep]}.tip`)}&rdquo;
                                 </p>

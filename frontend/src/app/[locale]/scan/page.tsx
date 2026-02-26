@@ -214,7 +214,7 @@ export default function ScanPage() {
                         {t('title')}
                     </h1>
                     <p className="text-gray-500 flex items-center justify-center gap-2">
-                        <span className="text-xl">👩‍🏫</span> {tMascot('scan_tip')}
+                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-8 h-8 rounded-full border-2 border-white shadow-sm" /> {tMascot('scan_tip')}
                     </p>
                 </div>
 
@@ -264,7 +264,10 @@ export default function ScanPage() {
                             </div>
                         )}
                         <div className="flex items-center justify-center gap-3 mb-4">
-                            <div className="w-8 h-8 border-3 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
+                            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-brand-primary-400 shadow-sm relative">
+                                <img src="/images/shinny_avatar_analyzing.png" alt="Shinny Analyzing" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 border-2 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
+                            </div>
                             <span className="text-lg font-semibold text-gray-700">{t('shinny_analyzing')}</span>
                         </div>
                         <p className="text-gray-400 text-sm">{t('analyzing')}</p>
@@ -382,6 +385,9 @@ export default function ScanPage() {
 
                         {/* Scan again button */}
                         <div className="text-center">
+                            <div className="mb-4">
+                                <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
+                            </div>
                             <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
                                 <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                             </button>

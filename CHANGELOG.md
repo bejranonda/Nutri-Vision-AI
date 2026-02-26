@@ -130,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2026-02-26
 
 ### Added
+- 👩‍🏫 **Custom AI Avatar**: Replaced generic emojis with dynamic Shinny AI avatars (`Analyzing`, `Explaining`, and `Celebrating` postures) for a more personalized UX.
 - 🔒 **Edge-native Security**: Replaced client-side `localStorage` authentication with secure Next.js Edge APIs (`/api/auth/*`) backed by Cloudflare D1 + Web Crypto + HttpOnly cookies.
 - 🎟️ **Secure Promo Codes**: Moved promotion code validation and redemption logic (`/api/promo/redeem`) securely to the backend.
 - 🧠 **Workers AI Integration**: Built `/api/analyze` to handle image scanning via Cloudflare Workers AI with fallback mechanisms and rate-limiting.

@@ -20,6 +20,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 | Food Scanning | 10/month | ∞ | ∞ |
 | Health Score | 3 dimensions | 8 dimensions | 8 dimensions |
 | AI Coach Shinny | 3 Q/day | ∞ | ∞ |
+| Custom AI Avatar | — | ✓ (Dynamic Postures) | ✓ |
 | Thai Recipes | 100 | 1,000+ | 1,000+ |
 | Meal Planning | — | ✓ | ✓ |
 | Family Members | — | — | 5 |
