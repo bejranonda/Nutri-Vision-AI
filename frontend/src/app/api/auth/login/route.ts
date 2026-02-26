@@ -5,7 +5,6 @@ import { verifyPassword } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
 
-export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
     try {

@@ -4,7 +4,6 @@ import { users, sessions } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
 import { eq, and, gt } from 'drizzle-orm';
 
-export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
     try {

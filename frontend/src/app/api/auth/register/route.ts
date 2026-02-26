@@ -6,7 +6,6 @@ import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
 
 // Required for Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
     try {

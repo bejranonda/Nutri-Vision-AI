@@ -7,7 +7,6 @@ import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
 
-export const runtime = 'edge';
 
 const AI_PROMPT = `
 You are NutriVision AI, an expert in Thai food, nutrition, and blood sugar management.

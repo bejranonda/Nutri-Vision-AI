@@ -6,7 +6,6 @@ import { eq, and, gt } from 'drizzle-orm';
 import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 
-export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
     try {
