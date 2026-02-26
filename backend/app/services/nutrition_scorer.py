@@ -5,6 +5,7 @@ Implements 8-dimension health scoring system based on modern nutrition science.
 import logging
 from typing import Dict, Any, Optional
 import math
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +31,41 @@ class NutritionScorer:
         Returns:
             Dictionary with all 8 scores plus overall score
         """
-        scores = {
-            "blood_sugar_score": self.calculate_blood_sugar_score(nutrition_data),
-            "gut_health_score": self.calculate_gut_health_score(nutrition_data, ingredients),
-            "inflammation_score": self.calculate_inflammation_score(nutrition_data, ingredients),
-            "nutrient_density_score": self.calculate_nutrient_density_score(nutrition_data),
-            "processing_level_score": self.calculate_processing_level_score(nutrition_data, ingredients),
-            "protein_quality_score": self.calculate_protein_quality_score(nutrition_data, ingredients),
-            "micronutrient_score": self.calculate_micronutrient_score(nutrition_data),
-            "overall_health_score": 0  # Will be calculated after others
-        }
+        start_time = time.time()
+        logger.info("Starting nutrition score calculation")
+        
+        try:
+            scores = {
+                "blood_sugar_score": self.calculate_blood_sugar_score(nutrition_data),
+                "gut_health_score": self.calculate_gut_health_score(nutrition_data, ingredients),
+                "inflammation_score": self.calculate_inflammation_score(nutrition_data, ingredients),
+                "nutrient_density_score": self.calculate_nutrient_density_score(nutrition_data),
+                "processing_level_score": self.calculate_processing_level_score(nutrition_data, ingredients),
+                "protein_quality_score": self.calculate_protein_quality_score(nutrition_data, ingredients),
+                "micronutrient_score": self.calculate_micronutrient_score(nutrition_data),
+                "overall_health_score": 0  # Will be calculated after others
+            }
 
-        # Calculate overall score as weighted average
-        scores["overall_health_score"] = self.calculate_overall_score(scores)
+            # Calculate overall score as weighted average
+            scores["overall_health_score"] = self.calculate_overall_score(scores)
 
-        return scores
+            duration = time.time() - start_time
+            logger.info(
+                f"Nutrition scoring complete. Duration: {duration:.3f}s - "
+                f"Overall Score: {scores['overall_health_score']} - "
+                f"BS: {scores['blood_sugar_score']}, Gut: {scores['gut_health_score']}, "
+                f"Proc: {scores['processing_level_score']}"
+            )
+            
+            # Log warnings for very low scores
+            low_scores = [k for k, v in scores.items() if v < 30]
+            if low_scores:
+                logger.warning(f"Low nutrition scores detected for dimensions: {', '.join(low_scores)}")
+
+            return scores
+        except Exception as e:
+            logger.error(f"Failed to calculate nutrition scores: {str(e)}", exc_info=True)
+            raise
 
     def calculate_blood_sugar_score(self, nutrition_data: Dict[str, Any]) -> int:
         """

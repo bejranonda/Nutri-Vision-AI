@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Utensils, Award, Flame, Menu, X } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 export default function HomePage() {
   const t = useTranslations('home');
@@ -14,6 +15,10 @@ export default function HomePage() {
   const tGamify = useTranslations('gamification');
   const locale = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    logger.trackFeature('Landing Page', 'success', { locale });
+  }, [locale]);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50">
@@ -282,7 +287,10 @@ function LanguageSwitcher({ currentLocale }: { currentLocale: string }) {
               <Link
                 key={loc.code}
                 href={`/${loc.code}`}
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  logger.info(`Switching language from ${currentLocale} to ${loc.code}`);
+                }}
                 className={`flex items-center gap-3 px-4 py-2 hover:bg-brand-primary-50 transition-colors ${currentLocale === loc.code ? 'bg-brand-primary-50/50 text-brand-primary-600 font-bold' : 'text-gray-700 font-medium'
                   }`}
               >

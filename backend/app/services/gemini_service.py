@@ -5,6 +5,7 @@ Handles ingredient detection, nutritional analysis, and conversational AI.
 import base64
 import json
 import logging
+import time
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import google.generativeai as genai
@@ -28,6 +29,7 @@ class GeminiService:
             "temperature": settings.GEMINI_TEMPERATURE,
             "max_output_tokens": settings.GEMINI_MAX_TOKENS,
         }
+        logger.info(f"Initialized GeminiService with model: {self.model_name}")
 
     async def analyze_food_image(
         self,
@@ -44,9 +46,13 @@ class GeminiService:
         Returns:
             Dictionary containing detected items, nutrition, and scores
         """
+        start_time = time.time()
+        logger.info(f"Gemini analysis started for image: {image_path} (Language: {language})")
+        
         try:
             # Load image
             img = Image.open(image_path)
+            logger.debug(f"Image loaded successfully: {image_path} (Size: {img.size})")
 
             # Create model
             model = genai.GenerativeModel(
@@ -56,18 +62,27 @@ class GeminiService:
 
             # Create prompt based on language
             prompt = self._create_food_analysis_prompt(language)
+            logger.debug(f"Prompt created (Length: {len(prompt)})")
 
             # Generate response
+            gen_start = time.time()
             response = model.generate_content([prompt, img])
+            gen_duration = time.time() - gen_start
+            logger.info(f"Gemini generation complete. Duration: {gen_duration:.3f}s")
 
             # Parse response
             result = self._parse_food_analysis_response(response.text)
-
-            logger.info(f"Successfully analyzed food image: {image_path}")
+            
+            total_duration = time.time() - start_time
+            logger.info(
+                f"Successfully analyzed food image: {image_path} - "
+                f"Total Time: {total_duration:.3f}s - "
+                f"Items detected: {len(result.get('detected_items', []))}"
+            )
             return result
 
         except Exception as e:
-            logger.error(f"Error analyzing food image: {str(e)}")
+            logger.error(f"Error analyzing food image {image_path}: {str(e)}", exc_info=True)
             raise
 
     def _create_food_analysis_prompt(self, language: str) -> str:
@@ -176,6 +191,7 @@ Identify Ultra-Processed Food (UPF) ingredients and provide recommendations base
 
     def _parse_food_analysis_response(self, response_text: str) -> Dict[str, Any]:
         """Parse Gemini response into structured data."""
+        logger.debug(f"Parsing Gemini response (Length: {len(response_text)})")
         try:
             # Extract JSON from response (handle markdown code blocks)
             json_text = response_text
@@ -186,10 +202,11 @@ Identify Ultra-Processed Food (UPF) ingredients and provide recommendations base
 
             # Parse JSON
             data = json.loads(json_text.strip())
+            logger.debug("JSON parsed successfully")
             return data
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {str(e)}")
+            logger.error(f"Failed to parse JSON response: {str(e)}\nRaw response: {response_text[:500]}...")
             # Return fallback structure
             return {
                 "detected_items": [],

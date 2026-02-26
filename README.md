@@ -46,6 +46,37 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 
 ---
 
+## 📚 Documentation & Resources
+
+For in-depth technical information and development guides, please refer to:
+
+-   **[🧠 Knowledge Base](docs/KNOWLEDGE_BASE.md)**: Architectural decisions, domain logic, and technical foundations.
+-   **[📜 Development Guideline](docs/GUIDELINE.md)**: Coding standards, logging practices, and developer workflow.
+-   **[⚠️ Known Issues](docs/KNOWN_ISSUES.md)**: Current bugs, technical limitations, and ongoing investigations.
+-   **[🛠️ Project Plan](PROJECT_PLAN.md)**: Detailed roadmap and feature milestones.
+
+---
+
+## 📊 Debugging & Logging
+
+EatInOrder features a **Unified Logging System** across the entire stack to ensure high visibility and easy debugging.
+
+### Monitoring Features
+- **Frontend Tracking**: Monitors user engagement and feature status (Success/Failure/Loading).
+- **Backend Middleware**: Automatically logs every request, response status code, and processing duration (`X-Process-Time`).
+- **Service Diagnostics**: Granular logging for Gemini AI analysis and nutrition scoring logic.
+
+### Real-time Logs on Cloudflare
+1.  Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2.  Navigate to **Workers & Pages** > **nutri-vision-ai**.
+3.  Select your **Deployment** and click **Begin Log Streaming**.
+4.  **Filter by:**
+    - `[FEATURE]`: To track functional status of menus/functions.
+    - `[ERROR]`: To identify system failures or crashes.
+    - `X-Process-Time`: To identify performance bottlenecks.
+
+---
+
 ## 🏗️ Architecture
 
 ### Tech Stack

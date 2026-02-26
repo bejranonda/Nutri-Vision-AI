@@ -3,6 +3,7 @@ import { getMessages } from 'next-intl/server';
 import { Inter, Prompt, Plus_Jakarta_Sans } from "next/font/google";
 import "../globals.css";
 import type { Metadata } from 'next';
+import { logger } from '@/lib/logger';
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const prompt = Prompt({ subsets: ["thai", "latin"], weight: ["300", "400", "500", "600", "700"], variable: '--font-prompt' });
@@ -30,6 +31,9 @@ export default async function LocaleLayout({
   params: { locale: string };
 }) {
   const messages = await getMessages();
+  
+  // Server-side logging for Cloudflare Pages
+  logger.info(`Rendering layout for locale: ${locale}`);
 
   return (
     <html lang={locale} className={`${inter.variable} ${prompt.variable} ${jakarta.variable}`}>

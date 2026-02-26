@@ -3,12 +3,18 @@
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { ArrowLeft, Scan } from 'lucide-react';
+import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 export default function ScanPage() {
     const t = useTranslations('scan');
     const tCommon = useTranslations('common');
     const tSoon = useTranslations('coming_soon');
     const locale = useLocale();
+
+    useEffect(() => {
+        logger.trackFeature('Scan Page', 'loading', { locale });
+    }, [locale]);
 
     return (
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center p-4">

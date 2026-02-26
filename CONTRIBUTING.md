@@ -335,6 +335,9 @@ Before submitting, ensure:
 ## Additional Resources
 
 - [README.md](README.md) - Project overview
+- [🧠 Knowledge Base](docs/KNOWLEDGE_BASE.md) - Architectural decisions and domain logic
+- [📜 Development Guideline](docs/GUIDELINE.md) - Detailed coding and logging standards
+- [⚠️ Known Issues](docs/KNOWN_ISSUES.md) - Current bugs and technical limitations
 - [API Documentation](http://localhost:8000/docs) - Backend API reference
 - [PROJECT_PLAN.md](PROJECT_PLAN.md) - Detailed project plan
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide

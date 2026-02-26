@@ -14,7 +14,10 @@ from app.services.gemini_service import gemini_service
 from app.services.nutrition_scorer import nutrition_scorer
 from app.core.config import settings
 
+import logging
+
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ScanResponse(BaseModel):
@@ -65,12 +68,17 @@ async def analyze_food_image(
 
     try:
         # Analyze with Gemini AI
+        logger.info(f"Starting food analysis for user {current_user.id} with image {unique_filename}")
         analysis = await gemini_service.analyze_food_image(file_path, language)
+        logger.info(f"Gemini analysis complete for {unique_filename}")
 
         # Calculate nutrition scores
         nutrition_data = analysis.get("nutrition_summary", {})
         ingredients = analysis.get("ingredients", [])
+        
+        logger.info(f"Calculating nutrition scores for {unique_filename}")
         scores = nutrition_scorer.calculate_all_scores(nutrition_data, ingredients)
+        logger.info(f"Nutrition scores calculated for {unique_filename}")
 
         # Create scan record
         scan = FoodScan(
@@ -102,6 +110,8 @@ async def analyze_food_image(
 
         db.commit()
         db.refresh(scan)
+        
+        logger.info(f"Scan record created (ID: {scan.id}) for user {current_user.id}")
 
         return {
             "id": scan.id,
@@ -112,6 +122,7 @@ async def analyze_food_image(
         }
 
     except Exception as e:
+        logger.error(f"Analysis failed for {unique_filename}: {str(e)}", exc_info=True)
         # Clean up file on error
         if os.path.exists(file_path):
             os.remove(file_path)

@@ -55,14 +55,35 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
-# Request timing middleware
+# Request and process timing middleware
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    """Add processing time to response headers."""
+async def log_requests_and_timing(request: Request, call_next):
+    """Log all incoming requests and outgoing responses with timing."""
     start_time = time.time()
-    response = await call_next(request)
+    
+    # Process the request
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        # This will be handled by the global exception handler but we log it here for context
+        process_time = time.time() - start_time
+        logger.error(
+            f"Request failed: {request.method} {request.url.path} - Error: {str(exc)} - Time: {process_time:.3f}s"
+        )
+        raise exc
+        
     process_time = time.time() - start_time
+    
+    # Add timing header
     response.headers["X-Process-Time"] = str(process_time)
+    
+    # Log the request details
+    logger.info(
+        f"Request: {request.method} {request.url.path} - "
+        f"Status: {response.status_code} - "
+        f"Time: {process_time:.3f}s"
+    )
+    
     return response
 
 
