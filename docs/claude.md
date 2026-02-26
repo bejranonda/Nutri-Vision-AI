@@ -13,7 +13,7 @@ EatInOrder (previously Nutri-Vision AI) is a **food sequencing app** that helps 
 - **AI**: Cloudflare Workers AI for food recognition
 
 ## Key Architecture Decisions
-1. **Client-side auth** via Zustand + localStorage — ready for D1 backend swap
+1. **Edge-native security** via Cloudflare D1 + Web Crypto + HttpOnly cookies
 2. **Freemium model**: Free (10 scans/mo) → Premium (฿199/mo, unlimited) → Family (฿299/mo, 5 members)
 3. **Promotion code system**: TRIAL, DISCOUNT, FANCLUB, REFERRAL types
 4. **Feature gating**: `tier-config.ts` maps features to subscription tiers

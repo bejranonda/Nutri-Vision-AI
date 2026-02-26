@@ -63,7 +63,7 @@ npm run dev        # → http://localhost:3000
 ### ขั้นตอนการสมัคร
 1. สมัครด้วยอีเมล/รหัสผ่าน → แพลนฟรี
 2. ใช้รหัสโปรโมชั่น → อัปเกรดเป็นพรีเมียม/ทดลองใช้
-3. ข้อมูลบันทึกฝั่ง client ผ่าน Zustand + localStorage (พร้อมเชื่อม D1 backend)
+3. ความปลอดภัยระดับ Edge: จัดการ Session ด้วย HttpOnly Cookies ผ่าน Next.js Edge APIs และ Cloudflare D1
 
 ## 📋 การต่อยอดธุรกิจ
 

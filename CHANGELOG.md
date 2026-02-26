@@ -127,6 +127,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-02-26
+
+### Added
+- 🔒 **Edge-native Security**: Replaced client-side `localStorage` authentication with secure Next.js Edge APIs (`/api/auth/*`) backed by Cloudflare D1 + Web Crypto + HttpOnly cookies.
+- 🎟️ **Secure Promo Codes**: Moved promotion code validation and redemption logic (`/api/promo/redeem`) securely to the backend.
+- 🧠 **Workers AI Integration**: Built `/api/analyze` to handle image scanning via Cloudflare Workers AI with fallback mechanisms and rate-limiting.
+- 🎨 **UI Component Abstraction**: Created reusable `<GlassCard>` and `<GradientButton>` components, streamlining the `/scan` and `/pricing` pages.
+
+---
+
 ## [2.0.0] - 2026-02-26
 
 ### Added

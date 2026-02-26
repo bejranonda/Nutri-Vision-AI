@@ -83,7 +83,7 @@ frontend/src/
 ### Authentication Flow
 1. Register with email/password → free tier
 2. Redeem promo code → upgrade to premium/trial
-3. Client-side state via Zustand + localStorage (D1 backend ready)
+3. Edge-native security: Secure HttpOnly cookies powered by Next.js Edge APIs and Cloudflare D1.
 
 ### Subscription Tiers
 - **Free**: Basic scanning (10/month), 3 health dimensions, 100 recipes
