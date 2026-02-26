@@ -8,8 +8,26 @@ import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
 
+/** Structured type for food analysis results (mock or API). */
+export interface SequenceStep {
+    step: number;
+    emoji: string;
+    items: string;
+    category: 'fiber' | 'protein' | 'carb' | 'sugar';
+}
+
+export interface AnalysisResult {
+    name: string;
+    items: string[];
+    nutrition: { calories: number; protein: number; carbs: number; fat: number; fiber?: number };
+    scores: Record<string, number>;
+    sequence: SequenceStep[];
+    spikeReduction: number;
+    tip?: string;
+}
+
 // Mock analysis data for demo
-const MOCK_ANALYSES = [
+const MOCK_ANALYSES: AnalysisResult[] = [
     {
         name: 'pad_thai',
         items: ['🍜 Rice Noodles', '🥚 Egg', '🥜 Peanuts', '🌱 Bean Sprouts', '🍤 Shrimp', '🧄 Garlic'],
@@ -70,7 +88,7 @@ export default function ScanPage() {
 
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysis, setAnalysis] = useState<any | null>(null);
+    const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [dragOver, setDragOver] = useState(false);
 
     useEffect(() => {
@@ -122,7 +140,7 @@ export default function ScanPage() {
                         overall: data.overallScore
                     },
                     sequence: data.result.sequence.map((s: string, i: number) => {
-                        let cat = 'fiber';
+                        let cat: SequenceStep['category'] = 'fiber';
                         if (s.toLowerCase().includes('protein')) cat = 'protein';
                         if (s.toLowerCase().includes('carb')) cat = 'carb';
                         if (s.toLowerCase().includes('sugar') || s.toLowerCase().includes('sweet')) cat = 'sugar';
