@@ -36,3 +36,9 @@ frontend/src/
 - Components should be responsive (mobile-first)
 - Use `'use client'` directive for interactive pages
 - Logger: `import { logger } from '@/lib/logger'`
+
+## Key Documents
+- [Business Strategy](file:///d:/Git/Werapol/Nutri-Vision-AI/docs/business-strategy.md) — Problem, solution, personas, GTM, financials
+- [Monetization](file:///d:/Git/Werapol/Nutri-Vision-AI/research/business/monetization.md) — Pricing tiers and promo code strategy
+- [Market Research](file:///d:/Git/Werapol/Nutri-Vision-AI/research/Roadmap/) — Full roadmap and market analysis
+
