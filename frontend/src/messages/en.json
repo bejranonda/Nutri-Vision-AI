@@ -11,7 +11,9 @@
     "nudge": "Psst... try eating your veggies first to reduce blood sugar spikes!",
     "celebrate": "Amazing! You sequenced your meal perfectly!",
     "walking": "This meal was a bit heavy. How about a 10-minute walk to help manage that sugar spike?",
-    "upf_alert": "Oops! This meal seems to have many ultra-processed (UPF) ingredients. Eat mindfully!"
+    "upf_alert": "Oops! This meal seems to have many ultra-processed (UPF) ingredients. Eat mindfully!",
+    "scan_tip": "Try uploading a photo of your meal — I'll analyze it for you!",
+    "demo_welcome": "Let me show you how food sequencing works!"
   },
   "nav": {
     "home": "Home",
@@ -19,7 +21,8 @@
     "scan": "Scan Food",
     "recipes": "Recipes",
     "learn": "Learn",
-    "profile": "Profile"
+    "profile": "Profile",
+    "pricing": "Pricing"
   },
   "home": {
     "title": "EatInOrder",
@@ -67,16 +70,32 @@
     "title": "Scan Your Food",
     "upload": "Upload Image",
     "take_photo": "Take Photo",
-    "analyzing": "Analyzing...",
+    "drag_drop": "Drag & drop your food photo here",
+    "or_click": "or click to browse",
+    "supported_formats": "Supports JPG, PNG, HEIC",
+    "analyzing": "Analyzing your meal...",
+    "shinny_analyzing": "Shinny is looking at your food...",
     "results": "Analysis Results",
     "detected_items": "Detected Ingredients",
     "nutrition": "Nutrition Information",
+    "calories": "Calories",
+    "protein_g": "Protein",
+    "carbs_g": "Carbs",
+    "fat_g": "Fat",
+    "fiber_g": "Fiber",
+    "try_again": "Scan Another",
+    "upgrade_hint": "Upgrade to Premium for full 8-dimension analysis",
+    "scans_remaining": "Scans remaining this month",
     "sequence": {
       "title": "Optimal Eating Order",
       "subtitle": "Follow this sequence to reduce blood sugar spike",
       "spike_reduction": "Estimated spike reduction",
       "current_step": "Current step",
-      "completed": "Sequence completed!"
+      "completed": "Sequence completed!",
+      "eat_first": "Eat First",
+      "eat_second": "Eat Second",
+      "eat_third": "Eat Third",
+      "eat_last": "Eat Last"
     },
     "scores": {
       "blood_sugar": "Blood Sugar Impact",
@@ -91,6 +110,54 @@
     "suggestions": {
       "add_fiber": "Add some vegetables to reduce the blood sugar spike",
       "great_balance": "Great balance! This meal has all components."
+    },
+    "mock_foods": {
+      "pad_thai": "Pad Thai",
+      "som_tam": "Som Tam (Papaya Salad)",
+      "tom_yum": "Tom Yum Kung",
+      "green_curry": "Green Curry with Rice",
+      "mango_sticky": "Mango Sticky Rice"
+    }
+  },
+  "demo": {
+    "title": "How EatInOrder Works",
+    "subtitle": "Master the art of food sequencing in 4 simple steps",
+    "step_label": "Step",
+    "steps": {
+      "fiber": {
+        "title": "Start with Vegetables",
+        "description": "Fiber from vegetables coats your intestinal wall, creating a natural barrier that slows sugar absorption by up to 70%.",
+        "tip": "Eat your salad, som tam, or stir-fried veggies first!"
+      },
+      "protein": {
+        "title": "Protein & Healthy Fats Next",
+        "description": "Protein triggers the GLP-1 hormone, slowing gastric emptying and improving insulin response.",
+        "tip": "Enjoy your grilled chicken, fish, or tofu second!"
+      },
+      "carbs": {
+        "title": "Then Carbohydrates",
+        "description": "With the fiber shield and protein buffer in place, carbs are absorbed much more slowly.",
+        "tip": "Now enjoy your rice, noodles, or bread!"
+      },
+      "sweets": {
+        "title": "Sweets Last (If You Want)",
+        "description": "When eaten last, sweets have the least impact on your blood sugar thanks to everything you ate before.",
+        "tip": "Dessert is safe when your body is prepared!"
+      }
+    },
+    "blood_sugar": {
+      "title": "Blood Sugar Impact",
+      "without_sequence": "Without sequencing",
+      "with_sequence": "With sequencing",
+      "spike": "Sugar Spike!",
+      "flat": "Gentle Curve",
+      "reduction": "Up to 70% lower spike"
+    },
+    "try_it": {
+      "title": "Try It Yourself!",
+      "description": "Scan your next meal and let Shinny guide you through the optimal eating order.",
+      "cta_scan": "Scan Your Food Now",
+      "cta_register": "Create Free Account"
     }
   },
   "learn": {
@@ -216,10 +283,121 @@
     "email": "Email",
     "password": "Password",
     "confirm_password": "Confirm Password",
+    "display_name": "Display Name",
     "or": "or",
     "login_with_google": "Login with Google",
     "login_with_line": "Login with Line",
-    "forgot_password": "Forgot password?"
+    "forgot_password": "Forgot password?",
+    "no_account": "Don't have an account?",
+    "has_account": "Already have an account?",
+    "register_here": "Register here",
+    "login_here": "Login here",
+    "welcome_back": "Welcome Back!",
+    "create_account": "Create Your Account",
+    "login_subtitle": "Sign in to access your personalized nutrition dashboard",
+    "register_subtitle": "Start your food sequencing journey today",
+    "login_success": "Login successful! Redirecting...",
+    "register_success": "Account created! Welcome to EatInOrder!",
+    "validation": {
+      "email_required": "Email is required",
+      "email_invalid": "Please enter a valid email address",
+      "password_required": "Password is required",
+      "password_min": "Password must be at least 6 characters",
+      "password_mismatch": "Passwords do not match",
+      "name_required": "Display name is required"
+    },
+    "social_coming_soon": "Social login coming soon!",
+    "promo_section": "Have a promotion code?",
+    "promo_placeholder": "Enter code (e.g., SHINNY2024)",
+    "promo_apply": "Apply Code",
+    "promo_success": "Code redeemed successfully!",
+    "promo_error": "Invalid or expired code"
+  },
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Start free, upgrade when you're ready",
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "save_percent": "Save {percent}%",
+    "per_month": "/month",
+    "per_year": "/year",
+    "most_popular": "Most Popular",
+    "current_plan": "Current Plan",
+    "get_started": "Get Started Free",
+    "upgrade_now": "Upgrade Now",
+    "contact_sales": "Contact Sales",
+    "free_tier": {
+      "name": "Starter",
+      "description": "Get started with basic food scanning",
+      "features": [
+        "10 food scans per month",
+        "Basic nutrition information",
+        "Overall health score",
+        "100 Thai recipes",
+        "3 AI questions per day"
+      ]
+    },
+    "premium_tier": {
+      "name": "Health Pro",
+      "description": "Unlimited scans & full analysis",
+      "features": [
+        "Unlimited food scans",
+        "Full 8-dimension scoring",
+        "1,000+ Thai recipes",
+        "Unlimited AI Nutrition Coach",
+        "Weekly meal planning",
+        "Progress tracking & trends",
+        "Data export (CSV, PDF)",
+        "Priority support",
+        "No ads"
+      ]
+    },
+    "family_tier": {
+      "name": "Family Health",
+      "description": "Health for the whole family",
+      "features": [
+        "All Premium features",
+        "Up to 5 family members",
+        "Family meal planning",
+        "Shared recipes & collections",
+        "Kids nutrition mode",
+        "Family health dashboard"
+      ]
+    },
+    "enterprise": {
+      "title": "Corporate Wellness",
+      "description": "For organizations that care about employee health",
+      "cta": "Contact Us"
+    },
+    "promo_code": "Have a promotion code?",
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "q1": "Can I try Premium for free?",
+      "a1": "Yes! Use code EATWELL to get a 7-day free trial of all Premium features.",
+      "q2": "Can I cancel anytime?",
+      "a2": "Absolutely. Cancel anytime with no hidden fees. You'll keep access until the end of your billing period.",
+      "q3": "What payment methods do you accept?",
+      "a3": "We accept PromptPay, credit/debit cards, TrueMoney Wallet, and Rabbit LINE Pay.",
+      "q4": "Is there a student discount?",
+      "a4": "Yes! Students get Premium at a special rate of THB 999/year. Contact us with your student ID."
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "your_dashboard": "Your Dashboard",
+    "quick_stats": "Quick Stats",
+    "scans_used": "Scans Used",
+    "streak": "Day Streak",
+    "points": "Total Points",
+    "tier_badge": "Your Plan",
+    "recent_scans": "Recent Scans",
+    "no_scans": "No scans yet. Try scanning your first meal!",
+    "daily_challenge": "Today's Challenge",
+    "challenge_text": "Scan a meal and follow the eating sequence perfectly",
+    "challenge_reward": "+50 points",
+    "upgrade_cta": "Unlock all features with Premium",
+    "trial_expires": "Trial expires in {days} days",
+    "scan_now": "Scan Food Now"
   },
   "common": {
     "loading": "Loading...",
@@ -236,7 +414,12 @@
     "previous": "Previous",
     "search": "Search",
     "language": "Language",
-    "back_to_home": "Back to Home"
+    "back_to_home": "Back to Home",
+    "free": "Free",
+    "premium": "Premium",
+    "family": "Family",
+    "unlimited": "Unlimited",
+    "coming_soon_feature": "Coming soon!"
   },
   "coming_soon": {
     "scan": "This feature is coming soon! Our AI is still learning the optimal eating orders.",

@@ -1,15 +1,19 @@
 {
   "brand": {
     "name": "EatInOrder",
-    "tagline": "Lækkert i Rækkefølge",
+    "tagline": "Lækker i den rigtige rækkefølge",
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
   "mascot": {
     "name": "Shinny",
-    "greeting": "Hej! Jeg er Shinny, din makker til madrækkefølge!",
-    "encourage": "Godt gået! Du spiser i den rigtige rækkefølge!",
-    "nudge": "Psst... prøv at spise dine grøntsager først for at reducere blodsukkerstigninger!",
-    "celebrate": "Fantastisk! Du har sekvenseret dit måltid perfekt!"
+    "greeting": "Hej! Jeg er Shinny, din madsekvens-ven!",
+    "encourage": "Godt klaret! Du spiser i den rigtige rækkefølge!",
+    "nudge": "Psst... prøv at spise dine grøntsager først for at reducere blodsukkertoppe!",
+    "celebrate": "Fantastisk! Du har sekventeret dit måltid perfekt!",
+    "walking": "Dette måltid var lidt tungt. Hvad med en 10-minutters gåtur?",
+    "upf_alert": "Ups! Dette måltid har mange ultra-forarbejdede ingredienser. Spis opmærksomt!",
+    "scan_tip": "Prøv at uploade et foto af dit måltid — jeg analyserer det for dig!",
+    "demo_welcome": "Lad mig vise dig, hvordan madsekvensering fungerer!"
   },
   "nav": {
     "home": "Hjem",
@@ -17,47 +21,48 @@
     "scan": "Scan Mad",
     "recipes": "Opskrifter",
     "learn": "Lær",
-    "profile": "Profil"
+    "profile": "Profil",
+    "pricing": "Priser"
   },
   "home": {
     "title": "EatInOrder",
     "subtitle": "Spis klogt, lev længe",
-    "description": "Opdag hvordan den rigtige madrækkefølge kan reducere blodsukkerstigninger med op til 70%",
-    "cta": "Begynd at scanne",
+    "description": "Opdag, hvordan den rigtige spiserækkefølge kan reducere blodsukkertoppe med op til 70%",
+    "cta": "Start scanning",
     "demo": "Se hvordan det virker",
-    "concept_badge": "Hemmeligheden: Lækkert i Rækkefølge",
+    "concept_badge": "Hemmeligheden: Den rigtige rækkefølge",
     "concept": {
       "title": "Hvordan spiser man uden at ældes?",
-      "description": "Vores AI tæller ikke kun kalorier — den hjælper dig med at sekvensere dine måltider for maksimale sundhedsmæssige fordele:",
+      "description": "Vores AI tæller ikke bare kalorier — den hjælper dig med at sekvensere dine måltider for maksimal sundhedsfordel:",
       "sequence_short": "Grøntsager → Protein → Kulhydrater → Sødt",
       "spike_reduction": "Op til 70% blodsukkerreduktion",
       "steps": {
         "fiber": "1. Grøntsager",
-        "fiber_desc": "Fibre beklæder din tarm og bremser sukkeroptagelsen",
+        "fiber_desc": "Fibre coater tarmen og bremser sukkeroptagelsen",
         "protein": "2. Protein & Fedt",
-        "protein_desc": "Udløser GLP-1 hormon for bedre insulinrespons",
+        "protein_desc": "Udløser GLP-1-hormon for bedre insulinrespons",
         "carb": "3. Kulhydrater",
-        "carb_desc": "Fibre-skjoldet reducerer sukkerstigningen",
-        "sugar": "4. Søde sager (Valgfrit)",
+        "carb_desc": "Fiberskjoldet reducerer sukkerstigningen",
+        "sugar": "4. Sødt (Valgfrit)",
         "sugar_desc": "Bedst nydt til sidst når beskyttelsen er på plads"
       }
     },
     "features": {
       "scan": {
-        "title": "Smart Mad-Scanner",
-        "description": "Tag et billede og få øjeblikkelig ernæringsanalyse med rækkefølge-anbefalinger"
+        "title": "Smart Madscanner",
+        "description": "Tag et foto og få øjeblikkelig næringsanalyse med sekvensanbefalinger"
       },
       "sequence": {
-        "title": "Rækkefølge-Visualisering",
+        "title": "Sekvens-Visualizer",
         "description": "Se den optimale spiserækkefølge for ethvert måltid"
       },
       "score": {
-        "title": "8-dimensional Sundhedsscore",
+        "title": "8-Dimensions Sundhedsscore",
         "description": "Komplet ernæringsanalyse på tværs af alle sundhedsdimensioner"
       },
       "gamify": {
         "title": "Gamificeret Sundhed",
-        "description": "Optjen point, hold streaks, og forbedre dine spisevaner"
+        "description": "Optjen point, hold streaks og level op dine spisevaner"
       }
     }
   },
@@ -65,30 +70,94 @@
     "title": "Scan Din Mad",
     "upload": "Upload Billede",
     "take_photo": "Tag Foto",
-    "analyzing": "Analyserer...",
+    "drag_drop": "Træk og slip dit madfoto her",
+    "or_click": "eller klik for at vælge",
+    "supported_formats": "Understøtter JPG, PNG, HEIC",
+    "analyzing": "Analyserer dit måltid...",
+    "shinny_analyzing": "Shinny kigger på din mad...",
     "results": "Analyseresultater",
     "detected_items": "Registrerede Ingredienser",
-    "nutrition": "Ernæringsinformation",
+    "nutrition": "Næringsoplysninger",
+    "calories": "Kalorier",
+    "protein_g": "Protein",
+    "carbs_g": "Kulhydrater",
+    "fat_g": "Fedt",
+    "fiber_g": "Fibre",
+    "try_again": "Scan Igen",
+    "upgrade_hint": "Opgrader til Premium for fuld 8-dimensioners analyse",
+    "scans_remaining": "Resterende scans denne måned",
     "sequence": {
       "title": "Optimal Spiserækkefølge",
-      "subtitle": "Følg denne rækkefølge for at reducere blodsukkerstigninger",
-      "spike_reduction": "Estimeret stigningsreduktion",
+      "subtitle": "Følg denne sekvens for at reducere blodsukkertoppe",
+      "spike_reduction": "Estimeret top-reduktion",
       "current_step": "Nuværende trin",
-      "completed": "Rækkefølge gennemført!"
+      "completed": "Sekvens fuldført!",
+      "eat_first": "Spis Først",
+      "eat_second": "Spis som Nummer To",
+      "eat_third": "Spis som Nummer Tre",
+      "eat_last": "Spis Sidst"
     },
     "scores": {
-      "blood_sugar": "Blodsukkerpåvirkning",
+      "blood_sugar": "Blodsukker-Påvirkning",
       "gut_health": "Tarmsundhed",
-      "inflammation": "Inflammation",
+      "inflammation": "Betændelse",
       "nutrient_density": "Næringsstoftæthed",
-      "processing": "Forarbejdningsniveau",
+      "processing": "Forarbejdningsgrad",
       "protein_quality": "Proteinkvalitet",
       "micronutrient": "Vitaminer & Mineraler",
       "overall": "Samlet Score"
     },
     "suggestions": {
-      "add_fiber": "Tilføj grøntsager for at reducere blodsukkerstigningen",
-      "great_balance": "God balance! Dette måltid har alle komponenter."
+      "add_fiber": "Tilføj grøntsager for at reducere blodsukkertoppen",
+      "great_balance": "Flot balance! Dette måltid har alle komponenter."
+    },
+    "mock_foods": {
+      "pad_thai": "Pad Thai",
+      "som_tam": "Som Tam (Papayasalat)",
+      "tom_yum": "Tom Yum Kung",
+      "green_curry": "Grøn Curry med Ris",
+      "mango_sticky": "Mango Sticky Rice"
+    }
+  },
+  "demo": {
+    "title": "Sådan virker EatInOrder",
+    "subtitle": "Mester kunsten at sekvensere mad i 4 enkle trin",
+    "step_label": "Trin",
+    "steps": {
+      "fiber": {
+        "title": "Start med Grøntsager",
+        "description": "Fibre fra grøntsager coater tarmvæggen og skaber en naturlig barriere, der bremser sukkeroptagelsen med op til 70%.",
+        "tip": "Spis din salat eller stir-fry grøntsager først!"
+      },
+      "protein": {
+        "title": "Derefter Protein & Sunde Fedtstoffer",
+        "description": "Protein udløser GLP-1-hormon, bremser mavetømning og forbedrer insulinrespons.",
+        "tip": "Nyd kylling, fisk eller tofu som nummer to!"
+      },
+      "carbs": {
+        "title": "Så Kulhydrater",
+        "description": "Med fiberskjoldet og proteinbufferen på plads optages kulhydrater meget langsommere.",
+        "tip": "Nu kan du nyde ris, nudler eller brød!"
+      },
+      "sweets": {
+        "title": "Sødt Sidst (Hvis Ønsket)",
+        "description": "Når det spises sidst, har søde sager den mindste påvirkning af blodsukkeret.",
+        "tip": "Dessert er sikkert, når din krop er forberedt!"
+      }
+    },
+    "blood_sugar": {
+      "title": "Blodsukker-Påvirkning",
+      "without_sequence": "Uden sekvensering",
+      "with_sequence": "Med sekvensering",
+      "spike": "Sukkertop!",
+      "flat": "Blid Kurve",
+      "reduction": "Op til 70% lavere top"
+    },
+    "try_it": {
+      "title": "Prøv Det Selv!",
+      "description": "Scan dit næste måltid og lad Shinny guide dig gennem den optimale spiserækkefølge.",
+      "cta_scan": "Scan Din Mad Nu",
+      "cta_register": "Opret Gratis Konto"
     }
   },
   "learn": {
@@ -97,31 +166,31 @@
     "articles": {
       "sugar_basics": {
         "title": "Hvor godt kender du sukker?",
-        "description": "Lær om det skjulte sukker i din mad og hvordan det påvirker din krop"
+        "description": "Lær om skjulte sukkerarter i din mad"
       },
       "blood_sugar": {
-        "title": "Spis uden blodsukkerstigninger",
-        "description": "Mestrer kunsten at sekvensere mad for bedre glukosekontrol"
+        "title": "Spis uden blodsukkertoppe",
+        "description": "Mester kunsten at sekvensere mad"
       },
       "sugar_aging": {
         "title": "Sukker gør dig gammel",
-        "description": "Opdag hvordan sukker accelererer ældning gennem glykation"
+        "description": "Opdag hvordan sukker fremskynder aldring"
       },
       "glycemic_index": {
-        "title": "Forstå Glykæmisk Indeks",
-        "description": "Lær hvilke fødevarer der får dit blodsukker til at stige"
+        "title": "Forstå glykæmisk indeks",
+        "description": "Hvilke fødevarer påvirker blodsukkeret"
       },
       "probiotics": {
-        "title": "Probiotisk Sukker & Tarmsundhed",
-        "description": "Hvordan tarmbakterier påvirker dit stofskifte"
+        "title": "Probiotika & Tarmsundhed",
+        "description": "Hvordan tarmbakterier påvirker stofskiftet"
       }
     },
-    "progress": "Dit Fremskridt",
+    "progress": "Din Fremgang",
     "quiz": "Tag Quiz"
   },
   "chat": {
     "title": "Spørg Shinny",
-    "subtitle": "Din AI Ernæringsmakker",
+    "subtitle": "Din AI-Ernæringsrådgiver",
     "placeholder": "Spørg om mad, ernæring eller spiserækkefølge...",
     "send": "Send",
     "examples": {
@@ -138,7 +207,7 @@
     "categories": {
       "all": "Alle",
       "main_dish": "Hovedretter",
-      "soup": "Supper/Karryretter",
+      "soup": "Supper & Karry",
       "salad": "Salater",
       "dessert": "Desserter",
       "snack": "Snacks"
@@ -147,39 +216,39 @@
       "vegetarian": "Vegetarisk",
       "vegan": "Vegansk",
       "halal": "Halal",
-      "diabetic_friendly": "Diabetikervenlig",
+      "diabetic_friendly": "Diabetesvenlig",
       "low_carb": "Low Carb"
     },
     "sequence_hint": "Bedste spiserækkefølge for denne opskrift"
   },
   "gamification": {
     "points": "Point",
-    "level": "Niveau",
+    "level": "Level",
     "streak": {
-      "title": "Daglig Serie",
+      "title": "Daglig Streak",
       "days": "dage",
       "keep_going": "Fortsæt!",
-      "on_fire": "Du brænder!"
+      "on_fire": "Du er on fire!"
     },
     "levels": {
       "beginner": "Begynder",
       "learner": "Lærende",
-      "practitioner": "Praktiker",
+      "practitioner": "Øvet",
       "master": "Mester",
       "ninja": "Blodsukker-Ninja"
     },
     "achievements": {
-      "title": "Bedrifter",
+      "title": "Præstationer",
       "first_scan": "Første Scan",
-      "first_sequence": "Rækkefølge-Pro",
+      "first_sequence": "Sekvens-Pro",
       "week_streak": "Uge-Kriger",
-      "month_streak": "Måned-Mester",
+      "month_streak": "Måneds-Champion",
       "perfect_score": "Perfekt Score"
     },
     "daily_challenge": {
       "title": "Daglig Udfordring",
-      "complete": "Færdig",
-      "claimed": "Hentet!"
+      "complete": "Fuldført",
+      "claimed": "Indløst!"
     }
   },
   "profile": {
@@ -188,7 +257,7 @@
     "health_info": "Sundhedsoplysninger",
     "goals": "Mål",
     "subscription": "Abonnement",
-    "usage": "Forbrugsstatistik",
+    "usage": "Brugsstatistik",
     "fields": {
       "name": "Fulde Navn",
       "email": "E-mail",
@@ -209,15 +278,126 @@
   },
   "auth": {
     "login": "Log ind",
-    "register": "Opret konto",
+    "register": "Tilmeld",
     "logout": "Log ud",
     "email": "E-mail",
     "password": "Adgangskode",
-    "confirm_password": "Bekræft Adgangskode",
+    "confirm_password": "Bekræft adgangskode",
+    "display_name": "Visningsnavn",
     "or": "eller",
     "login_with_google": "Log ind med Google",
     "login_with_line": "Log ind med Line",
-    "forgot_password": "Glemt adgangskode?"
+    "forgot_password": "Glemt adgangskode?",
+    "no_account": "Har du ikke en konto?",
+    "has_account": "Har du allerede en konto?",
+    "register_here": "Tilmeld dig her",
+    "login_here": "Log ind her",
+    "welcome_back": "Velkommen tilbage!",
+    "create_account": "Opret Din Konto",
+    "login_subtitle": "Log ind for at tilgå dit personlige ernæringsdashboard",
+    "register_subtitle": "Start din madsekvensering rejse i dag",
+    "login_success": "Login lykkedes! Omdirigerer...",
+    "register_success": "Konto oprettet! Velkommen til EatInOrder!",
+    "validation": {
+      "email_required": "E-mail er påkrævet",
+      "email_invalid": "Indtast venligst en gyldig e-mailadresse",
+      "password_required": "Adgangskode er påkrævet",
+      "password_min": "Adgangskode skal være mindst 6 tegn",
+      "password_mismatch": "Adgangskoderne stemmer ikke overens",
+      "name_required": "Visningsnavn er påkrævet"
+    },
+    "social_coming_soon": "Social login kommer snart!",
+    "promo_section": "Har du en kampagnekode?",
+    "promo_placeholder": "Indtast kode (f.eks. SHINNY2024)",
+    "promo_apply": "Indløs kode",
+    "promo_success": "Kode indløst!",
+    "promo_error": "Ugyldig eller udløbet kode"
+  },
+  "pricing": {
+    "title": "Vælg Din Plan",
+    "subtitle": "Start gratis, opgrader når du er klar",
+    "monthly": "Månedlig",
+    "annual": "Årlig",
+    "save_percent": "Spar {percent}%",
+    "per_month": "/måned",
+    "per_year": "/år",
+    "most_popular": "Mest Populær",
+    "current_plan": "Nuværende Plan",
+    "get_started": "Start Gratis",
+    "upgrade_now": "Opgrader Nu",
+    "contact_sales": "Kontakt Salg",
+    "free_tier": {
+      "name": "Starter",
+      "description": "Kom i gang med grundlæggende madscanning",
+      "features": [
+        "10 madscans pr. måned",
+        "Grundlæggende næringsinfo",
+        "Samlet sundhedsscore",
+        "100 thai-opskrifter",
+        "3 AI-spørgsmål pr. dag"
+      ]
+    },
+    "premium_tier": {
+      "name": "Health Pro",
+      "description": "Ubegrænsede scans & fuld analyse",
+      "features": [
+        "Ubegrænsede madscans",
+        "Fuld 8-dimensioners scoring",
+        "1.000+ thai-opskrifter",
+        "Ubegrænset AI-ernæringscoach",
+        "Ugentlig måltidsplanlægning",
+        "Fremgangssporing & trends",
+        "Dataeksport (CSV, PDF)",
+        "Prioritetssupport",
+        "Ingen reklamer"
+      ]
+    },
+    "family_tier": {
+      "name": "Family Health",
+      "description": "Sundhed for hele familien",
+      "features": [
+        "Alle Premium-funktioner",
+        "Op til 5 familiemedlemmer",
+        "Familiemåltidsplanlægning",
+        "Delte opskrifter & samlinger",
+        "Børneernæringstilstand",
+        "Familiesundhedsdashboard"
+      ]
+    },
+    "enterprise": {
+      "title": "Corporate Wellness",
+      "description": "For organisationer der bekymrer sig om medarbejdersundhed",
+      "cta": "Kontakt Os"
+    },
+    "promo_code": "Har du en kampagnekode?",
+    "faq": {
+      "title": "Ofte Stillede Spørgsmål",
+      "q1": "Kan jeg prøve Premium gratis?",
+      "a1": "Ja! Brug koden EATWELL til en 7-dages gratis prøveperiode.",
+      "q2": "Kan jeg opsige når som helst?",
+      "a2": "Absolut. Opsig når som helst uden skjulte gebyrer.",
+      "q3": "Hvilke betalingsmetoder accepterer I?",
+      "a3": "Vi accepterer PromptPay, kredit-/debitkort, TrueMoney Wallet og Rabbit LINE Pay.",
+      "q4": "Er der studierabat?",
+      "a4": "Ja! Studerende får Premium til specialpris på 999 THB/år."
+    }
+  },
+  "dashboard": {
+    "welcome": "Velkommen tilbage",
+    "your_dashboard": "Dit Dashboard",
+    "quick_stats": "Hurtig Statistik",
+    "scans_used": "Brugte Scans",
+    "streak": "Daglig Streak",
+    "points": "Samlede Point",
+    "tier_badge": "Din Plan",
+    "recent_scans": "Seneste Scans",
+    "no_scans": "Ingen scans endnu. Prøv at scanne dit første måltid!",
+    "daily_challenge": "Dagens Udfordring",
+    "challenge_text": "Scan et måltid og følg spisesekvensen perfekt",
+    "challenge_reward": "+50 point",
+    "upgrade_cta": "Lås alle funktioner op med Premium",
+    "trial_expires": "Prøveperiode udløber om {days} dage",
+    "scan_now": "Scan Mad Nu"
   },
   "common": {
     "loading": "Indlæser...",
@@ -234,13 +414,18 @@
     "previous": "Forrige",
     "search": "Søg",
     "language": "Sprog",
-    "back_to_home": "Tilbage til forsiden"
+    "back_to_home": "Til forsiden",
+    "free": "Gratis",
+    "premium": "Premium",
+    "family": "Familie",
+    "unlimited": "Ubegrænset",
+    "coming_soon_feature": "Kommer snart!"
   },
   "coming_soon": {
-    "scan": "Denne funktion kommer snart! Vores AI lærer stadig den optimale spiserækkefølge.",
-    "demo": "Denne funktion kommer snart! Vores interaktive demo er under opbygning.",
-    "login": "Denne funktion kommer snart! Autentificering er under implementering.",
-    "dashboard": "Denne funktion kommer snart! Dit personlige dashboard forberedes af vores AI.",
-    "recipes": "Denne funktion kommer snart! Vores kokke og AI laver opskrifter."
+    "scan": "Dette feature kommer snart! Vores AI lærer stadig de optimale spiserækkefølger.",
+    "demo": "Dette feature kommer snart! Vores interaktive demo er under opbygning.",
+    "login": "Dette feature kommer snart! Autentificering implementeres i øjeblikket.",
+    "dashboard": "Dette feature kommer snart! Dit personlige dashboard forberedes.",
+    "recipes": "Dette feature kommer snart! Vores kokke og AI arbejder på opskrifter."
   }
 }

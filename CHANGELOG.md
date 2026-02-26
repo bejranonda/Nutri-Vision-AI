@@ -127,32 +127,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [2.0.0] - 2026-02-26
 
 ### Added
-- 👩‍🏫 **Shinny Mascot Integration**: Rebranded "Nong Oishii" to **Shinny**, aligning the AI coach with the "Live long to eat well" (อยู่เพื่อกินบำนาญ) philosophy.
-- 📂 **Business Strategy Research**: Added comprehensive business documentation under `research/business/` covering concept, approach, and monetization strategies.
-- 🌍 **Internationalization Updates**: Updated mascot name and persona across all supported languages (TH, EN, DE, DA).
-- 🎨 **Visual Identity**: Replaced chef mascot emoji with teacher/expert emoji to better reflect Shinny's role as a nutrition guru.
-- 🔗 **Routing Fixes**: Added themed "Coming Soon" placeholder pages for `/scan`, `/demo`, `/login`, `/dashboard`, and `/recipes` to improve the visitor user journey.
-- 🌍 **UX/i18n Improvements**:
-  - Implemented a space-saving **Dropdown Language Switcher**.
-  - Added `coming_soon` translation keys across all 4 supported languages.
-- 📱 **Mobile Responsiveness**: Added a hamburger menu and optimized the header layout for mobile screens.
+
+#### App Pages
+- 📸 **Scan Page**: Drag-and-drop food photo upload with simulated AI analysis. Shows detected ingredients, nutrition breakdown, optimal eating sequence (Veggies → Protein → Carbs → Sweets), spike reduction percentage, and 8-dimension health scores with tier-gated visibility.
+- 🎓 **Demo Page**: Interactive 4-step walkthrough of food sequencing science. Includes animated blood sugar curve comparison (with/without sequencing) and CTAs to scan or register.
+- 🔐 **Login Page**: Tabbed login/register form with email validation, password visibility toggle, promo code redemption section, Google & LINE social login buttons (styled, coming soon), and auto-redirect to dashboard on success.
+- 📊 **Dashboard Page**: Authenticated member dashboard with quick stats (scans used, streak, points, level), daily challenge, recent scans list, trial expiry warnings, and upgrade CTAs for free-tier users.
+- 💰 **Pricing Page**: Three-tier comparison cards (Free/Premium/Family) with monthly/annual toggle, feature checklists, enterprise CTA, promo code input, and FAQ accordion.
+
+#### Member System
+- 👤 **Auth Store**: Zustand-based authentication with `localStorage` persistence. Supports login, register, logout, promo code redemption, scan/AI question tracking, and points system. Ready for Cloudflare D1 backend swap.
+- 🎟️ **Promotion Code System**: Supports TRIAL, DISCOUNT, FANCLUB, and REFERRAL code types. Built-in demo codes: `SHINNY2024` (30-day Premium), `EATWELL` (7-day trial), `LAUNCH50` (50% off), `FAMILY2024` (14-day Family trial).
+- 🔒 **Feature Gating**: `tier-config.ts` maps features to Free/Premium/Family tiers with configurable limits (scans/month, AI questions/day, recipe access, score dimensions).
+- 🗄️ **Database Schema**: Added `promo_codes`, `code_redemptions`, and `sessions` tables. Extended `users` table with `display_name`, `trial_expires_at`, `promo_source`, `scans_this_month`, `streak_days`, `total_points`.
+
+#### Business Development
+- 💼 Freemium pricing: Free (10 scans/mo) → Premium (฿199/mo) → Family (฿299/mo)
+- 📈 Annual pricing with ~30% discount
+- 🏢 Enterprise/Corporate Wellness placeholder
+- 🎯 Usage tracking via logger for conversion funnels
+
+#### Documentation
+- 📄 Updated `README.md` and `README-TH.md` with feature table, promo codes, and business development
+- 📝 Created `docs/claude.md` and `docs/gemini.md` — project guides for AI assistants
+- 💰 Updated `research/business/monetization.md` with promo code strategy
+- 📋 Updated `CHANGELOG.md` with v2.0.0 entry
+
+#### Previous (Unreleased)
+- 👩‍🏫 **Shinny Mascot Integration**: Rebranded to **Shinny** with "Live long to eat well" philosophy
+- 📂 Business strategy research documents
+- 🌍 i18n updates for mascot across all languages
+- 🔗 Themed placeholder pages for all routes
+- 📱 Mobile hamburger menu and responsive header
 
 ### Planned Features
 - Restaurant menu scanning
 - Barcode scanner integration
+- Real AI food analysis via Cloudflare Workers AI
+- Payment integration (PromptPay, Rabbit LINE Pay)
+- Social login (Google, LINE)
 - Fitness tracker integration
 - Voice input support
-- Meal comparison feature
-- AI meal coach
-- Recipe creator
-- Marketplace for nutritionists
-- Smartwatch app
-- AR food scanning
-- Blood glucose integration
-- DNA-based nutrition recommendations
 
 ---
 

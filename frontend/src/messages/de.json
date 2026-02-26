@@ -1,94 +1,163 @@
 {
   "brand": {
     "name": "EatInOrder",
-    "tagline": "Köstlich in der richtigen Reihenfolge",
+    "tagline": "Lecker in der richtigen Reihenfolge",
     "tagline_thai": "อร่อย ตาม ลำดับ"
   },
   "mascot": {
     "name": "Shinny",
-    "greeting": "Hallo! Ich bin Shinny, dein Begleiter für die richtige Essensreihenfolge!",
-    "encourage": "Toll gemacht! Du isst in der richtigen Reihenfolge!",
-    "nudge": "Psst... versuch dein Gemüse zuerst zu essen, um Blutzuckerspitzen zu reduzieren!",
-    "celebrate": "Fantastisch! Du hast deine Mahlzeit perfekt sequenziert!"
+    "greeting": "Hallo! Ich bin Shinny, dein Ernährungscoach!",
+    "encourage": "Super! Du isst in der richtigen Reihenfolge!",
+    "nudge": "Psst... iss zuerst dein Gemüse, um Blutzuckerspitzen zu reduzieren!",
+    "celebrate": "Fantastisch! Du hast deine Mahlzeit perfekt sequenziert!",
+    "walking": "Diese Mahlzeit war etwas reichhaltig. Wie wäre es mit einem 10-Minuten-Spaziergang?",
+    "upf_alert": "Ups! Diese Mahlzeit enthält viele ultra-verarbeitete Zutaten. Achtsam essen!",
+    "scan_tip": "Lade ein Foto deiner Mahlzeit hoch — ich analysiere es für dich!",
+    "demo_welcome": "Lass mich dir zeigen, wie Food Sequencing funktioniert!"
   },
   "nav": {
-    "home": "Startseite",
+    "home": "Start",
     "dashboard": "Dashboard",
-    "scan": "Essen scannen",
+    "scan": "Scannen",
     "recipes": "Rezepte",
     "learn": "Lernen",
-    "profile": "Profil"
+    "profile": "Profil",
+    "pricing": "Preise"
   },
   "home": {
     "title": "EatInOrder",
-    "subtitle": "Smart essen, länger leben",
-    "description": "Entdecke, wie die richtige Essensreihenfolge Blutzuckerspitzen bis zu 70% reduzieren kann",
+    "subtitle": "Clever essen, länger leben",
+    "description": "Entdecke, wie die richtige Essreihenfolge Blutzuckerspitzen um bis zu 70% reduzieren kann",
     "cta": "Jetzt scannen",
     "demo": "So funktioniert's",
-    "concept_badge": "Das Geheimnis: Köstlich in der richtigen Reihenfolge",
+    "concept_badge": "Das Geheimnis: Die richtige Reihenfolge",
     "concept": {
       "title": "Wie isst man ohne zu altern?",
-      "description": "Unsere KI zählt nicht nur Kalorien — sie hilft dir, deine Mahlzeiten für maximale Gesundheitsvorteile zu ordnen:",
+      "description": "Unsere KI zählt nicht nur Kalorien — sie hilft dir, deine Mahlzeiten optimal zu sequenzieren:",
       "sequence_short": "Gemüse → Protein → Kohlenhydrate → Süßes",
-      "spike_reduction": "Bis zu 70% Blutzuckerreduktion",
+      "spike_reduction": "Bis zu 70% weniger Blutzuckerspitzen",
       "steps": {
         "fiber": "1. Gemüse",
-        "fiber_desc": "Ballaststoffe beschichten deinen Darm und verlangsamen die Zuckeraufnahme",
+        "fiber_desc": "Ballaststoffe beschichten den Darm und verlangsamen die Zuckeraufnahme",
         "protein": "2. Protein & Fett",
-        "protein_desc": "Löst GLP-1-Hormon für bessere Insulinreaktion aus",
+        "protein_desc": "Löst das GLP-1-Hormon für eine bessere Insulinreaktion aus",
         "carb": "3. Kohlenhydrate",
-        "carb_desc": "Der Ballaststoff-Schild reduziert die Zuckerspitze",
+        "carb_desc": "Der Ballaststoff-Schutzschild reduziert den Zuckeranstieg",
         "sugar": "4. Süßes (Optional)",
-        "sugar_desc": "Am besten zum Schluss genießen, wenn der Schutz aktiv ist"
+        "sugar_desc": "Am besten zuletzt, wenn der Schutz wirkt"
       }
     },
     "features": {
       "scan": {
-        "title": "Smarter Essen-Scanner",
-        "description": "Mach ein Foto und erhalte sofortige Nährwertanalyse mit Reihenfolge-Empfehlungen"
+        "title": "Intelligenter Food-Scanner",
+        "description": "Mach ein Foto und erhalte sofortige Nährwertanalyse mit Sequenzempfehlungen"
       },
       "sequence": {
-        "title": "Reihenfolge-Visualisierung",
-        "description": "Sehe die optimale Essensreihenfolge für jede Mahlzeit"
+        "title": "Sequenz-Visualizer",
+        "description": "Sieh die optimale Essreihenfolge für jede Mahlzeit"
       },
       "score": {
-        "title": "8-dimensionale Gesundheitsbewertung",
-        "description": "Vollständige Nährwertanalyse über alle Gesundheitsdimensionen"
+        "title": "8-Dimensionen Gesundheitsscore",
+        "description": "Vollständige Ernährungsanalyse über alle Gesundheitsdimensionen"
       },
       "gamify": {
         "title": "Gamifizierte Gesundheit",
-        "description": "Verdiene Punkte, halte Streaks und verbessere deine Essgewohnheiten"
+        "description": "Sammle Punkte, halte Streaks und steige in deinen Essgewohnheiten auf"
       }
     }
   },
   "scan": {
     "title": "Essen scannen",
     "upload": "Bild hochladen",
-    "take_photo": "Foto machen",
-    "analyzing": "Analysiere...",
+    "take_photo": "Foto aufnehmen",
+    "drag_drop": "Ziehe dein Essensfoto hierher",
+    "or_click": "oder klicke zum Auswählen",
+    "supported_formats": "Unterstützt JPG, PNG, HEIC",
+    "analyzing": "Analysiere deine Mahlzeit...",
+    "shinny_analyzing": "Shinny schaut sich dein Essen an...",
     "results": "Analyseergebnisse",
     "detected_items": "Erkannte Zutaten",
     "nutrition": "Nährwertinformationen",
+    "calories": "Kalorien",
+    "protein_g": "Protein",
+    "carbs_g": "Kohlenhydrate",
+    "fat_g": "Fett",
+    "fiber_g": "Ballaststoffe",
+    "try_again": "Erneut scannen",
+    "upgrade_hint": "Premium für vollständige 8-Dimensionen-Analyse upgraden",
+    "scans_remaining": "Verbleibende Scans diesen Monat",
     "sequence": {
-      "title": "Optimale Essensreihenfolge",
-      "subtitle": "Folge dieser Reihenfolge um Blutzuckerspitzen zu reduzieren",
+      "title": "Optimale Essreihenfolge",
+      "subtitle": "Folge dieser Sequenz, um Blutzuckerspitzen zu reduzieren",
       "spike_reduction": "Geschätzte Spitzenreduktion",
       "current_step": "Aktueller Schritt",
-      "completed": "Reihenfolge abgeschlossen!"
+      "completed": "Sequenz abgeschlossen!",
+      "eat_first": "Zuerst essen",
+      "eat_second": "Als Zweites essen",
+      "eat_third": "Als Drittes essen",
+      "eat_last": "Zuletzt essen"
     },
     "scores": {
-      "blood_sugar": "Blutzuckerspiegel",
+      "blood_sugar": "Blutzucker-Auswirkung",
       "gut_health": "Darmgesundheit",
       "inflammation": "Entzündung",
       "nutrient_density": "Nährstoffdichte",
       "processing": "Verarbeitungsgrad",
       "protein_quality": "Proteinqualität",
-      "micronutrient": "Vitamine & Mineralien",
-      "overall": "Gesamtbewertung"
+      "micronutrient": "Vitamine & Minerale",
+      "overall": "Gesamtscore"
     },
     "suggestions": {
-      "add_fiber": "Füge Gemüse hinzu um die Blutzuckerspitze zu reduzieren",
+      "add_fiber": "Füge Gemüse hinzu, um Blutzuckerspitzen zu reduzieren",
       "great_balance": "Tolle Balance! Diese Mahlzeit hat alle Komponenten."
+    },
+    "mock_foods": {
+      "pad_thai": "Pad Thai",
+      "som_tam": "Som Tam (Papayasalat)",
+      "tom_yum": "Tom Yum Kung",
+      "green_curry": "Grünes Curry mit Reis",
+      "mango_sticky": "Mango Sticky Rice"
+    }
+  },
+  "demo": {
+    "title": "So funktioniert EatInOrder",
+    "subtitle": "Meistere die Kunst des Food Sequencing in 4 einfachen Schritten",
+    "step_label": "Schritt",
+    "steps": {
+      "fiber": {
+        "title": "Beginne mit Gemüse",
+        "description": "Ballaststoffe aus Gemüse beschichten die Darmwand und erzeugen eine natürliche Barriere, die die Zuckeraufnahme um bis zu 70% verlangsamt.",
+        "tip": "Iss zuerst deinen Salat oder dein gebratenes Gemüse!"
+      },
+      "protein": {
+        "title": "Dann Protein & gesunde Fette",
+        "description": "Protein löst das GLP-1-Hormon aus, verlangsamt die Magenentleerung und verbessert die Insulinreaktion.",
+        "tip": "Genieße als Zweites Huhn, Fisch oder Tofu!"
+      },
+      "carbs": {
+        "title": "Dann Kohlenhydrate",
+        "description": "Mit dem Ballaststoffschild und dem Proteinpuffer werden Kohlenhydrate viel langsamer aufgenommen.",
+        "tip": "Jetzt Reis, Nudeln oder Brot genießen!"
+      },
+      "sweets": {
+        "title": "Süßes zuletzt (wenn gewünscht)",
+        "description": "Zuletzt gegessen haben Süßigkeiten den geringsten Einfluss auf den Blutzucker.",
+        "tip": "Dessert ist sicher, wenn dein Körper vorbereitet ist!"
+      }
+    },
+    "blood_sugar": {
+      "title": "Blutzucker-Auswirkung",
+      "without_sequence": "Ohne Sequenzierung",
+      "with_sequence": "Mit Sequenzierung",
+      "spike": "Zuckerspitze!",
+      "flat": "Sanfte Kurve",
+      "reduction": "Bis zu 70% geringere Spitze"
+    },
+    "try_it": {
+      "title": "Probier es selbst!",
+      "description": "Scanne deine nächste Mahlzeit und lass Shinny dich durch die optimale Essreihenfolge führen.",
+      "cta_scan": "Jetzt Essen scannen",
+      "cta_register": "Kostenloses Konto erstellen"
     }
   },
   "learn": {
@@ -97,38 +166,38 @@
     "articles": {
       "sugar_basics": {
         "title": "Wie gut kennst du Zucker?",
-        "description": "Lerne die versteckten Zucker in deinem Essen und wie sie deinen Körper beeinflussen"
+        "description": "Lerne versteckte Zucker in deinem Essen kennen"
       },
       "blood_sugar": {
         "title": "Essen ohne Blutzuckerspitzen",
-        "description": "Meistere die Kunst der Essenssequenzierung für bessere Glukosekontrolle"
+        "description": "Meistere die Kunst des Food Sequencing"
       },
       "sugar_aging": {
         "title": "Zucker macht dich alt",
-        "description": "Entdecke wie Zucker die Alterung durch Glykation beschleunigt"
+        "description": "Entdecke, wie Zucker die Alterung beschleunigt"
       },
       "glycemic_index": {
-        "title": "Glykämischer Index verstehen",
-        "description": "Lerne welche Lebensmittel deinen Blutzucker steigen lassen"
+        "title": "Glykämischen Index verstehen",
+        "description": "Welche Lebensmittel den Blutzucker beeinflussen"
       },
       "probiotics": {
-        "title": "Probiotischer Zucker & Darmgesundheit",
-        "description": "Wie Darmbakterien deinen Stoffwechsel beeinflussen"
+        "title": "Probiotika & Darmgesundheit",
+        "description": "Wie Darmbakterien den Stoffwechsel beeinflussen"
       }
     },
     "progress": "Dein Fortschritt",
-    "quiz": "Quiz machen"
+    "quiz": "Quiz starten"
   },
   "chat": {
     "title": "Frag Shinny",
-    "subtitle": "Dein KI-Ernährungsbegleiter",
-    "placeholder": "Frag über Essen, Ernährung oder Essensreihenfolge...",
+    "subtitle": "Dein KI-Ernährungsberater",
+    "placeholder": "Frag zu Essen, Ernährung oder Essreihenfolge...",
     "send": "Senden",
     "examples": {
       "title": "Probier zu fragen:",
       "1": "Wie beeinflusst Pad Thai meinen Blutzucker?",
       "2": "Was ist die beste Reihenfolge für Som Tam?",
-      "3": "Kann ich immer noch Süßes essen? Wie?"
+      "3": "Kann ich noch Süßes essen? Wie?"
     }
   },
   "recipes": {
@@ -138,7 +207,7 @@
     "categories": {
       "all": "Alle",
       "main_dish": "Hauptgerichte",
-      "soup": "Suppen/Currys",
+      "soup": "Suppen & Currys",
       "salad": "Salate",
       "dessert": "Desserts",
       "snack": "Snacks"
@@ -150,36 +219,36 @@
       "diabetic_friendly": "Diabetikerfreundlich",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Beste Essensreihenfolge für dieses Rezept"
+    "sequence_hint": "Beste Essreihenfolge für dieses Rezept"
   },
   "gamification": {
     "points": "Punkte",
     "level": "Level",
     "streak": {
-      "title": "Tägliche Serie",
+      "title": "Täglicher Streak",
       "days": "Tage",
       "keep_going": "Weiter so!",
-      "on_fire": "Du brennst!"
+      "on_fire": "Du bist on fire!"
     },
     "levels": {
       "beginner": "Anfänger",
-      "learner": "Lernender",
-      "practitioner": "Praktiker",
+      "learner": "Lernende",
+      "practitioner": "Fortgeschritten",
       "master": "Meister",
       "ninja": "Blutzucker-Ninja"
     },
     "achievements": {
       "title": "Erfolge",
       "first_scan": "Erster Scan",
-      "first_sequence": "Reihenfolgen-Profi",
+      "first_sequence": "Sequenz-Profi",
       "week_streak": "Wochen-Krieger",
       "month_streak": "Monats-Champion",
-      "perfect_score": "Perfekte Punktzahl"
+      "perfect_score": "Perfekte Bewertung"
     },
     "daily_challenge": {
       "title": "Tägliche Herausforderung",
-      "complete": "Fertig",
-      "claimed": "Abgeholt!"
+      "complete": "Abgeschlossen",
+      "claimed": "Eingelöst!"
     }
   },
   "profile": {
@@ -198,14 +267,14 @@
       "weight": "Gewicht (kg)",
       "target_weight": "Zielgewicht (kg)",
       "goal": "Gesundheitsziel",
-      "activity_level": "Aktivitätsniveau"
+      "activity_level": "Aktivitätslevel"
     },
     "subscription_tiers": {
       "free": "Kostenlos",
       "premium": "Premium",
       "family": "Familie"
     },
-    "upgrade": "Upgrade"
+    "upgrade": "Upgraden"
   },
   "auth": {
     "login": "Anmelden",
@@ -214,13 +283,124 @@
     "email": "E-Mail",
     "password": "Passwort",
     "confirm_password": "Passwort bestätigen",
+    "display_name": "Anzeigename",
     "or": "oder",
     "login_with_google": "Mit Google anmelden",
     "login_with_line": "Mit Line anmelden",
-    "forgot_password": "Passwort vergessen?"
+    "forgot_password": "Passwort vergessen?",
+    "no_account": "Noch kein Konto?",
+    "has_account": "Bereits ein Konto?",
+    "register_here": "Hier registrieren",
+    "login_here": "Hier anmelden",
+    "welcome_back": "Willkommen zurück!",
+    "create_account": "Konto erstellen",
+    "login_subtitle": "Melde dich an, um dein persönliches Ernährungs-Dashboard zu nutzen",
+    "register_subtitle": "Starte heute deine Food Sequencing Reise",
+    "login_success": "Anmeldung erfolgreich! Weiterleitung...",
+    "register_success": "Konto erstellt! Willkommen bei EatInOrder!",
+    "validation": {
+      "email_required": "E-Mail ist erforderlich",
+      "email_invalid": "Bitte gib eine gültige E-Mail-Adresse ein",
+      "password_required": "Passwort ist erforderlich",
+      "password_min": "Passwort muss mindestens 6 Zeichen lang sein",
+      "password_mismatch": "Passwörter stimmen nicht überein",
+      "name_required": "Anzeigename ist erforderlich"
+    },
+    "social_coming_soon": "Social Login kommt bald!",
+    "promo_section": "Hast du einen Promotioncode?",
+    "promo_placeholder": "Code eingeben (z.B. SHINNY2024)",
+    "promo_apply": "Code einlösen",
+    "promo_success": "Code erfolgreich eingelöst!",
+    "promo_error": "Ungültiger oder abgelaufener Code"
+  },
+  "pricing": {
+    "title": "Wähle deinen Plan",
+    "subtitle": "Starte kostenlos, upgrade wenn du bereit bist",
+    "monthly": "Monatlich",
+    "annual": "Jährlich",
+    "save_percent": "{percent}% sparen",
+    "per_month": "/Monat",
+    "per_year": "/Jahr",
+    "most_popular": "Beliebteste",
+    "current_plan": "Aktueller Plan",
+    "get_started": "Kostenlos starten",
+    "upgrade_now": "Jetzt upgraden",
+    "contact_sales": "Vertrieb kontaktieren",
+    "free_tier": {
+      "name": "Starter",
+      "description": "Erste Schritte mit Food Scanning",
+      "features": [
+        "10 Food-Scans pro Monat",
+        "Grundlegende Nährwertinfos",
+        "Gesamt-Gesundheitsscore",
+        "100 Thai-Rezepte",
+        "3 KI-Fragen pro Tag"
+      ]
+    },
+    "premium_tier": {
+      "name": "Health Pro",
+      "description": "Unbegrenzte Scans & vollständige Analyse",
+      "features": [
+        "Unbegrenzte Food-Scans",
+        "Vollständige 8-Dimensionen-Bewertung",
+        "1.000+ Thai-Rezepte",
+        "Unbegrenzter KI-Ernährungscoach",
+        "Wöchentliche Mahlzeitenplanung",
+        "Fortschrittsverfolgung & Trends",
+        "Datenexport (CSV, PDF)",
+        "Prioritäts-Support",
+        "Keine Werbung"
+      ]
+    },
+    "family_tier": {
+      "name": "Family Health",
+      "description": "Gesundheit für die ganze Familie",
+      "features": [
+        "Alle Premium-Funktionen",
+        "Bis zu 5 Familienmitglieder",
+        "Familien-Mahlzeitenplanung",
+        "Geteilte Rezepte & Sammlungen",
+        "Kinder-Ernährungsmodus",
+        "Familien-Gesundheitsdashboard"
+      ]
+    },
+    "enterprise": {
+      "title": "Corporate Wellness",
+      "description": "Für Organisationen, die sich um die Gesundheit ihrer Mitarbeiter kümmern",
+      "cta": "Kontaktieren Sie uns"
+    },
+    "promo_code": "Hast du einen Promotioncode?",
+    "faq": {
+      "title": "Häufig gestellte Fragen",
+      "q1": "Kann ich Premium kostenlos testen?",
+      "a1": "Ja! Nutze den Code EATWELL für eine 7-tägige kostenlose Testversion.",
+      "q2": "Kann ich jederzeit kündigen?",
+      "a2": "Absolut. Kündige jederzeit ohne versteckte Gebühren.",
+      "q3": "Welche Zahlungsmethoden akzeptiert ihr?",
+      "a3": "Wir akzeptieren PromptPay, Kredit-/Debitkarten, TrueMoney Wallet und Rabbit LINE Pay.",
+      "q4": "Gibt es einen Studentenrabatt?",
+      "a4": "Ja! Studenten erhalten Premium zum Sonderpreis von 999 THB/Jahr."
+    }
+  },
+  "dashboard": {
+    "welcome": "Willkommen zurück",
+    "your_dashboard": "Dein Dashboard",
+    "quick_stats": "Schnelle Statistiken",
+    "scans_used": "Verwendete Scans",
+    "streak": "Tage-Streak",
+    "points": "Gesamtpunkte",
+    "tier_badge": "Dein Plan",
+    "recent_scans": "Letzte Scans",
+    "no_scans": "Noch keine Scans. Probiere deinen ersten Scan!",
+    "daily_challenge": "Heutige Herausforderung",
+    "challenge_text": "Scanne eine Mahlzeit und folge der Esssequenz perfekt",
+    "challenge_reward": "+50 Punkte",
+    "upgrade_cta": "Alle Funktionen mit Premium freischalten",
+    "trial_expires": "Testversion läuft in {days} Tagen ab",
+    "scan_now": "Jetzt Essen scannen"
   },
   "common": {
-    "loading": "Lädt...",
+    "loading": "Laden...",
     "error": "Fehler",
     "success": "Erfolg",
     "save": "Speichern",
@@ -231,16 +411,21 @@
     "confirm": "Bestätigen",
     "back": "Zurück",
     "next": "Weiter",
-    "previous": "Vorherige",
-    "search": "Suche",
+    "previous": "Zurück",
+    "search": "Suchen",
     "language": "Sprache",
-    "back_to_home": "Zurück zur Startseite"
+    "back_to_home": "Zur Startseite",
+    "free": "Kostenlos",
+    "premium": "Premium",
+    "family": "Familie",
+    "unlimited": "Unbegrenzt",
+    "coming_soon_feature": "Kommt bald!"
   },
   "coming_soon": {
-    "scan": "Dieses Feature kommt bald! Unsere KI lernt noch die optimale Essensreihenfolge.",
-    "demo": "Dieses Feature kommt bald! Unsere interaktive Demo ist gerade im Aufbau.",
-    "login": "Dieses Feature kommt bald! Die Authentifizierung wird gerade implementiert.",
-    "dashboard": "Dieses Feature kommt bald! Dein persönliches Dashboard wird von unserer KI vorbereitet.",
-    "recipes": "Dieses Feature kommt bald! Unsere Köche und KI kochen gerade einige Rezepte."
+    "scan": "Dieses Feature kommt bald! Unsere KI lernt noch die optimalen Essreihenfolgen.",
+    "demo": "Dieses Feature kommt bald! Unsere interaktive Demo ist in Arbeit.",
+    "login": "Dieses Feature kommt bald! Authentifizierung wird gerade implementiert.",
+    "dashboard": "Dieses Feature kommt bald! Dein persönliches Dashboard wird vorbereitet.",
+    "recipes": "Dieses Feature kommt bald! Unsere Köche und KI arbeiten an Rezepten."
   }
 }

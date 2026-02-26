@@ -3,11 +3,49 @@ import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(),
     email: text('email').notNull().unique(),
+    displayName: text('display_name'),
     hashedPassword: text('hashed_password'),
     subscriptionTier: text('subscription_tier').default('free'), // free, premium, family
+    trialExpiresAt: integer('trial_expires_at', { mode: 'timestamp' }),
+    promoSource: text('promo_source'), // code that activated current tier
     language: text('language').default('th'),
     healthInfo: text('health_info', { mode: 'json' }), // age, weight, height, goals
     usageTracking: text('usage_tracking', { mode: 'json' }),
+    scansThisMonth: integer('scans_this_month').default(0),
+    streakDays: integer('streak_days').default(0),
+    totalPoints: integer('total_points').default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const promoCodes = sqliteTable('promo_codes', {
+    id: text('id').primaryKey(),
+    code: text('code').notNull().unique(),
+    type: text('type').notNull(), // TRIAL, DISCOUNT, FANCLUB, REFERRAL
+    description: text('description'),
+    descriptionTh: text('description_th'),
+    trialDays: integer('trial_days'),
+    discountPercent: real('discount_percent'),
+    grantTier: text('grant_tier').default('premium'),
+    usageLimit: integer('usage_limit').default(100),
+    usageCount: integer('usage_count').default(0),
+    isActive: integer('is_active', { mode: 'boolean' }).default(true),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const codeRedemptions = sqliteTable('code_redemptions', {
+    id: text('id').primaryKey(),
+    userId: text('user_id').references(() => users.id),
+    codeId: text('code_id').references(() => promoCodes.id),
+    benefitsApplied: text('benefits_applied', { mode: 'json' }),
+    redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const sessions = sqliteTable('sessions', {
+    id: text('id').primaryKey(),
+    userId: text('user_id').references(() => users.id),
+    token: text('token').notNull().unique(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
