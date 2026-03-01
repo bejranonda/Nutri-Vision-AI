@@ -1,76 +1,128 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { Link, usePathname } from '@/lib/navigation';
 import { ChevronDown } from 'lucide-react';
-import { TH, GB, DE, DK } from 'country-flag-icons/react/3x2';
+import { localeConfig, type AppLocale } from '@/lib/i18n-config';
 
-const locales = [
-    { code: 'th', Flag: TH, name: 'ไทย' },
-    { code: 'en', Flag: GB, name: 'EN' },
-    { code: 'de', Flag: DE, name: 'DE' },
-    { code: 'da', Flag: DK, name: 'DA' },
-];
-
+/**
+ * LanguageSwitcher — A fully accessible, locale-aware language dropdown.
+ *
+ * Features:
+ *  - Uses next-intl's Link for native browser link behavior (right-click, Ctrl+click)
+ *  - Full keyboard navigation (ArrowUp/Down, Home/End, Enter, Escape)
+ *  - WCAG 2.1 AA compliant (focus management, ARIA attributes)
+ *  - Centralized locale config from i18n-config.ts
+ *  - Tailwind-only styling (no inline styles)
+ */
 export default function LanguageSwitcher({ currentLocale }: { currentLocale: string }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [focusedIndex, setFocusedIndex] = useState(-1);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const optionRefs = useRef<(HTMLAnchorElement | null)[]>([]);
     const pathname = usePathname();
-    const router = useRouter();
 
-    const activeLocale = locales.find((l) => l.code === currentLocale) || locales[0];
+    const currentIndex = localeConfig.findIndex((l) => l.code === currentLocale);
+    const activeLocale = localeConfig[currentIndex] || localeConfig[0];
 
-    // Close on outside click
+    // ── Close on outside click ──────────────────────────────────────
+    // Uses 'click' (not 'mousedown') so that Link's mousedown → navigation
+    // fires before the dropdown closes. This fixes the race condition where
+    // mousedown on a Link closed the dropdown before navigation could happen.
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Close on Escape key
-    useEffect(() => {
-        function handleEscape(event: KeyboardEvent) {
-            if (event.key === 'Escape') setIsOpen(false);
-        }
         if (isOpen) {
-            document.addEventListener('keydown', handleEscape);
-            return () => document.removeEventListener('keydown', handleEscape);
+            document.addEventListener('click', handleClickOutside, true);
+            return () => document.removeEventListener('click', handleClickOutside, true);
         }
     }, [isOpen]);
 
-    /**
-     * Build the locale-switched path.
-     * /en/scan → /th/scan,  /en → /th
-     */
-    const getLocalePath = useCallback((targetLocale: string) => {
-        const segments = pathname.split('/');
-        // segments: ['', 'en', 'scan', ...]
-        if (segments.length > 1 && locales.some((l) => l.code === segments[1])) {
-            segments[1] = targetLocale;
+    // ── Focus management: focus selected item when dropdown opens ────
+    useEffect(() => {
+        if (isOpen) {
+            const idx = currentIndex >= 0 ? currentIndex : 0;
+            setFocusedIndex(idx);
+            // Slight delay to ensure DOM is ready
+            requestAnimationFrame(() => {
+                optionRefs.current[idx]?.focus();
+            });
         } else {
-            segments.splice(1, 0, targetLocale);
+            setFocusedIndex(-1);
         }
-        return segments.join('/') || `/${targetLocale}`;
-    }, [pathname]);
+    }, [isOpen, currentIndex]);
 
-    function handleSelectLocale(targetLocale: string) {
-        setIsOpen(false);
-        if (targetLocale !== currentLocale) {
-            router.push(getLocalePath(targetLocale));
+    // ── Keyboard handler for the dropdown panel ─────────────────────
+    const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+        const itemCount = localeConfig.length;
+
+        switch (event.key) {
+            case 'ArrowDown': {
+                event.preventDefault();
+                const next = (focusedIndex + 1) % itemCount;
+                setFocusedIndex(next);
+                optionRefs.current[next]?.focus();
+                break;
+            }
+            case 'ArrowUp': {
+                event.preventDefault();
+                const prev = (focusedIndex - 1 + itemCount) % itemCount;
+                setFocusedIndex(prev);
+                optionRefs.current[prev]?.focus();
+                break;
+            }
+            case 'Home': {
+                event.preventDefault();
+                setFocusedIndex(0);
+                optionRefs.current[0]?.focus();
+                break;
+            }
+            case 'End': {
+                event.preventDefault();
+                const last = itemCount - 1;
+                setFocusedIndex(last);
+                optionRefs.current[last]?.focus();
+                break;
+            }
+            case 'Escape': {
+                event.preventDefault();
+                setIsOpen(false);
+                triggerRef.current?.focus();
+                break;
+            }
+            case 'Tab': {
+                // Close dropdown on Tab and let focus move naturally
+                setIsOpen(false);
+                break;
+            }
+        }
+    }, [focusedIndex]);
+
+    // ── Trigger keyboard: open with ArrowDown/Enter/Space ───────────
+    function handleTriggerKeyDown(event: React.KeyboardEvent) {
+        if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setIsOpen(true);
         }
     }
 
+    function handleToggle() {
+        setIsOpen((prev) => !prev);
+    }
+
     return (
-        <div className="relative" ref={dropdownRef} style={{ zIndex: 9999 }}>
+        <div className="relative z-[9999]" ref={dropdownRef}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                ref={triggerRef}
+                onClick={handleToggle}
+                onKeyDown={handleTriggerKeyDown}
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
+                aria-label="Select language"
                 className="flex items-center gap-2 px-3 py-2 bg-white/90 hover:bg-white backdrop-blur-sm border border-gray-200 rounded-xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand-primary-400"
             >
                 <activeLocale.Flag className="w-5 h-auto rounded-sm shadow-sm" />
@@ -81,23 +133,32 @@ export default function LanguageSwitcher({ currentLocale }: { currentLocale: str
             {isOpen && (
                 <div
                     role="listbox"
-                    className="absolute right-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 animate-bounce-in origin-top-right"
-                    style={{ zIndex: 10000 }}
+                    aria-label="Available languages"
+                    aria-activedescendant={focusedIndex >= 0 ? `lang-option-${localeConfig[focusedIndex].code}` : undefined}
+                    onKeyDown={handleKeyDown}
+                    className="absolute right-0 mt-2 w-40 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[10000] animate-bounce-in origin-top-right"
                 >
-                    {locales.map((loc) => (
-                        <button
+                    {localeConfig.map((loc, index) => (
+                        <Link
                             key={loc.code}
+                            ref={(el: HTMLAnchorElement | null) => { optionRefs.current[index] = el; }}
+                            href={pathname}
+                            locale={loc.code as AppLocale}
+                            id={`lang-option-${loc.code}`}
                             role="option"
                             aria-selected={currentLocale === loc.code}
-                            onClick={() => handleSelectLocale(loc.code)}
-                            className={`flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-brand-primary-50 transition-colors ${currentLocale === loc.code
-                                ? 'bg-brand-primary-50/50 text-brand-primary-600 font-bold'
-                                : 'text-gray-700 font-medium'
+                            tabIndex={focusedIndex === index ? 0 : -1}
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 w-full px-4 py-2.5 text-left outline-none transition-colors
+                                focus:bg-brand-primary-50 hover:bg-brand-primary-50
+                                ${currentLocale === loc.code
+                                    ? 'bg-brand-primary-50/50 text-brand-primary-600 font-bold'
+                                    : 'text-gray-700 font-medium'
                                 }`}
                         >
                             <loc.Flag className="w-5 h-auto rounded-sm shadow-sm" />
                             <span className="text-sm">{loc.name}</span>
-                        </button>
+                        </Link>
                     ))}
                 </div>
             )}
