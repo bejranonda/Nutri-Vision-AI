@@ -29,7 +29,7 @@ export default function HomePage() {
       <div className="absolute -bottom-1/4 left-1/4 w-1/2 h-1/2 bg-brand-accent-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '4s' }}></div>
 
       {/* Header */}
-      <header className="container mx-auto px-4 py-4 md:py-6 relative z-10 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
+      <header className="container mx-auto px-4 py-4 md:py-6 relative z-50 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-2xl flex items-center justify-center shadow-brand transform hover:rotate-6 transition-transform">
