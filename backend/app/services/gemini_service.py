@@ -90,9 +90,22 @@ class GeminiService:
 
         if language == "th":
             return """
-วิเคราะห์อาหารในภาพนี้และให้ข้อมูลโดยละเอียดในรูปแบบ JSON ดังนี้:
+วิเคราะห์ภาพนี้ตามขั้นตอนดังนี้:
+
+ขั้นตอนที่ 1: ระบุว่าภาพนี้มีอาหารหรือไม่ ถ้าไม่ใช่อาหาร ให้ตั้ง isFood เป็น false
+ขั้นตอนที่ 2: ระบุชื่ออาหาร/วัตถุดิบที่เห็นในภาพ (อาจเป็นผลไม้, ผัก, วัตถุดิบดิบ, อาหารปรุงแล้ว, ขนม, หรือเครื่องดื่ม)
+ขั้นตอนที่ 3: วิเคราะห์คุณค่าทางโภชนาการ
+
+สำคัญมาก:
+- ระบุเฉพาะส่วนประกอบที่เห็นจริงในภาพเท่านั้น ห้ามเดาหรือสมมติส่วนประกอบที่ไม่ปรากฏ
+- ถ้าเป็นผลไม้หรือผักดิบ ให้ระบุว่าเป็นผลไม้/ผัก ไม่ใช่อาหารปรุงแล้ว
+
+ตอบในรูปแบบ JSON เท่านั้น (ไม่ต้องมี markdown):
 
 {
+  "isFood": true,
+  "foodName": "ชื่ออาหารหรือวัตถุดิบ",
+  "foodCategory": "fruit/vegetable/prepared_dish/snack/beverage/dessert/other",
   "detected_items": [
     {
       "name_th": "ชื่ออาหารภาษาไทย",
@@ -134,14 +147,29 @@ class GeminiService:
   }
 }
 
-สำคัญ: ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น 
+ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น 
 เน้นการวิเคราะห์ว่ามีส่วนประกอบของอาหารแปรรูปสูง (UPF) หรือไม่ และให้คำแนะนำตามหลัก "อร่อย ตาม ลำดับ"
+ตั้ง confidence ตาม 0-100 ตามความมั่นใจในการระบุอาหาร ถ้าไม่มั่นใจให้ใส่ค่าต่ำ
 """
         else:  # English
             return """
-Analyze the food in this image and provide detailed information in JSON format:
+Analyze this image following these steps:
+
+Step 1: Identify whether the image contains food. If not, set isFood to false.
+Step 2: Identify the food/ingredient visible (could be raw fruit, vegetable, prepared dish, snack, beverage, or dessert).
+Step 3: Provide nutritional analysis.
+
+CRITICAL RULES:
+- Only list ingredients that are ACTUALLY VISIBLE in the image. Do NOT hallucinate items.
+- If the image shows raw fruit or vegetables, identify them as such, NOT as a prepared dish.
+- Set confidence 0-100 based on identification certainty. If uncertain, use LOW values.
+
+Respond ONLY with valid JSON (no markdown):
 
 {
+  "isFood": true,
+  "foodName": "Name of the dish or ingredient",
+  "foodCategory": "fruit/vegetable/prepared_dish/snack/beverage/dessert/other",
   "detected_items": [
     {
       "name_th": "Thai name if applicable",
@@ -185,7 +213,7 @@ Analyze the food in this image and provide detailed information in JSON format:
   }
 }
 
-Important: If this is Thai food, include specific Thai food context. 
+If this is Thai food, include specific Thai food context. 
 Identify Ultra-Processed Food (UPF) ingredients and provide recommendations based on "Delicious in Order" principles.
 """
 

@@ -8,31 +8,60 @@ import { sessions } from '@/db/schema';
 import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
 
 
-const AI_PROMPT = `
-You are NutriVision AI, an expert in Thai food, nutrition, and blood sugar management.
-Analyze the provided food image. Identify the dish and ingredients.
-Respond ONLY with a valid minified JSON object matching this exact schema:
-{
-  "detectedItems": ["Item 1", "Item 2", "- (Include hidden sugars/sauces)"],
-  "nutritionSummary": {"calories": 0, "protein": 0, "carbs": 0, "fat": 0},
-  "scores": {
-    "bloodSugar": 0-100,
-    "gutHealth": 0-100,
-    "inflammation": 0-100,
-    "nutrientDensity": 0-100,
-    "processing": 0-100,
-    "proteinQuality": 0-100,
-    "micronutrient": 0-100
-  },
-  "sequence": ["1. Name (Fiber/Veggies)", "2. Name (Protein/Fat)", "3. Name (Carbs)", "4. Name (Sweets)"],
-  "tip": "One short sentence of helpful advice for managing blood sugar.",
-  "confidence": 0-100
+const AI_PROMPT = `You are a food identification and nutrition expert. Analyze this image carefully.
+
+CRITICAL RULES:
+1. FIRST identify what is actually in the image. Do NOT assume it is a prepared dish.
+2. The image may contain: raw fruits, raw vegetables, whole ingredients, snacks, prepared meals, beverages, or non-food items.
+3. Only list ingredients/items that are ACTUALLY VISIBLE in the image. Do NOT hallucinate items that are not there.
+4. If the image shows a single raw fruit or vegetable, identify it as such (e.g., "Pineapple", "Banana", "Mango").
+5. If the image does NOT contain food, set isFood to false.
+6. Estimate nutrition per typical serving size visible in the image.
+
+Respond ONLY with a valid JSON object (no markdown, no explanation) matching this schema:
+{"isFood":true,"foodName":"Name of the dish or ingredient","foodCategory":"fruit|vegetable|prepared_dish|snack|beverage|dessert|other","detectedItems":["🍍 Item 1","🥕 Item 2"],"nutritionSummary":{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0},"scores":{"bloodSugar":0,"gutHealth":0,"inflammation":0,"nutrientDensity":0,"processing":0,"proteinQuality":0,"micronutrient":0},"sequence":["1. Fiber/Veggies first","2. Protein/Fat","3. Carbs","4. Sweets"],"tip":"One short helpful tip.","confidence":0}
+
+Set confidence 0-100 based on how clearly you can identify the food. If uncertain, use a LOW confidence score.`;
+
+const LOCALE_INSTRUCTION: Record<string, string> = {
+    th: '\n\nIMPORTANT: Respond with ALL text values (foodName, detectedItems, sequence, tip) in Thai language (ภาษาไทย). Use Thai food names when applicable.',
+    en: '\n\nIMPORTANT: Respond with ALL text values in English.'
+};
+
+/** Validate and sanitize AI response — prevents frontend crashes from malformed model output */
+function validateAiResponse(raw: any): any {
+    const safeScores = {
+        bloodSugar: Math.min(100, Math.max(0, Number(raw?.scores?.bloodSugar) || 50)),
+        gutHealth: Math.min(100, Math.max(0, Number(raw?.scores?.gutHealth) || 50)),
+        inflammation: Math.min(100, Math.max(0, Number(raw?.scores?.inflammation) || 50)),
+        nutrientDensity: Math.min(100, Math.max(0, Number(raw?.scores?.nutrientDensity) || 50)),
+        processing: Math.min(100, Math.max(0, Number(raw?.scores?.processing) || 50)),
+        proteinQuality: Math.min(100, Math.max(0, Number(raw?.scores?.proteinQuality) || 50)),
+        micronutrient: Math.min(100, Math.max(0, Number(raw?.scores?.micronutrient) || 50)),
+    };
+
+    return {
+        isFood: raw?.isFood !== false,
+        foodName: String(raw?.foodName || 'Unknown Food'),
+        foodCategory: String(raw?.foodCategory || 'other'),
+        detectedItems: Array.isArray(raw?.detectedItems) ? raw.detectedItems.map(String) : ['Unknown'],
+        nutritionSummary: {
+            calories: Number(raw?.nutritionSummary?.calories) || 0,
+            protein: Number(raw?.nutritionSummary?.protein) || 0,
+            carbs: Number(raw?.nutritionSummary?.carbs) || 0,
+            fat: Number(raw?.nutritionSummary?.fat) || 0,
+            fiber: Number(raw?.nutritionSummary?.fiber) || 0,
+        },
+        scores: safeScores,
+        sequence: Array.isArray(raw?.sequence) ? raw.sequence.map(String) : ['1. Eat vegetables first', '2. Protein', '3. Carbs', '4. Sweets last'],
+        tip: String(raw?.tip || ''),
+        confidence: Math.min(100, Math.max(0, Number(raw?.confidence) || 0)),
+    };
 }
-`;
 
 export async function POST(req: NextRequest) {
     try {
-        const { imageBase64 } = await req.json();
+        const { imageBase64, locale = 'th' } = await req.json();
 
         if (!imageBase64) {
             return NextResponse.json({ error: 'Image data is required' }, { status: 400 });
@@ -73,9 +102,10 @@ export async function POST(req: NextRequest) {
 
         try {
             if (env.AI) {
-                // Call Cloudflare Workers AI Vision Model
-                const response = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-                    prompt: AI_PROMPT,
+                // Use Llama 3.2 11B Vision — much stronger multimodal model than LLaVA 1.5 7B
+                const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+                const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                    prompt: localizedPrompt,
                     image: [Array.from(Buffer.from(imageBase64.split(',')[1], 'base64'))]
                 });
 
@@ -83,32 +113,30 @@ export async function POST(req: NextRequest) {
                 const rawResponse = response?.response || '{}';
                 const jsonMatch = rawResponse.match(/\{[\s\S]*\}/); // Extract JSON block if AI adds text
                 resultJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
+
+                // Validate and sanitize — prevents frontend crashes from malformed AI output
+                resultJson = validateAiResponse(resultJson);
+
+                // Validate: if AI says it's not food, return early
+                if (resultJson.isFood === false) {
+                    return NextResponse.json({
+                        error: 'Not food',
+                        message: 'The image does not appear to contain food. Please upload a photo of food.',
+                        confidence: resultJson.confidence || 0
+                    }, { status: 422 });
+                }
             } else {
-                throw new Error("AI Binding not found, falling back to mock");
+                throw new Error("AI Binding not available. Deploy to Cloudflare Workers to enable AI analysis.");
             }
-        } catch (aiError) {
-            console.warn('AI inference failed or binding missing, returning mock data:', aiError);
+        } catch (aiError: any) {
+            console.error('AI inference failed:', aiError);
 
-            // Artificial delay to simulate AI processing
-            await new Promise(r => setTimeout(r, 2000));
-
-            // Mock Response Strategy
-            resultJson = {
-                detectedItems: ["ผัดไทย (Pad Thai)", "กุ้งสด (Fresh Shrimp)", "ถั่วงอก (Bean Sprouts)", "น้ำตาลทราย (Added Sugar)", "เส้นจันท์ (Rice Noodles)"],
-                nutritionSummary: { calories: 550, protein: 18, carbs: 75, fat: 20 },
-                scores: {
-                    bloodSugar: 30, gutHealth: 60, inflammation: 40, nutrientDensity: 60,
-                    processing: 30, proteinQuality: 75, micronutrient: 50
-                },
-                sequence: [
-                    "1. ถั่วงอกและกุยช่ายดิบ (Fiber)",
-                    "2. กุ้งและเต้าหู้ (Protein)",
-                    "3. เส้นจันท์ผัด (Carbs)",
-                    "4. น้ำตาลที่เติม (Sugar)"
-                ],
-                tip: "บีบมะนาวเยอะๆ ช่วยลดการเกิดปฏิกิริยาของน้ำตาลในเลือดได้นะ!",
-                confidence: 90
-            };
+            // Return honest error instead of fake mock data
+            return NextResponse.json({
+                error: 'AI analysis failed',
+                message: 'Food analysis is temporarily unavailable. This feature requires Cloudflare Workers AI. Please try again later.',
+                details: aiError.message
+            }, { status: 503 });
         }
 
         // Calculate Overall Score (Average of all 7)
@@ -151,7 +179,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             result: resultJson,
             overallScore: scoreOverall,
-            confidence: resultJson.confidence || 90,
+            confidence: resultJson.confidence || 0,
             limitReached: activeUser ? (activeUser.scansThisMonth + 1) >= (TIER_LIMITS[currentTier]?.scansPerMonth || 10) : false
         }, { status: 200 });
 

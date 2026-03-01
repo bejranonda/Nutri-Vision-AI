@@ -49,7 +49,8 @@ Shinny Guide คือแอป AI ที่ช่วยจัดลำดับ
 - **State**: Zustand + persist middleware
 - **ฐานข้อมูล**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (วิเคราะห์อาหาร)
+- **AI**: Cloudflare Workers AI (Llama 3.2 11B Vision + Locale-Aware Prompting)
+- **Performance**: บีบอัดรูปภาพฝั่งไคลเอนต์ (HTML5 Canvas) ก่อนส่ง AI
 
 ## 🚀 เริ่มต้นใช้งาน
 

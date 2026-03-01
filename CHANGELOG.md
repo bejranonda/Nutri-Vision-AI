@@ -5,9 +5,27 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2025-01-17
+## [1.1.0] - 2026-03-01
 
 ### Added
+- 🖼️ **Client-Side Image Compression**: Added HTML5 Canvas compression in the scanner to resize images (max 1024x1024, 80% quality) before sending to AI, drastically reducing bandwidth and preventing Worker timeout on 10MB+ iPhone photos.
+- 🌍 **Locale-Aware AI Analysis**: AI prompts are now dynamically adjusted based on the user's active language (`th` or `en`), returning Thai food names, ingredients, and specialized tips for Thai users.
+- 🛡️ **AI Response Validation**: Added strict validation and sanitization (`validateAiResponse`) for Llama 3.2 outputs to prevent frontend crashes from malformed JSON.
+
+### Changed
+- 🧠 **Vision Model Upgrade**: Replaced the weak `@cf/llava-hf/llava-1.5-7b-hf` model with the much more capable **`@cf/meta/llama-3.2-11b-vision-instruct`**.
+- 🛠️ **"Identify-First" AI Pipeline**: Rewrote the AI extraction prompt to identify the food FIRST rather than assuming everything is a prepared Thai dish. This fixes major misidentification bugs (e.g., misclassifying raw fruits as Som Tam).
+
+### Removed
+- 🗑️ **Mock Fallbacks Removed**: Removed the hardcoded mock fallback data ("Pad Thai" / "Som Tam") from both the API route and the frontend catch block.
+
+### Fixed
+- 🐛 **Silent AI Failures**: Fixed an issue where AI inference failures were silently masked by mock data holding a fake 90% confidence score. The app now displays an honest error state UI with the Shinny mascot explaining the failure.
+- 🐛 **Confidence Score Default**: Fixed leftover code defaulting confidence to 90% when missing; it now correctly defaults to 0%.
+
+---
+
+## [0.1.0] - 2025-01-17
 
 #### Core Features
 - 🔍 **AI Food Recognition**: Image analysis using Google Gemini Vision API

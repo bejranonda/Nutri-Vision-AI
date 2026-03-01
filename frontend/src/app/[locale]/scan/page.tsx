@@ -95,26 +95,56 @@ export default function ScanPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [dragOver, setDragOver] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         logger.trackFeature('Scan Page', 'loading', { locale, tier });
     }, [locale, tier]);
+
+    /** Compress and resize image before sending to AI — prevents 10MB+ iPhone photos from timing out the Worker */
+    function compressImage(base64: string, maxSize = 1024, quality = 0.8): Promise<string> {
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+
+                // Scale down proportionally if larger than maxSize
+                if (width > maxSize || height > maxSize) {
+                    const ratio = Math.min(maxSize / width, maxSize / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d')!;
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = base64;
+        });
+    }
 
     async function handleImageUpload(file: File) {
         if (!file.type.startsWith('image/')) return;
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const base64 = e.target?.result as string;
-            setUploadedImage(base64);
+            const rawBase64 = e.target?.result as string;
+            setUploadedImage(rawBase64);
             setIsAnalyzing(true);
             setAnalysis(null);
+            setErrorMessage(null);
 
             try {
+                // Compress before sending — reduces 10MB+ photos to ~100-200KB
+                const compressedBase64 = await compressImage(rawBase64);
+
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64: base64 })
+                    body: JSON.stringify({ imageBase64: compressedBase64, locale })
                 });
 
                 const data = await res.json();
@@ -123,16 +153,16 @@ export default function ScanPage() {
                     throw new Error(data.message || 'Analysis failed');
                 }
 
-                // Map the new standardized API format to the existing UI format temporarily
-                // so the UI doesn't break.
+                // Map the standardized API format to the UI format
                 setAnalysis({
-                    name: 'scanned_food',
+                    name: data.result.foodName || 'scanned_food',
                     items: data.result.detectedItems,
                     nutrition: {
                         calories: data.result.nutritionSummary.calories,
                         protein: data.result.nutritionSummary.protein,
                         carbs: data.result.nutritionSummary.carbs,
-                        fat: data.result.nutritionSummary.fat
+                        fat: data.result.nutritionSummary.fat,
+                        fiber: data.result.nutritionSummary.fiber || 0
                     },
                     scores: {
                         blood_sugar: data.result.scores.bloodSugar,
@@ -151,18 +181,17 @@ export default function ScanPage() {
                         if (s.toLowerCase().includes('sugar') || s.toLowerCase().includes('sweet')) cat = 'sugar';
                         return { step: i + 1, emoji: '💡', items: s, category: cat };
                     }),
-                    spikeReduction: 60, // Mock
+                    spikeReduction: 60,
                     tip: data.result.tip,
-                    confidence: data.confidence || 90
+                    confidence: data.confidence || 0
                 });
 
                 // Sync store
                 useAuthStore.getState().initAuth();
-            } catch (err) {
-                console.error(err);
-                // Fallback to mock on error to keep demo running gracefully
-                const randomAnalysis = MOCK_ANALYSES[Math.floor(Math.random() * MOCK_ANALYSES.length)];
-                setAnalysis(randomAnalysis);
+            } catch (err: any) {
+                console.error('Food analysis error:', err);
+                // Show honest error instead of fake mock data
+                setErrorMessage(err.message || 'Analysis failed. Please try again with a clearer photo.');
             } finally {
                 setIsAnalyzing(false);
             }
@@ -186,6 +215,7 @@ export default function ScanPage() {
         setUploadedImage(null);
         setAnalysis(null);
         setIsAnalyzing(false);
+        setErrorMessage(null);
     }
 
     const scansUsed = user?.scansThisMonth || 0;
@@ -284,6 +314,28 @@ export default function ScanPage() {
                     </div>
                 )}
 
+                {/* Error State */}
+                {errorMessage && !isAnalyzing && !analysis && (
+                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
+                        {uploadedImage && (
+                            <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg opacity-60">
+                                <img src={uploadedImage} alt="Food" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                        <div className="flex flex-col items-center gap-4 mb-4">
+                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-orange-200 shadow-lg">
+                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
+                            </div>
+                            <h3 className="text-xl font-bold text-orange-700">{t('error_title') || 'ขอโทษนะคะ! 🙏'}</h3>
+                        </div>
+                        <p className="text-gray-600 mb-2">{t('error_message') || 'ชินนี่วิเคราะห์ภาพนี้ไม่สำเร็จ'}</p>
+                        <p className="text-sm text-gray-400 mb-6">{errorMessage}</p>
+                        <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
+                            <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
+                        </button>
+                    </div>
+                )}
+
                 {/* Analysis Results */}
                 {analysis && !isAnalyzing && (
                     <div className="space-y-6 animate-slide-up">
@@ -316,7 +368,10 @@ export default function ScanPage() {
                                     </div>
                                 )}
                                 <div className="flex-1">
-                                    <h2 className="text-xl font-bold text-gray-800 mb-3">{t('detected_items')}</h2>
+                                    {analysis.name && analysis.name !== 'scanned_food' && (
+                                        <h2 className="text-2xl font-black text-gray-900 mb-1">{analysis.name}</h2>
+                                    )}
+                                    <h3 className="text-lg font-bold text-gray-600 mb-3">{t('detected_items')}</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {analysis.items.map((item: string, i: number) => (
                                             <span key={i} className="px-3 py-1.5 bg-brand-primary-50 text-brand-primary-700 rounded-full text-sm font-medium">

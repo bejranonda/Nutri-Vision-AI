@@ -49,7 +49,8 @@ Built-in codes for Shinny fanclub and launch promotions:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (food recognition)
+- **AI**: Cloudflare Workers AI (Llama 3.2 11B Vision + Locale-Aware Prompting)
+- **Performance**: Client-side image compression (HTML5 Canvas)
 
 ## 🚀 Getting Started
 
