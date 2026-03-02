@@ -9,10 +9,10 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Priority**: High (Functional Roadmap).
 - **Target**: v1.1.0 and v1.2.0.
 
-### 2. Gemini AI JSON Parsing
-- **Current Status**: Occasionally, the Gemini AI response text might contain markdown code blocks that are not perfectly formatted, leading to JSON parsing errors in the backend.
-- **Priority**: Medium (Reliability).
-- **Workaround**: We've implemented a robust `_parse_food_analysis_response` that attempts to strip markdown, but it occasionally fails.
+### 2. AI Inference Timeouts
+- **Current Status**: Llama 3.2 Vision on Cloudflare Workers AI can occasionally hang or return 503 when queues are full.
+- **Priority**: Medium.
+- **Workaround**: We implemented a 30-second `AbortController` timeout on the client and an automatic single-retry for 503 errors. Users receive a polite localized timeout message if it still fails.
 
 ### 3. Nutrition Scoring Data Gaps
 - **Current Status**: Many foods in the nutrition database lack specific values for micronutrients like Vitamin D or Omega-3:6 ratios, resulting in a default middle score (50).

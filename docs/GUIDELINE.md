@@ -11,11 +11,11 @@ This document provides guidelines for developers to maintain code quality, consi
 - **Internationalization**: Always use `next-intl`. Never hardcode strings.
 - **Logging**: Use the unified `logger` from `@/lib/logger`.
 
-### 🐍 Backend (FastAPI)
-- **Formatting**: Adhere to PEP 8. Use `black` for formatting.
-- **Type Hints**: Mandatory for all function signatures and data models.
-- **Pydantic**: Use for request/response validation and configuration.
-- **Docstrings**: Required for all public-facing modules and functions.
+### ☁️ Backend (Next.js Edge API)
+- **Framework**: Next.js App Router API Routes (`/api/*`).
+- **Runtime**: Edge Runtime (`@opennextjs/cloudflare`) compatible. Avoid Node.js standard library modules (`fs`, `path`) unless polyfilled.
+- **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
+- **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) as LLM JSON can be malformed.
 
 ## 📊 Logging & Debugging
 
@@ -33,15 +33,17 @@ logger.trackFeature('My Feature', 'success', { meta: 'data' });
 logger.error('Failed to load data', { error: err.message });
 ```
 
-#### In the Backend:
-```python
-import logging
-logger = logging.getLogger(__name__)
+#### In the Backend (Edge Route):
+```typescript
+import { logger } from '@/lib/logger';
 
-# Request timing is automatic via middleware
-# Use service logs for internal logic
-logger.info(f"Analyzing food for user {user_id}")
-logger.debug("Raw AI response received")
+// Use domain-specific loggers to track entire flows (e.g., scanApiStage)
+logger.scanApiStage('AI_INFERENCE_START', { model: 'llama-3.2-11b', locale });
+
+// Catch blocks must log stack traces and exact phases
+try { ... } catch (err) {
+    logger.scanApiStage('UNHANDLED_ERROR', { error: err.message, stack: err.stack, totalDurationMs });
+}
 ```
 
 ### Checking Logs on Cloudflare

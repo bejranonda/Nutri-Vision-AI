@@ -5,12 +5,20 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-03-01
+## [2.1.1] - 2026-03-02
 
 ### Added
-- 🖼️ **Client-Side Image Compression**: Added HTML5 Canvas compression in the scanner to resize images (max 1024x1024, 80% quality) before sending to AI, drastically reducing bandwidth and preventing Worker timeout on 10MB+ iPhone photos.
-- 🌍 **Locale-Aware AI Analysis**: AI prompts are now dynamically adjusted based on the user's active language (`th` or `en`), returning Thai food names, ingredients, and specialized tips for Thai users.
-- 🛡️ **AI Response Validation**: Added strict validation and sanitization (`validateAiResponse`) for Llama 3.2 outputs to prevent frontend crashes from malformed JSON.
+- ⏱️ **Robust AI Fetching**: Added a 30-second `AbortController` timeout to the food scan API request.
+- 🔄 **Auto-Retries**: Implemented automatic single-retry for transient 503 errors from Cloudflare Workers AI.
+- 📡 **Deep Diagnostic Logging**: Added 7 new scan-specific diagnostic methods to `logger.ts` tracking 20 distinct points across the client upload, compression, API boundary, and DB insertion phases. Include payload sizes and `durationMs`.
+
+### Fixed
+- 🌍 **Missing i18n Keys**: Added missing error state and low-confidence translations to all 4 locale files (`en`, `th`, `de`, `da`).
+- 🐛 **Broken Fallbacks**: Removed fragile `||` string fallbacks from the scan page error display which failed due to `next-intl` returning truthy key paths. 
+
+---
+
+## [2.1.0] - 2026-02-26
 
 ### Changed
 - 🧠 **Vision Model Upgrade**: Replaced the weak `@cf/llava-hf/llava-1.5-7b-hf` model with the much more capable **`@cf/meta/llama-3.2-11b-vision-instruct`**.

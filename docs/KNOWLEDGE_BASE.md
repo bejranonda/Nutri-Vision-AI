@@ -25,11 +25,12 @@ Our proprietary scoring algorithm (found in `backend/app/services/nutrition_scor
 7.  **Micronutrient Coverage**: % RDI coverage for 12 essential vitamins/minerals.
 8.  **Overall Health Score**: A weighted average (Blood Sugar 20%, others 10-15%).
 
-## 🤖 AI Service (Gemini AI)
+## 🤖 AI Service (Workers AI)
 
-We use Google's Gemini 1.5 Pro/Flash for:
+We use Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`) for:
 -   **Image Analysis**: Identifying ingredients and portion sizes from photos.
 -   **Nutrition Estimation**: Inferring macro and micronutrient profiles.
+-   **Robustness**: The API includes a 30-second `AbortController` timeout and automatic single-retry on 503 transient errors to handle Edge AI queue fluctuations.
 -   **Chatbot (Shinny)**: Providing empathetic, evidence-based nutrition coaching using the "Live long to eat well" persona.
 
 ## 🏗️ Technical Architecture
@@ -46,7 +47,7 @@ We use Google's Gemini 1.5 Pro/Flash for:
 
 ## 🛠️ Logging & Monitoring
 
-We use a unified logging system across the stack:
--   **Backend**: Python's `logging` with request-response middleware.
--   **Frontend**: Custom `Logger` utility (`src/lib/logger.ts`) that bridges Client and Server (Edge) logs.
--   **Cloudflare**: Real-time log streaming through the Cloudflare Dashboard.
+We use a unified logging system (`src/lib/logger.ts`) across the stack that bridges Client and Server (Edge) logs:
+-   **Scan Flow Diagnostics**: 7 dedicated methods (`scanStart`, `scanApiCall`, `scanError`, `scanApiStage`, etc.) track every step of the food scan journey from upload to DB insert.
+-   **Cloudflare Dash**: Real-time log streaming through the Cloudflare Dashboard catches both frontend hydration errors and API timeouts.
+-   **Structured Context**: All logs include JSON payloads with file sizes, timings (`durationMs`), and exact failure phases to make debugging trivial.

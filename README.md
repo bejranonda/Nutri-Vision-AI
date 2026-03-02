@@ -42,6 +42,17 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
+## 🧠 AI Methodology & Analysis
+
+Nutri-Vision AI uses a strict **Identify-First** methodology powered by Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`). 
+Rather than assuming every photo is a prepared meal, the AI is instructed to first identify the raw ingredient or object. This prevents common AI hallucinations (e.g., classifying a raw pineapple as "Pineapple Fried Rice" or "Som Tam").
+
+The analysis pipeline is built for **Edge Reliability**:
+1. Client-side canvas compression (reduces 10MB photos to ~150KB)
+2. 30-second `AbortController` timeouts
+3. Automatic single-retries for 503 transient AI queue errors
+4. Strict JSON schema validation (`validateAiResponse`) before rendering
+
 ## 🛠 Tech Stack
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
