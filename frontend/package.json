@@ -7,7 +7,7 @@
     "build": "next build",
     "pages:build": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion && node scripts/prepare-pages.mjs",
     "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
-    "deploy": "npm run pages:build && npx wrangler pages deploy ./.open-next/assets --project-name=nutri-vision-ai --commit-dirty=true",
+    "deploy": "npm run pages:build && npx wrangler pages deploy ./.open-next/assets --project-name=eatinorder --commit-dirty=true",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearSession } from '@/lib/session';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 
 export async function POST(req: NextRequest) {
     try {
-        const env = (req as any).context?.env || process.env;
+        const { env } = await getCloudflareContext();
         await clearSession(env);
         return NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
     } catch (error: any) {

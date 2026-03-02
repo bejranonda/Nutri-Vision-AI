@@ -7,6 +7,7 @@ import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 
 const AI_PROMPT = `You are a food identification and nutrition expert. Analyze this image carefully.
@@ -132,7 +133,15 @@ export async function POST(req: NextRequest) {
 
         // ── Phase 3: Environment bindings ─────────────────────────
         currentPhase = 'ENV_INIT';
-        const env = (req as any).context?.env || process.env;
+        let env: any;
+        try {
+            const cfContext = await getCloudflareContext();
+            env = cfContext.env;
+            logger.scanApiStage('CF_CONTEXT_OK', { requestId, hasEnv: !!env });
+        } catch (cfErr: any) {
+            logger.scanApiStage('CF_CONTEXT_FALLBACK', { requestId, error: cfErr.message });
+            env = process.env;
+        }
         logger.scanEnvDiagnostic(requestId, env);
 
         // ── Phase 4: Session & Auth (FAULT-TOLERANT) ──────────────

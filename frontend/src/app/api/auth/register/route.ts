@@ -4,8 +4,8 @@ import { users } from '@/db/schema';
 import { hashPassword, generateId } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-// Required for Cloudflare Pages Edge Runtime
 
 export async function POST(req: NextRequest) {
     try {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const env = (req as any).context?.env || process.env;
+        const { env } = await getCloudflareContext();
         const db = getDb(env);
 
         // Check if user already exists
