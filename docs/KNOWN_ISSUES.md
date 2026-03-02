@@ -9,9 +9,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Priority**: High (Functional Roadmap).
 - **Target**: v1.1.0 and v1.2.0.
 
-
-
-### 3. Nutrition Scoring Data Gaps
+### 2. Nutrition Scoring Data Gaps
 - **Current Status**: Many foods in the nutrition database lack specific values for micronutrients like Vitamin D or Omega-3:6 ratios, resulting in a default middle score (50).
 - **Priority**: Medium (Data Quality).
 - **Target**: Integration with a more comprehensive GI/Nutrition API.
@@ -36,3 +34,14 @@ This document lists currently identified bugs, limitations, and ongoing technica
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
 -   **Multi-Ingredient Recognition**: Recognizing 10+ distinct ingredients in a single complex dish (e.g., Thai Som Tum). (Improved in v2.1.2 by updating the AI prompt with strict extraction rules).
 -   **Language Consistency**: Ensuring the AI's "Shinny" persona remains consistent across all 4 languages.
+
+## ✅ Resolved Issues
+
+### Internal Server Error on Food Scan (v2.1.2)
+- **Root Cause**: All API routes used `(req as any).context?.env` which silently returns `undefined` in the `@opennextjs/cloudflare` runtime. The `env.AI` and `env.DB` bindings were never accessible.
+- **Fix**: Replaced with the official `getCloudflareContext()` API from `@opennextjs/cloudflare` across all 6 API routes.
+- **Lesson**: Always use `getCloudflareContext()` to access Cloudflare bindings (AI, DB, KV, R2) in Next.js Edge API routes deployed via OpenNext.
+
+### AI Inference Timeouts (v2.1.1 → v2.1.2)
+- **Root Cause**: No server-side timeout on `env.AI.run()`. Slow AI responses could hang the Worker until its execution limit.
+- **Fix**: Client-side 30s `AbortController` timeout + server-side 25s `Promise.race` timeout + automatic 503 retries.

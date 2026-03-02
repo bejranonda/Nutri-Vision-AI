@@ -30,7 +30,7 @@ Our proprietary scoring algorithm (found in `backend/app/services/nutrition_scor
 We use Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`) for:
 -   **Image Analysis**: Identifying ingredients and portion sizes from photos.
 -   **Nutrition Estimation**: Inferring macro and micronutrient profiles.
--   **Robustness**: The API includes a 30-second `AbortController` timeout and automatic single-retry on 503 transient errors to handle Edge AI queue fluctuations.
+-   **Robustness**: Client-side 30s `AbortController` timeout + server-side 25s `Promise.race` timeout + automatic 503 retries.
 -   **Chatbot (Shinny)**: Providing empathetic, evidence-based nutrition coaching using the "Live long to eat well" persona.
 
 ## 🏗️ Technical Architecture
@@ -46,6 +46,7 @@ The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipelin
 2. If non-critical services (like D1 Database or Sessions) fail, the pipeline logs the failure but continues, allowing anonymous scans to succeed.
 3. **Edge-Safe Binaries**: Node.js `Buffer.from` is avoided for base64 decoding because it lacks standard support in Edge runtimes. We use `atob()` and `Uint8Array` natively.
 4. **Server-Side AI Timeouts**: Cloudflare Workers have hard execution limits. The `env.AI.run()` binding is wrapped in a `Promise.race([aiPromise, timeoutPromise])` to abort gracefully instead of hitting the execution limit.
+5. **Binding Access**: All Cloudflare bindings (AI, DB, KV, R2) **must** be accessed via `getCloudflareContext()` from `@opennextjs/cloudflare`. The legacy pattern `(req as any).context?.env` does NOT work.
 
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.
