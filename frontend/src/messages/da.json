@@ -84,6 +84,12 @@
     "fat_g": "Fedt",
     "fiber_g": "Fibre",
     "try_again": "Scan Igen",
+    "error_title": "Undskyld! 🙏",
+    "error_message": "Shinny kunne ikke analysere dette billede",
+    "low_confidence": {
+      "title": "Shinny er ikke sikker!",
+      "message": "Dette ligner ikke mad, som jeg kan genkende tydeligt. Analysen nedenfor kan være unøjagtig. Prøv et nærmere, klarere foto."
+    },
     "upgrade_hint": "Opgrader til Premium for fuld 8-dimensioners analyse",
     "scans_remaining": "Resterende scans denne måned",
     "sequence": {

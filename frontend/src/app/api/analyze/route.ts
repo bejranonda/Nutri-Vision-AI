@@ -6,6 +6,7 @@ import { eq, and, gt } from 'drizzle-orm';
 import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
+import { logger } from '@/lib/logger';
 
 
 const AI_PROMPT = `You are a food identification and nutrition expert. Analyze this image carefully.
@@ -60,10 +61,14 @@ function validateAiResponse(raw: any): any {
 }
 
 export async function POST(req: NextRequest) {
+    const requestStartTime = Date.now();
     try {
         const { imageBase64, locale = 'th' } = await req.json();
+        const payloadSize = imageBase64 ? imageBase64.length : 0;
+        logger.scanApiStage('REQUEST_RECEIVED', { locale, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
 
         if (!imageBase64) {
+            logger.scanApiStage('VALIDATION_FAILED', { reason: 'no_image' });
             return NextResponse.json({ error: 'Image data is required' }, { status: 400 });
         }
 
@@ -83,6 +88,7 @@ export async function POST(req: NextRequest) {
                 activeUser = foundUsers[0];
             }
         }
+        logger.scanApiStage('AUTH_CHECK', { hasToken: !!token, hasUser: !!activeUser, userId: userId?.substring(0, 8), tier: activeUser?.subscriptionTier });
 
         if (activeUser) {
             // Rate Limit Check
@@ -90,6 +96,7 @@ export async function POST(req: NextRequest) {
             const tierConfig = TIER_LIMITS[tierStr] || TIER_LIMITS.free;
 
             if (tierConfig.scansPerMonth !== Infinity && activeUser.scansThisMonth >= tierConfig.scansPerMonth) {
+                logger.scanApiStage('RATE_LIMITED', { tier: tierStr, used: activeUser.scansThisMonth, limit: tierConfig.scansPerMonth });
                 return NextResponse.json({
                     error: 'Scan limit reached',
                     message: 'You have exhausted your free scans for this month. Please upgrade to continue.'
@@ -101,24 +108,34 @@ export async function POST(req: NextRequest) {
         let resultJson;
 
         try {
+            logger.scanApiStage('AI_BINDING_CHECK', { hasAI: !!env.AI, envKeys: Object.keys(env).filter(k => !k.includes('TOKEN') && !k.includes('SECRET')).join(',') });
+
             if (env.AI) {
                 // Use Llama 3.2 11B Vision — much stronger multimodal model than LLaVA 1.5 7B
                 const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+                const aiStartTime = Date.now();
+
+                logger.scanApiStage('AI_INFERENCE_START', { model: '@cf/meta/llama-3.2-11b-vision-instruct', locale });
                 const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
                     prompt: localizedPrompt,
                     image: [Array.from(Buffer.from(imageBase64.split(',')[1], 'base64'))]
                 });
+                const aiDurationMs = Date.now() - aiStartTime;
 
                 // Parse AI response into JSON
                 const rawResponse = response?.response || '{}';
+                logger.scanApiStage('AI_INFERENCE_COMPLETE', { durationMs: aiDurationMs, rawResponseLength: rawResponse.length, rawResponsePreview: rawResponse.substring(0, 300) });
+
                 const jsonMatch = rawResponse.match(/\{[\s\S]*\}/); // Extract JSON block if AI adds text
                 resultJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
 
                 // Validate and sanitize — prevents frontend crashes from malformed AI output
                 resultJson = validateAiResponse(resultJson);
+                logger.scanApiStage('AI_VALIDATED', { foodName: resultJson.foodName, confidence: resultJson.confidence, isFood: resultJson.isFood, category: resultJson.foodCategory });
 
                 // Validate: if AI says it's not food, return early
                 if (resultJson.isFood === false) {
+                    logger.scanApiStage('NOT_FOOD', { confidence: resultJson.confidence });
                     return NextResponse.json({
                         error: 'Not food',
                         message: 'The image does not appear to contain food. Please upload a photo of food.',
@@ -126,10 +143,11 @@ export async function POST(req: NextRequest) {
                     }, { status: 422 });
                 }
             } else {
+                logger.scanApiStage('AI_BINDING_MISSING', { message: 'env.AI is not available — deploy to Cloudflare Workers to enable AI' });
                 throw new Error("AI Binding not available. Deploy to Cloudflare Workers to enable AI analysis.");
             }
         } catch (aiError: any) {
-            console.error('AI inference failed:', aiError);
+            logger.scanApiStage('AI_FAILED', { error: aiError.message, stack: aiError.stack?.substring(0, 500), durationMs: Date.now() - requestStartTime });
 
             // Return honest error instead of fake mock data
             return NextResponse.json({
@@ -170,12 +188,22 @@ export async function POST(req: NextRequest) {
                     scoreOverall,
                     createdAt: new Date()
                 });
-            } catch (dbError) {
-                console.error("Failed to insert log entry, but proceeding:", dbError);
+                logger.scanApiStage('DB_INSERT_SUCCESS', { userId: activeUser.id.substring(0, 8) });
+            } catch (dbError: any) {
+                logger.scanApiStage('DB_INSERT_FAILED', { error: dbError.message, userId: activeUser.id.substring(0, 8) });
             }
         }
 
         const currentTier = activeUser?.subscriptionTier as SubscriptionTier || 'free';
+        const totalDurationMs = Date.now() - requestStartTime;
+        logger.scanApiStage('RESPONSE_SENT', {
+            foodName: resultJson.foodName,
+            confidence: resultJson.confidence,
+            overallScore: scoreOverall,
+            totalDurationMs,
+            tier: currentTier
+        });
+
         return NextResponse.json({
             result: resultJson,
             overallScore: scoreOverall,
@@ -184,10 +212,12 @@ export async function POST(req: NextRequest) {
         }, { status: 200 });
 
     } catch (error: any) {
-        console.error('AI Analysis error:', error);
+        const totalDurationMs = Date.now() - requestStartTime;
+        logger.scanApiStage('UNHANDLED_ERROR', { error: error.message, stack: error.stack?.substring(0, 500), totalDurationMs });
         return NextResponse.json(
             { error: 'Internal server error', details: error.message },
             { status: 500 }
         );
     }
 }
+

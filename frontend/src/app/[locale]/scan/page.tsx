@@ -129,6 +129,9 @@ export default function ScanPage() {
     async function handleImageUpload(file: File) {
         if (!file.type.startsWith('image/')) return;
 
+        const scanStartTime = Date.now();
+        logger.scanStart({ fileSize: file.size, fileType: file.type, locale, tier });
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             const rawBase64 = e.target?.result as string;
@@ -140,21 +143,38 @@ export default function ScanPage() {
             try {
                 // Compress before sending — reduces 10MB+ photos to ~100-200KB
                 const compressedBase64 = await compressImage(rawBase64);
+                logger.scanCompressed({ originalSize: rawBase64.length, compressedSize: compressedBase64.length });
 
+                const body = JSON.stringify({ imageBase64: compressedBase64, locale });
+                logger.scanApiCall({ payloadSize: body.length, locale });
+
+                const apiStartTime = Date.now();
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64: compressedBase64, locale })
+                    body
                 });
 
-                const data = await res.json();
+                const responseText = await res.text();
+                const apiDurationMs = Date.now() - apiStartTime;
+                logger.scanApiResponse({ status: res.status, durationMs: apiDurationMs, responseSize: responseText.length, ok: res.ok });
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseErr: any) {
+                    logger.scanError('parse', parseErr, { responseSize: responseText.length, responsePreview: responseText.substring(0, 200) });
+                    throw new Error('Server returned invalid response. Please try again.');
+                }
 
                 if (!res.ok) {
-                    throw new Error(data.message || 'Analysis failed');
+                    const errMsg = data.message || data.error || `Server error (${res.status})`;
+                    logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details });
+                    throw new Error(errMsg);
                 }
 
                 // Map the standardized API format to the UI format
-                setAnalysis({
+                const result: AnalysisResult = {
                     name: data.result.foodName || 'scanned_food',
                     items: data.result.detectedItems,
                     nutrition: {
@@ -184,12 +204,20 @@ export default function ScanPage() {
                     spikeReduction: 60,
                     tip: data.result.tip,
                     confidence: data.confidence || 0
+                };
+
+                setAnalysis(result);
+                logger.scanSuccess({
+                    foodName: result.name,
+                    confidence: result.confidence || 0,
+                    overallScore: data.overallScore,
+                    durationMs: Date.now() - scanStartTime
                 });
 
                 // Sync store
                 useAuthStore.getState().initAuth();
             } catch (err: any) {
-                console.error('Food analysis error:', err);
+                logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime });
                 // Show honest error instead of fake mock data
                 setErrorMessage(err.message || 'Analysis failed. Please try again with a clearer photo.');
             } finally {
@@ -326,9 +354,9 @@ export default function ScanPage() {
                             <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-orange-200 shadow-lg">
                                 <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
                             </div>
-                            <h3 className="text-xl font-bold text-orange-700">{t('error_title') || 'ขอโทษนะคะ! 🙏'}</h3>
+                            <h3 className="text-xl font-bold text-orange-700">{t('error_title')}</h3>
                         </div>
-                        <p className="text-gray-600 mb-2">{t('error_message') || 'ชินนี่วิเคราะห์ภาพนี้ไม่สำเร็จ'}</p>
+                        <p className="text-gray-600 mb-2">{t('error_message')}</p>
                         <p className="text-sm text-gray-400 mb-6">{errorMessage}</p>
                         <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
                             <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
@@ -349,10 +377,10 @@ export default function ScanPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-orange-800 font-bold mb-1">
-                                            {t('low_confidence.title') || "Shinny is not sure!"}
+                                            {t('low_confidence.title')}
                                         </h3>
                                         <p className="text-orange-700 text-sm">
-                                            {t('low_confidence.message') || "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try taking a closer, clearer photo of your meal."}
+                                            {t('low_confidence.message')}
                                         </p>
                                         <p className="text-orange-600/70 text-xs mt-2 font-mono">
                                             Confidence Score: {analysis.confidence}%

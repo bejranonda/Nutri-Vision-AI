@@ -84,6 +84,12 @@
     "fat_g": "Fett",
     "fiber_g": "Ballaststoffe",
     "try_again": "Erneut scannen",
+    "error_title": "Entschuldigung! 🙏",
+    "error_message": "Shinny konnte dieses Bild nicht analysieren",
+    "low_confidence": {
+      "title": "Shinny ist sich nicht sicher!",
+      "message": "Das sieht nicht nach einem Essen aus, das ich klar erkennen kann. Die Analyse unten könnte ungenau sein. Versuche ein näheres, klareres Foto."
+    },
     "upgrade_hint": "Premium für vollständige 8-Dimensionen-Analyse upgraden",
     "scans_remaining": "Verbleibende Scans diesen Monat",
     "sequence": {

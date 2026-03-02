@@ -84,6 +84,12 @@
     "fat_g": "Fat",
     "fiber_g": "Fiber",
     "try_again": "Scan Another",
+    "error_title": "Sorry! 🙏",
+    "error_message": "Shinny couldn't analyze this image",
+    "low_confidence": {
+      "title": "Shinny isn't sure!",
+      "message": "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try a closer, clearer photo."
+    },
     "upgrade_hint": "Upgrade to Premium for full 8-dimension analysis",
     "scans_remaining": "Scans remaining this month",
     "sequence": {
