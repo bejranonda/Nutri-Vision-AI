@@ -9,10 +9,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Priority**: High (Functional Roadmap).
 - **Target**: v1.1.0 and v1.2.0.
 
-### 2. AI Inference Timeouts
-- **Current Status**: Llama 3.2 Vision on Cloudflare Workers AI can occasionally hang or return 503 when queues are full.
-- **Priority**: Medium.
-- **Workaround**: We implemented a 30-second `AbortController` timeout on the client and an automatic single-retry for 503 errors. Users receive a polite localized timeout message if it still fails.
+
 
 ### 3. Nutrition Scoring Data Gaps
 - **Current Status**: Many foods in the nutrition database lack specific values for micronutrients like Vitamin D or Omega-3:6 ratios, resulting in a default middle score (50).
@@ -37,5 +34,5 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ## 📋 Ongoing Investigations
 
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
--   **Multi-Ingredient Recognition**: Recognizing 10+ distinct ingredients in a single complex dish (e.g., Thai Som Tum with multiple toppings).
+-   **Multi-Ingredient Recognition**: Recognizing 10+ distinct ingredients in a single complex dish (e.g., Thai Som Tum). (Improved in v2.1.2 by updating the AI prompt with strict extraction rules).
 -   **Language Consistency**: Ensuring the AI's "Shinny" persona remains consistent across all 4 languages.

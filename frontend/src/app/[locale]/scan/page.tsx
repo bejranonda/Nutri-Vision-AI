@@ -96,6 +96,7 @@ export default function ScanPage() {
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [dragOver, setDragOver] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
 
     useEffect(() => {
         logger.trackFeature('Scan Page', 'loading', { locale, tier });
@@ -103,31 +104,61 @@ export default function ScanPage() {
 
     /** Compress and resize image before sending to AI — prevents 10MB+ iPhone photos from timing out the Worker */
     function compressImage(base64: string, maxSize = 1024, quality = 0.8): Promise<string> {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const img = new window.Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let { width, height } = img;
+                try {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
 
-                // Scale down proportionally if larger than maxSize
-                if (width > maxSize || height > maxSize) {
-                    const ratio = Math.min(maxSize / width, maxSize / height);
-                    width = Math.round(width * ratio);
-                    height = Math.round(height * ratio);
+                    // Scale down proportionally if larger than maxSize
+                    if (width > maxSize || height > maxSize) {
+                        const ratio = Math.min(maxSize / width, maxSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d')!;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                } catch (canvasErr) {
+                    reject(canvasErr);
                 }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d')!;
-                ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
             };
+            img.onerror = () => reject(new Error('Failed to load image for compression'));
             img.src = base64;
         });
     }
 
+    /** Validate file before processing */
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+    const MIN_FILE_SIZE = 500; // 500 bytes — anything smaller is likely corrupt
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
+
     async function handleImageUpload(file: File) {
-        if (!file.type.startsWith('image/')) return;
+        // Early validation — fail fast before compression
+        if (!file.type.startsWith('image/')) {
+            logger.warn('🚫 SCAN REJECTED | Not an image file', { type: file.type, name: file.name });
+            setErrorMessage(t('error_message'));
+            return;
+        }
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            logger.warn('🚫 SCAN REJECTED | Unsupported image type', { type: file.type });
+            setErrorMessage(`Unsupported image format: ${file.type}`);
+            return;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            logger.warn('🚫 SCAN REJECTED | File too large', { sizeMB: (file.size / 1024 / 1024).toFixed(1) });
+            setErrorMessage(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 15MB.`);
+            return;
+        }
+        if (file.size < MIN_FILE_SIZE) {
+            logger.warn('🚫 SCAN REJECTED | File too small (likely corrupt)', { size: file.size });
+            setErrorMessage(t('error_message'));
+            return;
+        }
 
         const scanStartTime = Date.now();
         logger.scanStart({ fileSize: file.size, fileType: file.type, locale, tier });
@@ -139,6 +170,7 @@ export default function ScanPage() {
             setIsAnalyzing(true);
             setAnalysis(null);
             setErrorMessage(null);
+            setErrorRequestId(null);
 
             try {
                 // Compress before sending — reduces 10MB+ photos to ~100-200KB
@@ -194,7 +226,8 @@ export default function ScanPage() {
 
                 if (!res.ok) {
                     const errMsg = data.message || data.error || `Server error (${res.status})`;
-                    logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details });
+                    logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
+                    if (data.requestId) setErrorRequestId(data.requestId);
                     throw new Error(errMsg);
                 }
 
@@ -274,6 +307,7 @@ export default function ScanPage() {
         setAnalysis(null);
         setIsAnalyzing(false);
         setErrorMessage(null);
+        setErrorRequestId(null);
     }
 
     const scansUsed = user?.scansThisMonth || 0;
@@ -387,7 +421,10 @@ export default function ScanPage() {
                             <h3 className="text-xl font-bold text-orange-700">{t('error_title')}</h3>
                         </div>
                         <p className="text-gray-600 mb-2">{t('error_message')}</p>
-                        <p className="text-sm text-gray-400 mb-6">{errorMessage}</p>
+                        <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
+                        {errorRequestId && (
+                            <p className="text-xs text-gray-300 mb-4 font-mono">Request ID: {errorRequestId}</p>
+                        )}
                         <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
                             <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                         </button>

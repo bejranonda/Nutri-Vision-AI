@@ -1,6 +1,9 @@
 /**
  * Unified Logging System for Nutri-Vision AI
  * Handles both Client-side and Server-side (Cloudflare Edge) logging
+ * 
+ * v2.2 — Added request correlation IDs, environment diagnostics,
+ *         and granular phase tracking for debugging.
  */
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
@@ -9,6 +12,7 @@ type ScanPhase = 'upload' | 'compress' | 'api_call' | 'api_response' | 'parse' |
 
 interface ScanLogContext {
   phase: ScanPhase;
+  requestId?: string;
   locale?: string;
   tier?: string;
   fileSize?: number;
@@ -32,15 +36,15 @@ class Logger {
 
     // In Cloudflare Pages, console.log/error/warn are captured and visible in the dashboard
     if (level === 'error') {
-      console.error(`${prefix} ${message}`, data || '');
+      console.error(`${prefix} ${message}`, data ? JSON.stringify(data) : '');
     } else if (level === 'warn') {
-      console.warn(`${prefix} ${message}`, data || '');
+      console.warn(`${prefix} ${message}`, data ? JSON.stringify(data) : '');
     } else if (level === 'debug') {
       if (!this.isProduction) {
-        console.debug(`${prefix} ${message}`, data || '');
+        console.debug(`${prefix} ${message}`, data ? JSON.stringify(data) : '');
       }
     } else {
-      console.log(`${prefix} ${message}`, data || '');
+      console.log(`${prefix} ${message}`, data ? JSON.stringify(data) : '');
     }
   }
 
@@ -68,6 +72,11 @@ class Logger {
   }
 
   // ── Scan-specific diagnostics ──────────────────────────────────
+
+  /** Generate a short correlation ID for request tracing */
+  generateRequestId(): string {
+    return Math.random().toString(36).substring(2, 10);
+  }
 
   /** Log when user initiates a food scan (image upload) */
   scanStart(ctx: { fileSize: number; fileType: string; locale: string; tier: string }) {
@@ -106,11 +115,30 @@ class Logger {
     );
   }
 
-  /** Log API-side scan processing stages */
+  /** Log API-side scan processing stages (server-side) */
   scanApiStage(stage: string, details?: any) {
     this.info(`🔧 SCAN API [${stage}]`, details);
+  }
+
+  /** Log environment binding diagnostics for debugging deployment issues */
+  scanEnvDiagnostic(requestId: string, env: any) {
+    const safeKeys = Object.keys(env || {}).filter(k =>
+      !k.includes('TOKEN') && !k.includes('SECRET') && !k.includes('PASSWORD') && !k.includes('KEY')
+    );
+    this.info(`🔎 ENV DIAGNOSTIC [${requestId}]`, {
+      requestId,
+      hasAI: !!env?.AI,
+      hasDB: !!env?.DB,
+      envType: typeof env,
+      envKeys: safeKeys.join(','),
+      isProcessEnv: env === process.env,
+    });
+  }
+
+  /** Log session/auth events */
+  scanSessionEvent(requestId: string, event: string, details?: any) {
+    this.info(`🔐 SESSION [${requestId}] ${event}`, details);
   }
 }
 
 export const logger = new Logger();
-
