@@ -148,23 +148,48 @@ export default function ScanPage() {
                 const body = JSON.stringify({ imageBase64: compressedBase64, locale });
                 logger.scanApiCall({ payloadSize: body.length, locale });
 
-                const apiStartTime = Date.now();
-                const res = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body
-                });
+                // Helper: single API call with 30s timeout
+                const API_TIMEOUT_MS = 30_000;
+                async function callAnalyzeApi(attempt: number): Promise<{ res: Response; responseText: string; durationMs: number }> {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-                const responseText = await res.text();
-                const apiDurationMs = Date.now() - apiStartTime;
+                    try {
+                        const start = Date.now();
+                        const res = await fetch('/api/analyze', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body,
+                            signal: controller.signal
+                        });
+                        const responseText = await res.text();
+                        const durationMs = Date.now() - start;
+                        return { res, responseText, durationMs };
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                }
+
+                // First attempt
+                let { res, responseText, durationMs: apiDurationMs } = await callAnalyzeApi(1);
                 logger.scanApiResponse({ status: res.status, durationMs: apiDurationMs, responseSize: responseText.length, ok: res.ok });
+
+                // Single retry on 503 (transient AI failure)
+                if (res.status === 503) {
+                    logger.info('🔄 SCAN RETRY | API returned 503, retrying once...');
+                    const retry = await callAnalyzeApi(2);
+                    res = retry.res;
+                    responseText = retry.responseText;
+                    apiDurationMs += retry.durationMs;
+                    logger.scanApiResponse({ status: res.status, durationMs: retry.durationMs, responseSize: responseText.length, ok: res.ok });
+                }
 
                 let data;
                 try {
                     data = JSON.parse(responseText);
                 } catch (parseErr: any) {
                     logger.scanError('parse', parseErr, { responseSize: responseText.length, responsePreview: responseText.substring(0, 200) });
-                    throw new Error('Server returned invalid response. Please try again.');
+                    throw new Error(t('error_message'));
                 }
 
                 if (!res.ok) {
@@ -217,9 +242,14 @@ export default function ScanPage() {
                 // Sync store
                 useAuthStore.getState().initAuth();
             } catch (err: any) {
-                logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime });
-                // Show honest error instead of fake mock data
-                setErrorMessage(err.message || 'Analysis failed. Please try again with a clearer photo.');
+                // Detect timeout vs other errors
+                if (err.name === 'AbortError') {
+                    logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime, reason: 'timeout' });
+                    setErrorMessage(t('timeout_message'));
+                } else {
+                    logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime });
+                    setErrorMessage(err.message || t('error_message'));
+                }
             } finally {
                 setIsAnalyzing(false);
             }

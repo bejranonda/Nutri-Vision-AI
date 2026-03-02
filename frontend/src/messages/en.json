@@ -86,6 +86,7 @@
     "try_again": "Scan Another",
     "error_title": "Sorry! 🙏",
     "error_message": "Shinny couldn't analyze this image",
+    "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
     "low_confidence": {
       "title": "Shinny isn't sure!",
       "message": "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try a closer, clearer photo."

@@ -86,6 +86,7 @@
     "try_again": "Scan Igen",
     "error_title": "Undskyld! 🙏",
     "error_message": "Shinny kunne ikke analysere dette billede",
+    "timeout_message": "Analysen tager for lang tid. Prøv igen med et enklere foto.",
     "low_confidence": {
       "title": "Shinny er ikke sikker!",
       "message": "Dette ligner ikke mad, som jeg kan genkende tydeligt. Analysen nedenfor kan være unøjagtig. Prøv et nærmere, klarere foto."
