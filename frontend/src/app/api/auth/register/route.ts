@@ -4,7 +4,7 @@ import { users } from '@/db/schema';
 import { hashPassword, generateId } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
-import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { getEnv } from '@/lib/cloudflare';
 
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const { env } = await getCloudflareContext();
+        const env = await getEnv();
         const db = getDb(env);
 
         // Check if user already exists

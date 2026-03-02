@@ -15,12 +15,15 @@ This document provides guidelines for developers to maintain code quality, consi
 - **Framework**: Next.js App Router API Routes (`/api/*`).
 - **Runtime**: Edge Runtime (`@opennextjs/cloudflare`) compatible. 
   - 🚫 **Avoid Node.js APIs**: Do NOT use `fs`, `path`, or `Buffer`. `Buffer` is not globally guaranteed in Cloudflare edge runtimes. Use `atob()` and `Uint8Array` for binary decoding instead.
-- **Cloudflare Bindings**: Always use `getCloudflareContext()` from `@opennextjs/cloudflare` to access env bindings (AI, DB, KV, R2). **Never** use `(req as any).context?.env` — it silently returns `undefined`.
+- **Cloudflare Bindings**: Always use the shared helpers in `@/lib/cloudflare` to access env bindings (AI, DB, KV, R2). **Never** use `(req as any).context?.env` — it silently returns `undefined`.
   ```typescript
-  import { getCloudflareContext } from '@opennextjs/cloudflare';
-  const { env } = await getCloudflareContext();
-  const db = getDb(env);    // env.DB binding
-  const ai = env.AI;        // env.AI binding
+  import { getEnv, getEnvSafe } from '@/lib/cloudflare';
+  
+  // Use getEnv() for strict access (throws if binding missing)
+  const env = await getEnv();
+  
+  // Use getEnvSafe() for fault-tolerant access (falls back to process.env)
+  const env = await getEnvSafe();
   ```
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
 - **Timeouts**: Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.

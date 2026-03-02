@@ -4,7 +4,7 @@ import { users } from '@/db/schema';
 import { verifyPassword } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
-import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { getEnv } from '@/lib/cloudflare';
 
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
         }
 
-        const { env } = await getCloudflareContext();
+        const env = await getEnv();
         const db = getDb(env);
 
         const foundUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);

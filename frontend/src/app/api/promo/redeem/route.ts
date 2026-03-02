@@ -5,7 +5,7 @@ import { getSessionToken } from '@/lib/session';
 import { eq, and, gt } from 'drizzle-orm';
 import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
-import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { getEnv } from '@/lib/cloudflare';
 
 
 export async function POST(req: NextRequest) {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Not authenticated. Please log in first.' }, { status: 401 });
         }
 
-        const { env } = await getCloudflareContext();
+        const env = await getEnv();
         const db = getDb(env);
 
         // Get user session

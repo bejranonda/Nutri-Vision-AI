@@ -3,7 +3,7 @@ import { getDb } from '@/db';
 import { users, sessions } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
 import { eq, and, gt } from 'drizzle-orm';
-import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { getEnv } from '@/lib/cloudflare';
 
 
 export async function GET(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const { env } = await getCloudflareContext();
+        const env = await getEnv();
         const db = getDb(env);
 
         // Find session

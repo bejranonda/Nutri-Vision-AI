@@ -49,9 +49,10 @@ Rather than assuming every photo is a prepared meal, the AI is instructed to fir
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB)
-2. 30-second `AbortController` timeouts
-3. Automatic single-retries for 503 transient AI queue errors
-4. Strict JSON schema validation (`validateAiResponse`) before rendering
+2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks.
+3. Server-side AI timeout (25s) using `Promise.race` for zero-hang execution.
+4. Request Tracing: Every scan is unique-indexed with a `requestId` shown in logs and error UIs.
+5. Strict JSON schema validation and data sanitization before rendering.
 
 ## 🛠 Tech Stack
 
@@ -81,14 +82,14 @@ npm run deploy     # → Cloudflare Pages
 
 ```
 frontend/src/
-├── app/[locale]/       # Pages (home, scan, demo, login, dashboard, pricing, recipes)
-├── lib/
-│   ├── auth-store.ts   # Zustand auth state (login, register, promo codes)
-│   ├── promo-codes.ts  # Promotion code system (TRIAL, DISCOUNT, FANCLUB, REFERRAL)
-│   ├── tier-config.ts  # Feature gating (Free, Premium, Family)
-│   └── logger.ts       # Client/Edge unified logger
-├── db/schema.ts        # Drizzle ORM schema (users, promo_codes, sessions)
-└── messages/           # i18n translations (en, th, de, da)
+84: ├── app/[locale]/       # Pages (home, scan, demo, login, dashboard, pricing, recipes)
+85: ├── lib/
+86: │   ├── auth-store.ts   # Zustand auth state (login, register, promo codes)
+87: │   ├── promo-codes.ts  # Promotion code system (TRIAL, DISCOUNT, FANCLUB, REFERRAL)
+88: │   ├── tier-config.ts  # Feature gating (Free, Premium, Family)
+89: │   └── logger.ts       # Client/Edge unified logger
+90: ├── db/schema.ts        # Drizzle ORM schema (users, promo_codes, sessions)
+91: └── messages/           # i18n translations (en, th, de, da)
 ```
 
 ## 📊 Member System
