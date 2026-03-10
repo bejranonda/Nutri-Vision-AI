@@ -247,7 +247,7 @@ export default function HomePage() {
       {/* Version Display */}
       <div className="fixed bottom-4 right-4 z-50 pointer-events-none opacity-20 hover:opacity-100 transition-opacity">
         <span className="text-[10px] font-mono text-gray-400 bg-white/50 backdrop-blur-sm px-2 py-1 rounded-full border border-gray-200 shadow-sm">
-          v2.1.6
+          v2.1.7
         </span>
       </div>
     </div>
