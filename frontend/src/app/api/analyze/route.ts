@@ -257,24 +257,97 @@ export async function POST(req: NextRequest) {
             return validateAiResponse(parsedJson);
         };
 
-        try {
-            if (!env.AI) {
-                throw new Error('AI_BINDING_MISSING');
-            }
+        const attemptGeminiInference = async (apiKey: string, timeoutMs: number) => {
+            const model = 'gemini-2.0-flash';
+            const aiStartTime = Date.now();
+            const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
 
-            // Attempt 1: High Quality (11B)
+            logger.scanApiStage('AI_GEMINI_START', { requestId, model, locale });
+
+            const base64Data = imageBase64.split(',')[1];
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: localizedPrompt },
+                        { inline_data: { mime_type: 'image/jpeg', data: base64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0.1, // Low temperature for consistent JSON
+                    maxOutputTokens: 1024
+                }
+            };
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
             try {
-                resultJson = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 30000);
-            } catch (primaryErr: any) {
-                logger.scanApiStage('AI_PRIMARY_FAILED', { 
-                    requestId, 
-                    error: primaryErr.message,
-                    model: '@cf/meta/llama-3.2-11b-vision-instruct' 
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Gemini API error: ${response.status} ${errorText}`);
+                }
+
+                const data = await response.json() as any;
+                const rawResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
                 
-                // Attempt 2: Fast Fallback (3B)
-                logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary model failed, trying 3B vision model...`);
-                resultJson = await attemptAiInference('@cf/meta/llama-3.2-3b-vision-instruct', 15000);
+                logger.scanApiStage('AI_GEMINI_COMPLETE', {
+                    requestId,
+                    durationMs: Date.now() - aiStartTime,
+                    rawResponseLength: rawResponse.length
+                });
+
+                const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+                const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
+                return validateAiResponse(parsedJson);
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                throw err;
+            }
+        };
+
+        try {
+            // Check for Google AI Key first (external reliability)
+            const googleKey = env.GOOGLE_AI_API_KEY;
+
+            // Attempt 1: Cloudflare 11B (Primary Quality)
+            try {
+                if (!env.AI) throw new Error('AI_BINDING_MISSING');
+                resultJson = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
+            } catch (primaryErr: any) {
+                logger.scanApiStage('AI_PRIMARY_FAILED', { requestId, error: primaryErr.message });
+
+                // Attempt 2: Google Gemini (High Reliability Fallback)
+                if (googleKey) {
+                    try {
+                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed, trying Google Gemini...`);
+                        resultJson = await attemptGeminiInference(googleKey, 20000);
+                    } catch (geminiErr: any) {
+                        logger.scanApiStage('AI_GEMINI_FAILED', { requestId, error: geminiErr.message });
+                        // Continue to last resort
+                    }
+                }
+
+                // Attempt 3: Cloudflare 3B (Last Resort)
+                if (!resultJson) {
+                    try {
+                        if (!env.AI) throw new Error('AI_BINDING_MISSING');
+                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Gemini failed/skipped, trying 3B vision model...`);
+                        resultJson = await attemptAiInference('@cf/meta/llama-3.2-3b-vision-instruct', 15000);
+                    } catch (finalErr: any) {
+                        throw new Error(`All models failed. Last error: ${finalErr.message}`);
+                    }
+                }
             }
 
             // Validate: if AI says it's not food, return early
