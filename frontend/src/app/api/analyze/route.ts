@@ -317,14 +317,17 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-            // Check for Google AI Key first (external reliability)
+            // Accumulate errors for better debugging
+            const fallbackErrors: any = {};
             const googleKey = env.GOOGLE_AI_API_KEY;
+            fallbackErrors.googleKeyConfigured = !!googleKey;
 
             // Attempt 1: Cloudflare 11B (Primary Quality)
             try {
                 if (!env.AI) throw new Error('AI_BINDING_MISSING');
                 resultJson = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
             } catch (primaryErr: any) {
+                fallbackErrors.cloudflare11b = primaryErr.message;
                 logger.scanApiStage('AI_PRIMARY_FAILED', { requestId, error: primaryErr.message });
 
                 // Attempt 2: Google Gemma 3 27B (High Reliability Fallback)
@@ -333,20 +336,13 @@ export async function POST(req: NextRequest) {
                         logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed, trying Google Gemma 3 27B...`);
                         resultJson = await attemptGoogleInference(googleKey, 20000);
                     } catch (googleErr: any) {
+                        fallbackErrors.gemma3 = googleErr.message;
                         logger.scanApiStage('AI_GOOGLE_FAILED', { requestId, error: googleErr.message });
-                        // Continue to last resort
+                        throw new Error(`All models failed. Details: ${JSON.stringify(fallbackErrors)}`);
                     }
-                }
-
-                // Attempt 3: Cloudflare 3B (Last Resort)
-                if (!resultJson) {
-                    try {
-                        if (!env.AI) throw new Error('AI_BINDING_MISSING');
-                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Google API failed/skipped, trying 3B vision model...`);
-                        resultJson = await attemptAiInference('@cf/meta/llama-3.2-3b-vision-instruct', 15000);
-                    } catch (finalErr: any) {
-                        throw new Error(`All models failed. Last error: ${finalErr.message}`);
-                    }
+                } else {
+                    fallbackErrors.gemma3 = 'Skipped: GOOGLE_AI_API_KEY is not set in Cloudflare environment variables.';
+                    throw new Error(`All models failed. Details: ${JSON.stringify(fallbackErrors)}`);
                 }
             }
 
