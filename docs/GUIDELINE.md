@@ -28,13 +28,13 @@ This document provides guidelines for developers to maintain code quality, consi
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
 - **Timeouts & Fallbacks**: 
   - Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
-  - **Multi-Model Fallback Pattern**: Always implement a "Primary -> Secondary" fallback for high-capacity models (like 11B vision). If the primary fails or times out, immediately retry with a lighter model (like 3B vision).
+  - **Dual-Provider Fallback Pattern**: Always implement a cross-provider fallback for high-capacity models. If the primary Cloudflare model fails or times out, immediately retry with a highly reliable external model (like Google Gemma 3).
   ```typescript
-  // v2.1.5 Pattern
+  // v2.1.7 Pattern
   try {
-      result = await attemptInference(PRIMARY_MODEL, 30000);
+      result = await attemptPrimaryInference(CLOUDFLARE_MODEL, 25000);
   } catch {
-      result = await attemptInference(FALLBACK_MODEL, 15000);
+      result = await attemptGoogleInference(GOOGLE_MODEL, 20000);
   }
   ```
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.

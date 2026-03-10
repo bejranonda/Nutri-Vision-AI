@@ -42,19 +42,19 @@ Shinny Guide คือแอป AI ที่ช่วยจัดลำดับ
 - `LAUNCH50` — ลด 50% เดือนแรก
 - `FAMILY2024` — ทดลองแฟมิลี่ 14 วัน
 
-## 🧠 วิธีการวิเคราะห์ของ AI (v2.1.5)
+## 🧠 วิธีการวิเคราะห์ของ AI (v2.1.7)
 
-Nutri-Vision AI ใช้หลักการวิเคราะห์แบบ **Identify-First** ขับเคลื่อนโดยระบบ **AI Fallback** บน Cloudflare Workers AI
+Nutri-Vision AI ใช้หลักการวิเคราะห์แบบ **Identify-First** ขับเคลื่อนโดยระบบ **Dual-Provider Fallback** (สลับผู้ให้บริการ AI อัตโนมัติเมื่อระบบขัดข้อง)
 
 ### ระบบประมวลผลอัจฉริยะ (Inference Pipeline):
-1.  **ตัวหลัก (Primary)**: `@cf/meta/llama-3.2-11b-vision-instruct` (โมเดล multimodal คุณภาพสูง)
-2.  **ตัวสำรอง (Fallback)**: `@cf/meta/llama-3.2-3b-vision-instruct` (โมเดลขนาดเล็กที่ทำงานรวดเร็ว)
-    *   หากโมเดล 11B ทำงานล้มเหลวหรือค้างเกิน 30 วินาที ระบบจะสลับไปใช้โมเดล 3B ทันทีภายใน **15 วินาที** เพื่อให้ผู้ใช้ได้รับผลการวิเคราะห์แม้ในช่วงที่มีการใช้งานหนาแน่น
+1.  **ตัวหลัก (Primary)**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (โมเดล multimodal คุณภาพสูง)
+2.  **ตัวสำรองขั้นสูง (Super Fallback)**: Google `@gemma-3-27b-it` (โมเดลประสิทธิภาพและความเสถียรสูง)
+    *   หากโมเดล 11B ทำงานล้มเหลวหรือค้างเกิน 25 วินาที ระบบจะสลับไปใช้โมเดล Gemma 3 27B ของ Google ทันที เพื่อให้ผู้ใช้ได้รับผลการวิเคราะห์แม้อยู่ในช่วงที่มีการใช้งานหนาแน่น
 
 ระบบถูกออกแบบมาเพื่อความเสถียรระดับ Edge:
 1. บีบอัดรูปภาพฝั่งไคลเอนต์ (ลดขนาดจาก 10MB เหลือ ~150KB)
 2. **10-Phase Fault-Tolerant Pipeline**: แยกการทำงานแต่ละส่วน (DB, Session, AI) ออกจากกันอย่างเด็ดขาดด้วย `try/catch`
-3. ระบบป้องกันการค้าง (Timeout) รวม 45 วินาทีที่ฝั่ง Server ด้วย `Promise.race`
+3. ระบบป้องกันการค้าง (Timeout) รวม 45 วินาทีที่ฝั่ง Server ด้วย `Promise.race` และ `AbortController`
 4. ระบบติดตาม Request (Request Tracing): ทุกการสแกนจะมี `requestId` เพื่อใช้ในการตรวจสอบ Log และระบุปัญหา
 5. ตรวจสอบและทำความสะอาดโครงสร้าง JSON (Sanitization) ก่อนนำไปแสดงผลเสมอ
 
@@ -65,7 +65,7 @@ Nutri-Vision AI ใช้หลักการวิเคราะห์แบ�
 - **State**: Zustand + persist middleware
 - **ฐานข้อมูล**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (Llama 3.2 11B & 3B Vision + Locale-Aware Prompting)
+- **AI**: Cloudflare Workers AI (Llama 3.2 11B) + Google AI (Gemma 3 27B) + Locale-Aware Prompting
 - **Performance**: บีบอัดรูปภาพฝั่งไคลเอนต์ (HTML5 Canvas) ก่อนส่ง AI
 
 ## 🚀 เริ่มต้นใช้งาน

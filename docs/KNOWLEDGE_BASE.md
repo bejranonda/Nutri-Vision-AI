@@ -25,16 +25,16 @@ Our proprietary scoring algorithm (found in `backend/app/services/nutrition_scor
 7.  **Micronutrient Coverage**: % RDI coverage for 12 essential vitamins/minerals.
 8.  **Overall Health Score**: A weighted average (Blood Sugar 20%, others 10-15%).
 
-## 🤖 AI Service (Workers AI)
+## 🤖 AI Service (Workers AI & Google AI)
 
-We use a **Dual-Model Fallback Strategy** on Cloudflare Workers AI for maximum reliability:
--   **Primary Model**: `@cf/meta/llama-3.2-11b-vision-instruct` (High-fidelity multimodal model for accurate identification).
--   **Fallback Model**: `@cf/meta/llama-3.2-3b-vision-instruct` (Lightweight, fast vision model used if the primary fails or times out).
+We use a **Dual-Provider Fallback Strategy** for maximum reliability:
+-   **Primary Model**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High-fidelity multimodal model for accurate identification).
+-   **Fallback Model**: Google `@gemma-3-27b-it` (Highly reliable and fast vision model used if the primary fails or times out).
 -   **Robustness**: 
-    -   30s timeout for the 11B model.
-    -   15s timeout for the 3B fallback.
+    -   25s timeout for the 11B model.
+    -   20s timeout for the Gemma 3 fallback.
     -   Combined 45s total budget for a successful scan.
-    -   Automatic 503 retries and granular phase tracking.
+    -   Granular phase tracking and specific error details.
 -   **Chatbot (Shinny)**: Providing empathetic, evidence-based nutrition coaching using the "Live long to eat well" persona.
 
 ## 🏗️ Technical Architecture
