@@ -5,6 +5,14 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.5] - 2026-03-10
+
+### Added
+- 🛡️ **AI Model Fallback**: Implemented automatic fallback from Llama 3.2 11B Vision to the faster 3B model if the primary model fails or times out. This significantly reduces "temporarily unavailable" errors during peak load.
+- 📡 **Granular Error Reporting**: Improved error responses to distinguish between primary and fallback failures.
+
+---
+
 ## [2.1.4] - 2026-03-10
 
 ### Changed

@@ -213,132 +213,100 @@ export async function POST(req: NextRequest) {
         currentPhase = 'AI_INFERENCE';
         let resultJson;
 
+        const attemptAiInference = async (model: string, timeoutMs: number) => {
+            const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+            const aiStartTime = Date.now();
+
+            logger.scanApiStage('AI_INFERENCE_START', { 
+                requestId, 
+                model, 
+                locale,
+                promptLength: localizedPrompt.length 
+            });
+
+            // Decode base64 to byte array
+            const base64Data = imageBase64.split(',')[1];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const imageBytes = Array.from(bytes);
+
+            const aiPromise = env.AI.run(model, {
+                prompt: localizedPrompt,
+                image: [imageBytes]
+            });
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
+            );
+            
+            logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, model, timeoutMs });
+            const response = await Promise.race([aiPromise, timeoutPromise]) as any;
+            
+            const rawResponse = response?.response || '{}';
+            logger.scanApiStage('AI_INFERENCE_COMPLETE', {
+                requestId,
+                model,
+                durationMs: Date.now() - aiStartTime,
+                rawResponseLength: rawResponse.length
+            });
+
+            const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+            const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
+            return validateAiResponse(parsedJson);
+        };
+
         try {
-            logger.scanApiStage('AI_BINDING_CHECK', { requestId, hasAI: !!env.AI });
+            if (!env.AI) {
+                throw new Error('AI_BINDING_MISSING');
+            }
 
-            if (env.AI) {
-                // Use Llama 3.2 11B Vision — much stronger multimodal model
-                const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
-                const aiStartTime = Date.now();
-
-                logger.scanApiStage('AI_INFERENCE_START', { 
+            // Attempt 1: High Quality (11B)
+            try {
+                resultJson = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 30000);
+            } catch (primaryErr: any) {
+                logger.scanApiStage('AI_PRIMARY_FAILED', { 
                     requestId, 
-                    model: '@cf/meta/llama-3.2-11b-vision-instruct', 
-                    locale,
-                    promptLength: localizedPrompt.length 
+                    error: primaryErr.message,
+                    model: '@cf/meta/llama-3.2-11b-vision-instruct' 
                 });
-
-                // Decode base64 to byte array for the AI model (edge-safe — no Buffer dependency)
-                let imageBytes: number[];
-                try {
-                    const base64Data = imageBase64.split(',')[1];
-                    // Use atob + Uint8Array instead of Buffer.from for edge runtime compatibility
-                    const binaryString = atob(base64Data);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-                    imageBytes = Array.from(bytes);
-                    logger.scanApiStage('IMAGE_DECODED', { requestId, byteCount: imageBytes.length });
-                } catch (decodeErr: any) {
-                    logger.scanApiStage('IMAGE_DECODE_ERROR', { requestId, error: decodeErr.message });
-                    return NextResponse.json(
-                        { error: 'Image decode failed', message: 'Could not decode the image data', requestId },
-                        { status: 400 }
-                    );
-                }
-
-                // AI inference with server-side timeout (35s) — increased from 25s for 11B model
-                // Note: Cloudflare Workers on Paid plan allow up to 30s CPU time, but wall-clock time can be longer.
-                const AI_SERVER_TIMEOUT_MS = 35_000;
-                const aiPromise = env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-                    prompt: localizedPrompt,
-                    image: [imageBytes]
-                });
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error(`AI inference timed out after ${AI_SERVER_TIMEOUT_MS/1000} seconds`)), AI_SERVER_TIMEOUT_MS)
-                );
                 
-                logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, timeoutMs: AI_SERVER_TIMEOUT_MS });
-                const response = await Promise.race([aiPromise, timeoutPromise]) as any;
-                const aiDurationMs = Date.now() - aiStartTime;
+                // Attempt 2: Fast Fallback (3B)
+                logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary model failed, trying 3B vision model...`);
+                resultJson = await attemptAiInference('@cf/meta/llama-3.2-3b-vision-instruct', 15000);
+            }
 
-                // Parse AI response into JSON
-                const rawResponse = response?.response || '{}';
-                logger.scanApiStage('AI_INFERENCE_COMPLETE', {
-                    requestId,
-                    durationMs: aiDurationMs,
-                    rawResponseLength: rawResponse.length,
-                    rawResponsePreview: rawResponse.substring(0, 500)
-                });
+            // Validate: if AI says it's not food, return early
+            if (resultJson.isFood === false) {
+                logger.scanApiStage('NOT_FOOD', { requestId, confidence: resultJson.confidence });
+                return NextResponse.json({
+                    error: 'Not food',
+                    message: 'The image does not appear to contain food. Please upload a photo of food.',
+                    confidence: resultJson.confidence || 0,
+                    requestId
+                }, { status: 422 });
+            }
 
-                // Try to extract JSON from the response (AI sometimes wraps in markdown)
-                let parsedJson;
-                try {
-                    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-                    parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
-                } catch (jsonErr: any) {
-                    logger.scanApiStage('AI_JSON_PARSE_ERROR', {
-                        requestId,
-                        error: jsonErr.message,
-                        rawResponse: rawResponse.substring(0, 500)
-                    });
-                    return NextResponse.json({
-                        error: 'AI response parse failed',
-                        message: 'The AI returned a response that could not be parsed as JSON. Please try again.',
-                        details: rawResponse.substring(0, 200),
-                        requestId
-                    }, { status: 502 });
-                }
+        } catch (aiError: any) {
+            const aiDurationMs = Date.now() - requestStartTime;
+            logger.scanApiStage('AI_FAILED_TOTAL', {
+                requestId,
+                error: aiError.message,
+                durationMs: aiDurationMs
+            });
 
-                // Validate and sanitize — prevents frontend crashes from malformed AI output
-                resultJson = validateAiResponse(parsedJson);
-                logger.scanApiStage('AI_VALIDATED', {
-                    requestId,
-                    foodName: resultJson.foodName,
-                    confidence: resultJson.confidence,
-                    isFood: resultJson.isFood,
-                    category: resultJson.foodCategory,
-                    detectedItemCount: resultJson.detectedItems.length
-                });
-
-                // Validate: if AI says it's not food, return early
-                if (resultJson.isFood === false) {
-                    logger.scanApiStage('NOT_FOOD', { requestId, confidence: resultJson.confidence });
-                    return NextResponse.json({
-                        error: 'Not food',
-                        message: 'The image does not appear to contain food. Please upload a photo of food.',
-                        confidence: resultJson.confidence || 0,
-                        requestId
-                    }, { status: 422 });
-                }
-            } else {
-                logger.scanApiStage('AI_BINDING_MISSING', { requestId, message: 'env.AI is not available — deploy to Cloudflare Workers to enable AI' });
+            if (aiError.message === 'AI_BINDING_MISSING') {
                 return NextResponse.json({
                     error: 'AI not available',
                     message: 'Food analysis requires Cloudflare Workers AI. The AI binding is not configured.',
                     requestId
                 }, { status: 503 });
             }
-        } catch (aiError: any) {
-            const aiDurationMs = Date.now() - requestStartTime;
-            logger.scanApiStage('AI_FAILED', {
-                requestId,
-                error: aiError.message,
-                errorName: aiError.name,
-                errorCode: aiError.code || aiError.status, // Cloudflare AI often adds these
-                stack: aiError.stack?.substring(0, 500),
-                durationMs: aiDurationMs
-            });
-
-            // Detect if it was a timeout
-            const isTimeout = aiError.message?.includes('timed out');
 
             return NextResponse.json({
-                error: isTimeout ? 'AI analysis timeout' : 'AI analysis failed',
-                message: isTimeout 
-                    ? 'The AI is taking longer than usual to respond. Please try again with a smaller or clearer photo.'
-                    : 'Food analysis is temporarily unavailable. Please try again later.',
+                error: 'AI analysis failed',
+                message: 'Food analysis is temporarily unavailable. Our AI models are currently under high load. Please try again in a moment.',
                 details: aiError.message,
                 requestId,
                 durationMs: aiDurationMs
