@@ -42,6 +42,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix**: Replaced with the official `getCloudflareContext()` API from `@opennextjs/cloudflare` across all 6 API routes.
 - **Lesson**: Always use `getCloudflareContext()` to access Cloudflare bindings (AI, DB, KV, R2) in Next.js Edge API routes deployed via OpenNext.
 
-### AI Inference Timeouts (v2.1.1 → v2.1.2)
-- **Root Cause**: No server-side timeout on `env.AI.run()`. Slow AI responses could hang the Worker until its execution limit.
-- **Fix**: Client-side 30s `AbortController` timeout + server-side 25s `Promise.race` timeout + automatic 503 retries.
+### AI Inference Timeouts & 503 Errors (v2.1.1 → v2.1.5)
+- **Root Cause**: The `@cf/meta/llama-3.2-11b-vision-instruct` model occasionally hits resource limits or capacity issues on Cloudflare Workers AI, leading to 503 "Service Unavailable" or 502 "Bad Gateway" errors.
+- **Fix (v2.1.5)**: Implemented a **Dual-Model Fallback Strategy**. The system attempts the 11B model first (30s timeout); if it fails, it automatically retries with the faster, more available **3B model** (`@cf/meta/llama-3.2-3b-vision-instruct`).
+- **Lesson**: High-capacity models on serverless platforms require automated fallbacks to smaller, more resilient models to maintain 99.9% uptime for users.

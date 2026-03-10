@@ -26,7 +26,17 @@ This document provides guidelines for developers to maintain code quality, consi
   const env = await getEnvSafe();
   ```
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
-- **Timeouts**: Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
+- **Timeouts & Fallbacks**: 
+  - Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
+  - **Multi-Model Fallback Pattern**: Always implement a "Primary -> Secondary" fallback for high-capacity models (like 11B vision). If the primary fails or times out, immediately retry with a lighter model (like 3B vision).
+  ```typescript
+  // v2.1.5 Pattern
+  try {
+      result = await attemptInference(PRIMARY_MODEL, 30000);
+  } catch {
+      result = await attemptInference(FALLBACK_MODEL, 15000);
+  }
+  ```
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
 - **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) as LLM JSON can be malformed.
 

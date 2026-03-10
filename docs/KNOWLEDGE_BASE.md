@@ -27,10 +27,14 @@ Our proprietary scoring algorithm (found in `backend/app/services/nutrition_scor
 
 ## 🤖 AI Service (Workers AI)
 
-We use Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`) for:
--   **Image Analysis**: Identifying ingredients and portion sizes from photos.
--   **Nutrition Estimation**: Inferring macro and micronutrient profiles.
--   **Robustness**: Client-side 30s `AbortController` timeout + server-side 25s `Promise.race` timeout + automatic 503 retries.
+We use a **Dual-Model Fallback Strategy** on Cloudflare Workers AI for maximum reliability:
+-   **Primary Model**: `@cf/meta/llama-3.2-11b-vision-instruct` (High-fidelity multimodal model for accurate identification).
+-   **Fallback Model**: `@cf/meta/llama-3.2-3b-vision-instruct` (Lightweight, fast vision model used if the primary fails or times out).
+-   **Robustness**: 
+    -   30s timeout for the 11B model.
+    -   15s timeout for the 3B fallback.
+    -   Combined 45s total budget for a successful scan.
+    -   Automatic 503 retries and granular phase tracking.
 -   **Chatbot (Shinny)**: Providing empathetic, evidence-based nutrition coaching using the "Live long to eat well" persona.
 
 ## 🏗️ Technical Architecture
@@ -45,7 +49,7 @@ The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipelin
 1. Every phase (DB init, session retrieval, AI, etc.) is wrapped in an isolated `try/catch`. 
 2. If non-critical services (like D1 Database or Sessions) fail, the pipeline logs the failure but continues, allowing anonymous scans to succeed.
 3. **Edge-Safe Binaries**: Node.js `Buffer.from` is avoided for base64 decoding because it lacks standard support in Edge runtimes. We use `atob()` and `Uint8Array` natively.
-4. **Server-Side AI Timeouts**: Cloudflare Workers have hard execution limits. The `env.AI.run()` binding is wrapped in a `Promise.race([aiPromise, timeoutPromise])` to abort gracefully instead of hitting the execution limit.
+4. **Server-Side AI Timeouts & Fallbacks**: The system uses a recursive `attemptAiInference()` pattern. The `env.AI.run()` binding is wrapped in a `Promise.race([aiPromise, timeoutPromise])` to abort gracefully. If the primary attempt fails, it triggers the secondary fallback model immediately.
 5. **Binding Access**: All Cloudflare bindings (AI, DB, KV, R2) **must** be accessed via the shared helpers in `src/lib/cloudflare.ts` (`getEnv()` or `getEnvSafe()`). The legacy pattern `(req as any).context?.env` does NOT work in the OpenNext runtime and will return `undefined`.
 
 ### Backend (FastAPI)

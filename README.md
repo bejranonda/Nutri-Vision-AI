@@ -42,15 +42,19 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
-## 🧠 AI Methodology & Analysis
+## 🧠 AI Methodology & Analysis (v2.1.5)
 
-Nutri-Vision AI uses a strict **Identify-First** methodology powered by Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`). 
-Rather than assuming every photo is a prepared meal, the AI is instructed to first identify the raw ingredient or object. This prevents common AI hallucinations (e.g., classifying a raw pineapple as "Pineapple Fried Rice" or "Som Tam").
+Nutri-Vision AI uses a strict **Identify-First** methodology powered by a multi-model **Fallback Strategy** on Cloudflare Workers AI.
+
+### Smart Inference Pipeline:
+1.  **Primary**: `@cf/meta/llama-3.2-11b-vision-instruct` (High Quality multimodal model).
+2.  **Fallback**: `@cf/meta/llama-3.2-3b-vision-instruct` (Fast, lightweight vision model).
+    *   If the 11B model fails or times out (30s), the system automatically retries with the 3B model within **15s** to ensure a successful response even under high load.
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB)
 2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks.
-3. Server-side AI timeout (25s) using `Promise.race` for zero-hang execution.
+3. Server-side AI timeout (45s total) using `Promise.race` for zero-hang execution.
 4. Request Tracing: Every scan is unique-indexed with a `requestId` shown in logs and error UIs.
 5. Strict JSON schema validation and data sanitization before rendering.
 
@@ -61,8 +65,9 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (Llama 3.2 11B Vision + Locale-Aware Prompting)
+- **AI**: Cloudflare Workers AI (Llama 3.2 11B & 3B Vision + Locale-Aware Prompting)
 - **Performance**: Client-side image compression (HTML5 Canvas)
+
 
 ## 🚀 Getting Started
 
