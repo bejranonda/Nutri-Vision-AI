@@ -221,7 +221,12 @@ export async function POST(req: NextRequest) {
                 const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
                 const aiStartTime = Date.now();
 
-                logger.scanApiStage('AI_INFERENCE_START', { requestId, model: '@cf/meta/llama-3.2-11b-vision-instruct', locale });
+                logger.scanApiStage('AI_INFERENCE_START', { 
+                    requestId, 
+                    model: '@cf/meta/llama-3.2-11b-vision-instruct', 
+                    locale,
+                    promptLength: localizedPrompt.length 
+                });
 
                 // Decode base64 to byte array for the AI model (edge-safe — no Buffer dependency)
                 let imageBytes: number[];
@@ -243,15 +248,18 @@ export async function POST(req: NextRequest) {
                     );
                 }
 
-                // AI inference with server-side timeout (25s) — prevents Worker execution limit hang
-                const AI_SERVER_TIMEOUT_MS = 25_000;
+                // AI inference with server-side timeout (35s) — increased from 25s for 11B model
+                // Note: Cloudflare Workers on Paid plan allow up to 30s CPU time, but wall-clock time can be longer.
+                const AI_SERVER_TIMEOUT_MS = 35_000;
                 const aiPromise = env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
                     prompt: localizedPrompt,
                     image: [imageBytes]
                 });
                 const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('AI inference timed out after 25 seconds')), AI_SERVER_TIMEOUT_MS)
+                    setTimeout(() => reject(new Error(`AI inference timed out after ${AI_SERVER_TIMEOUT_MS/1000} seconds`)), AI_SERVER_TIMEOUT_MS)
                 );
+                
+                logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, timeoutMs: AI_SERVER_TIMEOUT_MS });
                 const response = await Promise.race([aiPromise, timeoutPromise]) as any;
                 const aiDurationMs = Date.now() - aiStartTime;
 
@@ -313,20 +321,27 @@ export async function POST(req: NextRequest) {
                 }, { status: 503 });
             }
         } catch (aiError: any) {
+            const aiDurationMs = Date.now() - requestStartTime;
             logger.scanApiStage('AI_FAILED', {
                 requestId,
                 error: aiError.message,
                 errorName: aiError.name,
+                errorCode: aiError.code || aiError.status, // Cloudflare AI often adds these
                 stack: aiError.stack?.substring(0, 500),
-                durationMs: Date.now() - requestStartTime
+                durationMs: aiDurationMs
             });
 
-            // Return honest error instead of crashing
+            // Detect if it was a timeout
+            const isTimeout = aiError.message?.includes('timed out');
+
             return NextResponse.json({
-                error: 'AI analysis failed',
-                message: 'Food analysis is temporarily unavailable. Please try again later.',
+                error: isTimeout ? 'AI analysis timeout' : 'AI analysis failed',
+                message: isTimeout 
+                    ? 'The AI is taking longer than usual to respond. Please try again with a smaller or clearer photo.'
+                    : 'Food analysis is temporarily unavailable. Please try again later.',
                 details: aiError.message,
-                requestId
+                requestId,
+                durationMs: aiDurationMs
             }, { status: 503 });
         }
 

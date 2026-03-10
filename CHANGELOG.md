@@ -5,6 +5,15 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2026-03-10
+
+### Changed
+- 🔧 **AI Timeout Increase**: Increased AI inference timeout from 25s to 35s to better accommodate the Llama 3.2 11B Vision model on Cloudflare Workers.
+- 📡 **Enhanced Debug Logging**: Added granular phase tracking (`AI_AWAITING_RESPONSE`), prompt length logging, and error code capturing for AI failures.
+- 🛡️ **Improved Error Messages**: Added specific user-facing messages for AI timeouts to distinguish from generic service failures.
+
+---
+
 ## [2.1.3] - 2026-03-02
 
 ### Changed
