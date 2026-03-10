@@ -52,6 +52,9 @@ The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipelin
 4. **Server-Side AI Timeouts & Fallbacks**: The system uses a recursive `attemptAiInference()` pattern. The `env.AI.run()` binding is wrapped in a `Promise.race([aiPromise, timeoutPromise])` to abort gracefully. If the primary attempt fails, it triggers the secondary fallback model immediately.
 5. **Binding Access**: All Cloudflare bindings (AI, DB, KV, R2) **must** be accessed via the shared helpers in `src/lib/cloudflare.ts` (`getEnv()` or `getEnvSafe()`). The legacy pattern `(req as any).context?.env` does NOT work in the OpenNext runtime and will return `undefined`.
 
+### Model Evaluation & Testing
+To ensure the high accuracy of the Dual-Provider architecture, we maintain a standalone testing suite in `scripts/test-models.mjs`. This script evaluates our fallback configurations directly against a control set of images located in `research/test-image/`. This ensures both the Cloudflare and Google AI nodes produce consistent, high-quality JSON schemas before production deployments.
+
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.
 -   **Pydantic Settings**: Environment-based configuration with strict validation.
