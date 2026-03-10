@@ -244,12 +244,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Version Display */}
-      <div className="fixed bottom-4 right-4 z-[9999] transition-opacity">
-        <span className="text-xs font-mono text-gray-800 bg-white shadow-lg px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-50 hover:text-brand-primary-600 cursor-default">
-          v2.1.7
-        </span>
-      </div>
+      {/* Footer / Version Display */}
+      <footer className="container mx-auto px-4 py-8 relative z-10 text-center border-t border-gray-200/50 mt-10">
+        <div className="flex flex-col items-center justify-center gap-2">
+          <p className="text-sm text-gray-500 font-medium">© {new Date().getFullYear()} Shinny Guide. All rights reserved.</p>
+          <span className="text-xs font-mono text-gray-500 bg-white/80 px-3 py-1 rounded-full border border-gray-200 shadow-sm hover:text-brand-primary-500 transition-colors cursor-default">
+            Version 2.1.7
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
