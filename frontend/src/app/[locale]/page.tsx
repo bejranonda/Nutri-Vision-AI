@@ -245,8 +245,8 @@ export default function HomePage() {
       </section>
 
       {/* Version Display */}
-      <div className="fixed bottom-4 right-4 z-50 transition-opacity">
-        <span className="text-xs font-mono text-gray-500 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-200 shadow-sm hover:bg-white hover:text-brand-primary-500 cursor-default">
+      <div className="fixed bottom-4 right-4 z-[9999] transition-opacity">
+        <span className="text-xs font-mono text-gray-800 bg-white shadow-lg px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-50 hover:text-brand-primary-600 cursor-default">
           v2.1.7
         </span>
       </div>
