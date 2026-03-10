@@ -98,11 +98,13 @@ export async function POST(req: NextRequest) {
         currentPhase = 'PARSE_BODY';
         let imageBase64: string;
         let locale: string;
+        let forceModel: string | undefined;
 
         try {
             const body = await req.json();
             imageBase64 = body.imageBase64;
             locale = body.locale || 'th';
+            forceModel = body.forceModel;
         } catch (parseErr: any) {
             logger.scanApiStage('BODY_PARSE_ERROR', { requestId, error: parseErr.message });
             return NextResponse.json(
@@ -112,7 +114,7 @@ export async function POST(req: NextRequest) {
         }
 
         const payloadSize = imageBase64 ? imageBase64.length : 0;
-        logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
+        logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, forceModel, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
 
         if (!imageBase64) {
             logger.scanApiStage('VALIDATION_FAILED', { requestId, reason: 'no_image' });
