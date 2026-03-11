@@ -1,7 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 
-const GOOGLE_API_KEY = 'AIzaSyCIroGys7PyhPYZTlqKPtCMySltEaXvKDo';
+// Manually load .env file if it exists
+if (fs.existsSync('.env')) {
+    const env = fs.readFileSync('.env', 'utf8');
+    env.split('\n').forEach(line => {
+        const [key, ...value] = line.split('=');
+        if (key && value) {
+            process.env[key.trim()] = value.join('=').trim();
+        }
+    });
+}
+
+const GOOGLE_API_KEY = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
 const PROD_API_URL = 'https://shinnyguide.autobahn.bot/api/analyze';
 
 const AI_PROMPT = `You are a food identification and nutrition expert. Analyze this image carefully.
