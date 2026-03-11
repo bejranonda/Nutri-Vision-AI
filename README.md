@@ -42,7 +42,7 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
-## 🧠 AI Methodology & Analysis (v2.1.7)
+## 🧠 AI Methodology & Analysis (v2.1.8)
 
 Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly resilient **Dual-Provider Fallback Strategy**.
 
@@ -55,8 +55,9 @@ The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB)
 2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks.
 3. Server-side AI timeout (45s total) using `Promise.race` and `AbortController` for zero-hang execution.
-4. Request Tracing: Every scan is unique-indexed with a `requestId` shown in logs and error UIs.
+4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, and raw JSON responses.
 5. Strict JSON schema validation and data sanitization before rendering.
+6. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 
 ## 🛠 Tech Stack
 

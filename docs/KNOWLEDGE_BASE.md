@@ -66,3 +66,9 @@ We use a unified logging system (`src/lib/logger.ts`) across the stack that brid
 -   **Scan Flow Diagnostics**: 7 dedicated methods (`scanStart`, `scanApiCall`, `scanError`, `scanApiStage`, etc.) track every step of the food scan journey from upload to DB insert.
 -   **Cloudflare Dash**: Real-time log streaming through the Cloudflare Dashboard catches both frontend hydration errors and API timeouts.
 -   **Structured Context**: All logs include JSON payloads with file sizes, timings (`durationMs`), and exact failure phases to make debugging trivial.
+
+## 🕒 Client-Side State & Storage
+
+While most data is secured on the backend, we use certain local mechanisms for enhanced UX:
+-   **Zustand Auth Store**: Manages the local hydration of user session states.
+-   **Scan History (`scan-history.ts`)**: Independently from auth, the last 10 successful scans are stored in `localStorage` alongside 80x80px downscaled thumbnails. This provides users an offline-capable meal log and gives developers an easy history of AI inference checks.

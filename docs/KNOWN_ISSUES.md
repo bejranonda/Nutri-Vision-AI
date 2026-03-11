@@ -32,7 +32,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ## 📋 Ongoing Investigations
 
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
--   **Multi-Ingredient Recognition**: Recognizing 10+ distinct ingredients in a single complex dish (e.g., Thai Som Tum). (Improved in v2.1.2 by updating the AI prompt with strict extraction rules).
+-   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
 -   **Language Consistency**: Ensuring the AI's "Shinny" persona remains consistent across all 4 languages.
 
 ## ✅ Resolved Issues
@@ -41,6 +41,11 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Root Cause**: All API routes used `(req as any).context?.env` which silently returns `undefined` in the `@opennextjs/cloudflare` runtime. The `env.AI` and `env.DB` bindings were never accessible.
 - **Fix**: Replaced with the official `getCloudflareContext()` API from `@opennextjs/cloudflare` across all 6 API routes.
 - **Lesson**: Always use `getCloudflareContext()` to access Cloudflare bindings (AI, DB, KV, R2) in Next.js Edge API routes deployed via OpenNext.
+
+### Multi-Ingredient Recognition & Sequence Formatting (v2.1.8)
+- **Root Cause**: Earlier versions relied on flat string arrays from the AI for the eating sequence, leading to brittle category extraction and missing localized food names when parsing 10+ ingredients.
+- **Fix**: Refactored the AI prompt to enforce a strict `{step, emoji, items, category}` array format instead of flat strings. This completely eliminates manual string-splitting and robustly categorizes elements.
+- **Lesson**: Structured JSON output schemas provide far more resilience than unstructured markdown lists, especially as prompt complexity grows.
 
 ### AI Inference Timeouts & 503 Errors (v2.1.1 → v2.1.7)
 - **Root Cause**: The `@cf/meta/llama-3.2-11b-vision-instruct` model occasionally hits resource limits or capacity issues on Cloudflare Workers AI, leading to 503 "Service Unavailable" or 502 "Bad Gateway" errors.

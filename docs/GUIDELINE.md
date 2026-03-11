@@ -77,6 +77,11 @@ try { ... } catch (err) {
     - `[ERROR]`: To find crashes and failed operations.
     - `X-Process-Time`: To monitor performance.
 
+### On-Device Telemetry
+Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for rapid iterative testing:
+1. **Debug Mode**: Append `?debug=1` to the `/scan` URL. After completing a scan, this exposes a dark accordion panel detailing precise API phase timings, the specific model used, network overhead, and the raw, unparsed JSON output of the AI directly in the UI.
+2. **Health Endpoints**: Use `/api/health` to verify deployment dependencies (Database connection, Cloudflare AI binding, Google API key availability) without incurring full inference costs. Append `?verbose=1` for detailed environment traces.
+
 ## 🚀 Development Workflow
 
 1.  **Branching**: `feature/`, `bugfix/`, `docs/`.
