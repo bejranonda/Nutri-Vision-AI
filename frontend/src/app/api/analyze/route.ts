@@ -8,58 +8,7 @@ import { sessions } from '@/db/schema';
 import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
 import { getEnvSafe } from '@/lib/cloudflare';
-
-
-const AI_PROMPT = `You are a food identification and nutrition expert. Analyze this image carefully.
-
-CRITICAL RULES:
-1. FIRST identify what is actually in the image. Do NOT assume it is a prepared dish.
-2. The image may contain: raw fruits, raw vegetables, whole ingredients, snacks, prepared meals, beverages, or non-food items.
-3. Only list ingredients/items that are ACTUALLY VISIBLE in the image. Do NOT hallucinate items that are not there.
-4. If the image shows a single raw fruit or vegetable, identify it as such (e.g., "Pineapple", "Banana", "Mango").
-5. If the image shows MULTIPLE items, list ALL of them separately (e.g., "Pineapple" and "Artichokes").
-6. If the image does NOT contain food, set isFood to false.
-7. Estimate nutrition per typical serving size visible in the image.
-8. Set confidence 0-100 based on how clearly you can identify the food. If uncertain, use a LOW confidence score.
-
-Respond ONLY with a valid JSON object (no markdown, no explanation, no code fences) matching this schema:
-{"isFood":true,"foodName":"Name of the dish or ingredient","foodCategory":"fruit|vegetable|prepared_dish|snack|beverage|dessert|other","detectedItems":["🍍 Item 1","🥕 Item 2"],"nutritionSummary":{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0},"scores":{"bloodSugar":0,"gutHealth":0,"inflammation":0,"nutrientDensity":0,"processing":0,"proteinQuality":0,"micronutrient":0},"sequence":["1. Fiber/Veggies first","2. Protein/Fat","3. Carbs","4. Sweets"],"tip":"One short helpful tip.","confidence":0}`;
-
-const LOCALE_INSTRUCTION: Record<string, string> = {
-    th: '\n\nIMPORTANT: Respond with ALL text values (foodName, detectedItems, sequence, tip) in Thai language (ภาษาไทย). Use Thai food names when applicable.',
-    en: '\n\nIMPORTANT: Respond with ALL text values in English.'
-};
-
-/** Validate and sanitize AI response — prevents frontend crashes from malformed model output */
-function validateAiResponse(raw: any): any {
-    const safeScores = {
-        bloodSugar: Math.min(100, Math.max(0, Number(raw?.scores?.bloodSugar) || 50)),
-        gutHealth: Math.min(100, Math.max(0, Number(raw?.scores?.gutHealth) || 50)),
-        inflammation: Math.min(100, Math.max(0, Number(raw?.scores?.inflammation) || 50)),
-        nutrientDensity: Math.min(100, Math.max(0, Number(raw?.scores?.nutrientDensity) || 50)),
-        processing: Math.min(100, Math.max(0, Number(raw?.scores?.processing) || 50)),
-        proteinQuality: Math.min(100, Math.max(0, Number(raw?.scores?.proteinQuality) || 50)),
-        micronutrient: Math.min(100, Math.max(0, Number(raw?.scores?.micronutrient) || 50)),
-    };
-
-    return {
-        isFood: raw?.isFood !== false,
-        foodName: String(raw?.foodName || 'Unknown Food'),
-        foodCategory: String(raw?.foodCategory || 'other'),
-        detectedItems: Array.isArray(raw?.detectedItems) ? raw.detectedItems.map(String) : ['Unknown'],
-        nutritionSummary: {
-            calories: Number(raw?.nutritionSummary?.calories) || 0,
-            protein: Number(raw?.nutritionSummary?.protein) || 0,
-            carbs: Number(raw?.nutritionSummary?.carbs) || 0,
-            fat: Number(raw?.nutritionSummary?.fat) || 0,
-            fiber: Number(raw?.nutritionSummary?.fiber) || 0,
-        },
-        scores: safeScores,
-        sequence: Array.isArray(raw?.sequence) ? raw.sequence.map(String) : ['1. Eat vegetables first', '2. Protein', '3. Carbs', '4. Sweets last'],
-        tip: String(raw?.tip || ''),
-        confidence: Math.min(100, Math.max(0, Number(raw?.confidence) || 0)),
-    };
-}
+import { buildLocalizedPrompt, validateAiResponse } from '@/lib/ai-prompt';
 
 /** Validate base64 image data format */
 function validateImageBase64(imageBase64: string): { valid: boolean; error?: string; rawBytes?: number } {
@@ -214,9 +163,10 @@ export async function POST(req: NextRequest) {
         // ── Phase 7: AI Inference ─────────────────────────────────
         currentPhase = 'AI_INFERENCE';
         let resultJson;
+        let modelUsed = 'unknown';
 
         const attemptAiInference = async (model: string, timeoutMs: number) => {
-            const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+            const localizedPrompt = buildLocalizedPrompt(locale);
             const aiStartTime = Date.now();
 
             logger.scanApiStage('AI_INFERENCE_START', { 
@@ -226,18 +176,17 @@ export async function POST(req: NextRequest) {
                 promptLength: localizedPrompt.length 
             });
 
-            // Decode base64 to byte array
+            // Decode base64 to byte array — pass Uint8Array directly to avoid doubling memory
             const base64Data = imageBase64.split(',')[1];
             const binaryString = atob(base64Data);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
-            const imageBytes = Array.from(bytes);
 
             const aiPromise = env.AI.run(model, {
                 prompt: localizedPrompt,
-                image: [imageBytes]
+                image: [bytes]
             });
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
@@ -262,7 +211,7 @@ export async function POST(req: NextRequest) {
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
             const model = 'gemma-3-27b-it';
             const aiStartTime = Date.now();
-            const localizedPrompt = AI_PROMPT + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+            const localizedPrompt = buildLocalizedPrompt(locale);
 
             logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
 
@@ -328,6 +277,7 @@ export async function POST(req: NextRequest) {
             try {
                 if (!env.AI) throw new Error('AI_BINDING_MISSING');
                 resultJson = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
+                modelUsed = 'cloudflare-llama-3.2-11b';
             } catch (primaryErr: any) {
                 fallbackErrors.cloudflare11b = primaryErr.message;
                 logger.scanApiStage('AI_PRIMARY_FAILED', { requestId, error: primaryErr.message });
@@ -337,6 +287,7 @@ export async function POST(req: NextRequest) {
                     try {
                         logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed, trying Google Gemma 3 27B...`);
                         resultJson = await attemptGoogleInference(googleKey, 20000);
+                        modelUsed = 'google-gemma-3-27b';
                     } catch (googleErr: any) {
                         fallbackErrors.gemma3 = googleErr.message;
                         logger.scanApiStage('AI_GOOGLE_FAILED', { requestId, error: googleErr.message });
@@ -439,6 +390,8 @@ export async function POST(req: NextRequest) {
             foodName: resultJson.foodName,
             confidence: resultJson.confidence,
             overallScore: scoreOverall,
+            spikeReduction: resultJson.spikeReduction,
+            modelUsed,
             totalDurationMs,
             tier: currentTier
         });
@@ -447,6 +400,8 @@ export async function POST(req: NextRequest) {
             result: resultJson,
             overallScore: scoreOverall,
             confidence: resultJson.confidence || 0,
+            spikeReduction: resultJson.spikeReduction || 60,
+            modelUsed,
             limitReached: activeUser ? (activeUser.scansThisMonth + 1) >= (TIER_LIMITS[currentTier]?.scansPerMonth || 10) : false,
             requestId
         }, { status: 200 });

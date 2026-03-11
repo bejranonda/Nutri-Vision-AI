@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star } from 'lucide-react';
+import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
+import { type AiSequenceStep } from '@/lib/ai-prompt';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 /** Structured type for food analysis results (mock or API). */
@@ -81,6 +82,13 @@ const CATEGORY_COLORS: Record<string, string> = {
     sugar: 'bg-sequence-sugar',
 };
 
+/** Loading phase messages for the phased loading indicator */
+const LOADING_PHASES = [
+    { key: 'compressing', emoji: '📦', duration: 2000 },
+    { key: 'analyzing', emoji: '🤖', duration: 8000 },
+    { key: 'processing', emoji: '✨', duration: 5000 },
+] as const;
+
 export default function ScanPage() {
     const t = useTranslations('scan');
     const tCommon = useTranslations('common');
@@ -90,6 +98,7 @@ export default function ScanPage() {
     const { user, isAuthenticated } = useAuthStore();
     const tier = (isAuthenticated && user?.subscriptionTier) ? user.subscriptionTier : 'free';
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
 
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -97,6 +106,8 @@ export default function ScanPage() {
     const [dragOver, setDragOver] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
+    const [loadingPhase, setLoadingPhase] = useState(0);
+    const [modelUsed, setModelUsed] = useState<string | null>(null);
 
     useEffect(() => {
         logger.trackFeature('Scan Page', 'loading', { locale, tier });
@@ -171,11 +182,26 @@ export default function ScanPage() {
             setAnalysis(null);
             setErrorMessage(null);
             setErrorRequestId(null);
+            setLoadingPhase(0);
+            setModelUsed(null);
+
+            // Phased loading indicator — cycle through phases while waiting
+            const phaseTimers: ReturnType<typeof setTimeout>[] = [];
+            let cumulative = 0;
+            LOADING_PHASES.forEach((phase, i) => {
+                cumulative += phase.duration;
+                phaseTimers.push(setTimeout(() => setLoadingPhase(i + 1), cumulative));
+            });
 
             try {
                 // Compress before sending — reduces 10MB+ photos to ~100-200KB
+                setLoadingPhase(0);
+                const compressStartTime = Date.now();
                 const compressedBase64 = await compressImage(rawBase64);
+                const compressDurationMs = Date.now() - compressStartTime;
                 logger.scanCompressed({ originalSize: rawBase64.length, compressedSize: compressedBase64.length });
+                logger.debug('📦 Compression timing', { compressDurationMs });
+                setLoadingPhase(1);
 
                 const body = JSON.stringify({ imageBase64: compressedBase64, locale });
                 logger.scanApiCall({ payloadSize: body.length, locale });
@@ -231,6 +257,8 @@ export default function ScanPage() {
                     throw new Error(errMsg);
                 }
 
+                setLoadingPhase(2);
+
                 // Map the standardized API format to the UI format
                 const result: AnalysisResult = {
                     name: data.result.foodName || 'scanned_food',
@@ -252,17 +280,21 @@ export default function ScanPage() {
                         micronutrient: data.result.scores.micronutrient,
                         overall: data.overallScore
                     },
-                    sequence: data.result.sequence.map((s: string, i: number) => {
-                        let cat: SequenceStep['category'] = 'fiber';
-                        if (s.toLowerCase().includes('protein')) cat = 'protein';
-                        if (s.toLowerCase().includes('carb')) cat = 'carb';
-                        if (s.toLowerCase().includes('sugar') || s.toLowerCase().includes('sweet')) cat = 'sugar';
-                        return { step: i + 1, emoji: '💡', items: s, category: cat };
-                    }),
-                    spikeReduction: 60,
+                    // Use structured sequence from AI — supports both new object format and legacy strings
+                    sequence: Array.isArray(data.result.sequence)
+                        ? data.result.sequence.map((s: AiSequenceStep) => ({
+                            step: s.step,
+                            emoji: s.emoji || '💡',
+                            items: s.items,
+                            category: s.category || 'fiber',
+                        }))
+                        : [],
+                    spikeReduction: data.spikeReduction || data.result.spikeReduction || 60,
                     tip: data.result.tip,
                     confidence: data.confidence || 0
                 };
+
+                setModelUsed(data.modelUsed || null);
 
                 setAnalysis(result);
                 logger.scanSuccess({
@@ -285,6 +317,7 @@ export default function ScanPage() {
                 }
             } finally {
                 setIsAnalyzing(false);
+                phaseTimers.forEach(t => clearTimeout(t));
             }
         };
         reader.readAsDataURL(file);
@@ -308,6 +341,8 @@ export default function ScanPage() {
         setIsAnalyzing(false);
         setErrorMessage(null);
         setErrorRequestId(null);
+        setLoadingPhase(0);
+        setModelUsed(null);
     }
 
     const scansUsed = user?.scansThisMonth || 0;
@@ -356,13 +391,15 @@ export default function ScanPage() {
                         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                         onDragLeave={() => setDragOver(false)}
                         onDrop={handleDrop}
-                        onClick={() => canStillScan && fileInputRef.current?.click()}
-                        className={`backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-16 max-w-lg mx-auto shadow-glass text-center cursor-pointer transition-all duration-300 ${dragOver ? 'ring-4 ring-brand-primary-400 scale-105 bg-brand-primary-50/60' : 'hover:-translate-y-2 hover:shadow-glass-hover'
+                        className={`backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-16 max-w-lg mx-auto shadow-glass text-center transition-all duration-300 ${dragOver ? 'ring-4 ring-brand-primary-400 scale-105 bg-brand-primary-50/60' : 'hover:-translate-y-2 hover:shadow-glass-hover'
                             } ${!canStillScan ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                        <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
+                        {/* Camera input — opens device camera on mobile */}
+                        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
+                        {/* File picker — opens gallery/file browser */}
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
 
-                        <div className="w-24 h-24 mx-auto bg-gradient-to-br from-brand-primary-100 to-brand-secondary-100 rounded-3xl flex items-center justify-center mb-6">
+                        <div className="w-24 h-24 mx-auto bg-gradient-to-br from-brand-primary-100 to-brand-secondary-100 rounded-3xl flex items-center justify-center mb-6 cursor-pointer" onClick={() => canStillScan && fileInputRef.current?.click()}>
                             <Upload className="w-12 h-12 text-brand-primary-400" />
                         </div>
                         <p className="text-lg font-semibold text-gray-700 mb-2">{t('drag_drop')}</p>
@@ -370,10 +407,16 @@ export default function ScanPage() {
                         <p className="text-xs text-gray-400">{t('supported_formats')}</p>
 
                         <div className="flex justify-center gap-3 mt-6">
-                            <button className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-semibold rounded-xl shadow-brand transition-all hover:shadow-brand-lg">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); canStillScan && cameraInputRef.current?.click(); }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-semibold rounded-xl shadow-brand transition-all hover:shadow-brand-lg"
+                            >
                                 <Camera className="w-4 h-4" /> {t('take_photo')}
                             </button>
-                            <button className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-all">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); canStillScan && fileInputRef.current?.click(); }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-all"
+                            >
                                 <Upload className="w-4 h-4" /> {t('upload')}
                             </button>
                         </div>
@@ -387,7 +430,7 @@ export default function ScanPage() {
                     </div>
                 )}
 
-                {/* Analyzing state */}
+                {/* Analyzing state — with phased progress indicator */}
                 {isAnalyzing && (
                     <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
                         {uploadedImage && (
@@ -402,7 +445,17 @@ export default function ScanPage() {
                             </div>
                             <span className="text-xl font-bold text-gray-700 bg-white/50 px-4 py-1 rounded-full">{t('shinny_analyzing')}</span>
                         </div>
-                        <p className="text-gray-400 text-sm">{t('analyzing')}</p>
+                        {/* Phased loading indicator */}
+                        <div className="space-y-2 mt-4">
+                            {LOADING_PHASES.map((phase, i) => (
+                                <div key={phase.key} className={`flex items-center justify-center gap-2 text-sm transition-all duration-500 ${loadingPhase >= i ? 'text-gray-700 opacity-100' : 'text-gray-300 opacity-50'}`}>
+                                    <span>{phase.emoji}</span>
+                                    <span className="font-medium">{t(`loading_phases.${phase.key}`)}</span>
+                                    {loadingPhase === i && <span className="inline-block w-4 h-4 border-2 border-brand-primary-400 border-t-transparent rounded-full animate-spin"></span>}
+                                    {loadingPhase > i && <span className="text-green-500">✓</span>}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -474,8 +527,8 @@ export default function ScanPage() {
                                             </span>
                                         ))}
                                     </div>
-                                    {/* Nutrition summary */}
-                                    <div className="grid grid-cols-5 gap-2 mt-4">
+                                    {/* Nutrition summary — responsive grid */}
+                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
                                         {(['calories', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g'] as const).map((key) => {
                                             const nutritionKey = key.replace('_g', '') as keyof typeof analysis.nutrition;
                                             return (
@@ -521,11 +574,46 @@ export default function ScanPage() {
                             </div>
                         </div>
 
-                        {/* Health Scores */}
+                        {/* Shinny's Tip — display the AI-generated tip */}
+                        {analysis.tip && (
+                            <div className="backdrop-blur-md bg-gradient-to-br from-brand-primary-50/90 to-brand-secondary-50/90 rounded-3xl p-5 shadow-glass">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow-md">
+                                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny Tip" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-brand-primary-700 mb-1 flex items-center gap-1">
+                                            <Info className="w-3.5 h-3.5" /> {t('shinny_tip_title')}
+                                        </h3>
+                                        <p className="text-gray-700 text-sm leading-relaxed">{analysis.tip}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Health Scores with prominent overall score badge */}
                         <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                            <h2 className="text-xl font-bold text-gray-800 mb-4">{t('results')}</h2>
+                            {/* Overall Score Badge */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-gray-800">{t('results')}</h2>
+                                <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl ${
+                                    (analysis.scores.overall || 0) >= 75 ? 'bg-green-50 border border-green-200' :
+                                    (analysis.scores.overall || 0) >= 50 ? 'bg-yellow-50 border border-yellow-200' :
+                                    'bg-red-50 border border-red-200'
+                                }`}>
+                                    <div className={`text-3xl font-black ${
+                                        (analysis.scores.overall || 0) >= 75 ? 'text-green-500' :
+                                        (analysis.scores.overall || 0) >= 50 ? 'text-yellow-500' :
+                                        'text-red-500'
+                                    }`}>
+                                        {analysis.scores.overall || 0}
+                                        <span className="text-sm text-gray-400 font-medium">/100</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 font-medium">{t('scores.overall')}</div>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {ALL_SCORE_DIMENSIONS.map((dim) => {
+                                {ALL_SCORE_DIMENSIONS.filter(dim => dim !== 'overall').map((dim) => {
                                     const isLocked = !FREE_SCORE_DIMENSIONS.includes(dim) && tier === 'free';
                                     const score = analysis.scores[dim as keyof typeof analysis.scores];
                                     const scoreColor = score >= 75 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
@@ -563,7 +651,7 @@ export default function ScanPage() {
                             )}
                         </div>
 
-                        {/* Scan again button */}
+                        {/* Scan again button + model badge */}
                         <div className="text-center">
                             <div className="mb-4">
                                 <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
@@ -571,6 +659,12 @@ export default function ScanPage() {
                             <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
                                 <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                             </button>
+                            {modelUsed && (
+                                <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                                    <Cpu className="w-3 h-3" />
+                                    <span>{t('analyzed_by')} {modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

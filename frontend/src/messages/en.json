@@ -124,7 +124,14 @@
       "tom_yum": "Tom Yum Kung",
       "green_curry": "Green Curry with Rice",
       "mango_sticky": "Mango Sticky Rice"
-    }
+    },
+    "loading_phases": {
+      "compressing": "Compressing image...",
+      "analyzing": "Analyzing with AI...",
+      "processing": "Processing results..."
+    },
+    "shinny_tip_title": "Shinny's Tip",
+    "analyzed_by": "Analyzed by"
   },
   "demo": {
     "title": "How Shinny Guide Works",

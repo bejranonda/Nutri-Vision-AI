@@ -124,7 +124,14 @@
       "tom_yum": "ต้มยำกุ้ง",
       "green_curry": "แกงเขียวหวานกับข้าว",
       "mango_sticky": "ข้าวเหนียวมะม่วง"
-    }
+    },
+    "loading_phases": {
+      "compressing": "กำลังบีบอัดภาพ...",
+      "analyzing": "กำลังวิเคราะห์ด้วย AI...",
+      "processing": "กำลังประมวลผล..."
+    },
+    "shinny_tip_title": "เคล็ดลับจากชินนี่",
+    "analyzed_by": "วิเคราะห์โดย"
   },
   "demo": {
     "title": "Shinny Guide ทำงานอย่างไร",

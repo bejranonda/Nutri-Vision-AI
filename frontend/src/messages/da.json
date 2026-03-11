@@ -124,7 +124,14 @@
       "tom_yum": "Tom Yum Kung",
       "green_curry": "Grøn Curry med Ris",
       "mango_sticky": "Mango Sticky Rice"
-    }
+    },
+    "loading_phases": {
+      "compressing": "Komprimerer billede...",
+      "analyzing": "Analyserer med AI...",
+      "processing": "Behandler resultater..."
+    },
+    "shinny_tip_title": "Shinnys Tip",
+    "analyzed_by": "Analyseret af"
   },
   "demo": {
     "title": "Sådan virker Shinny Guide",
