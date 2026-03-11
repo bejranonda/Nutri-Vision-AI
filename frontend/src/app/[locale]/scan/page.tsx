@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
 import { type AiSequenceStep } from '@/lib/ai-prompt';
+import { addScanToHistory, createThumbnail, getScanHistory } from '@/lib/scan-history';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 /** Structured type for food analysis results (mock or API). */
@@ -331,6 +332,25 @@ export default function ScanPage() {
                         rawResult: data.result,
                         overallScore: data.overallScore,
                     });
+                }
+
+                // Save to client-side scan history (works without auth)
+                try {
+                    const thumbnail = uploadedImage ? await createThumbnail(uploadedImage) : undefined;
+                    addScanToHistory({
+                        foodName: result.name,
+                        confidence: result.confidence || 0,
+                        overallScore: data.overallScore,
+                        spikeReduction: result.spikeReduction,
+                        modelUsed: data.modelUsed || 'unknown',
+                        tip: result.tip,
+                        thumbnail,
+                        nutrition: result.nutrition as any,
+                        debug: isDebugMode ? { requestId: data.requestId, timings } : undefined,
+                    });
+                    logger.debug('📝 Scan saved to client history');
+                } catch (historyErr) {
+                    logger.debug('Failed to save scan history', historyErr);
                 }
 
                 // Sync store
