@@ -203,9 +203,20 @@ export async function POST(req: NextRequest) {
                 rawResponseLength: rawResponse.length
             });
 
-            const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-            const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
-            return validateAiResponse(parsedJson);
+            try {
+                const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+                const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
+                return validateAiResponse(parsedJson);
+            } catch (parseErr: any) {
+                // CRITICAL: Log the raw AI output so we can diagnose prompt/model issues
+                logger.error(`❌ AI PARSE FAIL [cloudflare] [${requestId}]`, {
+                    error: parseErr.message,
+                    rawPreview: rawResponse.substring(0, 500),
+                    rawLength: rawResponse.length,
+                    model,
+                });
+                throw parseErr;
+            }
         };
 
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
@@ -258,9 +269,20 @@ export async function POST(req: NextRequest) {
                     rawResponseLength: rawResponse.length
                 });
 
-                const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-                const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
-                return validateAiResponse(parsedJson);
+                try {
+                    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+                    const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
+                    return validateAiResponse(parsedJson);
+                } catch (parseErr: any) {
+                    // CRITICAL: Log the raw AI output so we can diagnose prompt/model issues
+                    logger.error(`❌ AI PARSE FAIL [google] [${requestId}]`, {
+                        error: parseErr.message,
+                        rawPreview: rawResponse.substring(0, 500),
+                        rawLength: rawResponse.length,
+                        model,
+                    });
+                    throw parseErr;
+                }
             } catch (err: any) {
                 clearTimeout(timeoutId);
                 throw err;

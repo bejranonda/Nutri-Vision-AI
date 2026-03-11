@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu } from 'lucide-react';
+import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
@@ -109,6 +110,12 @@ export default function ScanPage() {
     const [loadingPhase, setLoadingPhase] = useState(0);
     const [modelUsed, setModelUsed] = useState<string | null>(null);
 
+    // Debug mode — activated via ?debug=1 URL parameter
+    const searchParams = useSearchParams();
+    const isDebugMode = searchParams.get('debug') === '1';
+    const [debugData, setDebugData] = useState<Record<string, any> | null>(null);
+    const [debugOpen, setDebugOpen] = useState(false);
+
     useEffect(() => {
         logger.trackFeature('Scan Page', 'loading', { locale, tier });
     }, [locale, tier]);
@@ -184,6 +191,8 @@ export default function ScanPage() {
             setErrorRequestId(null);
             setLoadingPhase(0);
             setModelUsed(null);
+            setDebugData(null);
+            setDebugOpen(false);
 
             // Phased loading indicator — cycle through phases while waiting
             const phaseTimers: ReturnType<typeof setTimeout>[] = [];
@@ -193,14 +202,17 @@ export default function ScanPage() {
                 phaseTimers.push(setTimeout(() => setLoadingPhase(i + 1), cumulative));
             });
 
+            // Collect timing data for debug panel
+            const timings: Record<string, number> = {};
+
             try {
                 // Compress before sending — reduces 10MB+ photos to ~100-200KB
                 setLoadingPhase(0);
                 const compressStartTime = Date.now();
                 const compressedBase64 = await compressImage(rawBase64);
-                const compressDurationMs = Date.now() - compressStartTime;
+                timings.compressMs = Date.now() - compressStartTime;
                 logger.scanCompressed({ originalSize: rawBase64.length, compressedSize: compressedBase64.length });
-                logger.debug('📦 Compression timing', { compressDurationMs });
+                logger.info(`📦 COMPRESS TIMING | ${timings.compressMs}ms | ${(rawBase64.length / 1024).toFixed(0)}KB → ${(compressedBase64.length / 1024).toFixed(0)}KB`);
                 setLoadingPhase(1);
 
                 const body = JSON.stringify({ imageBase64: compressedBase64, locale });
@@ -232,13 +244,16 @@ export default function ScanPage() {
                 let { res, responseText, durationMs: apiDurationMs } = await callAnalyzeApi(1);
                 logger.scanApiResponse({ status: res.status, durationMs: apiDurationMs, responseSize: responseText.length, ok: res.ok });
 
+                timings.apiCallMs = apiDurationMs;
+
                 // Single retry on 503 (transient AI failure)
                 if (res.status === 503) {
-                    logger.info('🔄 SCAN RETRY | API returned 503, retrying once...');
+                    logger.scanRetry({ attempt: 2, reason: 'API returned 503 (transient AI failure)', requestId: undefined });
                     const retry = await callAnalyzeApi(2);
                     res = retry.res;
                     responseText = retry.responseText;
                     apiDurationMs += retry.durationMs;
+                    timings.retryMs = retry.durationMs;
                     logger.scanApiResponse({ status: res.status, durationMs: retry.durationMs, responseSize: responseText.length, ok: res.ok });
                 }
 
@@ -297,12 +312,26 @@ export default function ScanPage() {
                 setModelUsed(data.modelUsed || null);
 
                 setAnalysis(result);
+                timings.totalMs = Date.now() - scanStartTime;
                 logger.scanSuccess({
                     foodName: result.name,
                     confidence: result.confidence || 0,
                     overallScore: data.overallScore,
-                    durationMs: Date.now() - scanStartTime
+                    durationMs: timings.totalMs
                 });
+
+                // Populate debug panel data (only stored when ?debug=1)
+                if (isDebugMode) {
+                    setDebugData({
+                        timings,
+                        modelUsed: data.modelUsed,
+                        requestId: data.requestId,
+                        confidence: data.confidence,
+                        spikeReduction: data.spikeReduction,
+                        rawResult: data.result,
+                        overallScore: data.overallScore,
+                    });
+                }
 
                 // Sync store
                 useAuthStore.getState().initAuth();
@@ -343,6 +372,8 @@ export default function ScanPage() {
         setErrorRequestId(null);
         setLoadingPhase(0);
         setModelUsed(null);
+        setDebugData(null);
+        setDebugOpen(false);
     }
 
     const scansUsed = user?.scansThisMonth || 0;
@@ -666,6 +697,47 @@ export default function ScanPage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Debug Panel — only visible with ?debug=1 URL param */}
+                        {isDebugMode && debugData && (
+                            <div className="backdrop-blur-md bg-gray-900/95 rounded-3xl shadow-glass overflow-hidden">
+                                <button
+                                    onClick={() => setDebugOpen(!debugOpen)}
+                                    className="w-full flex items-center justify-between px-5 py-3 text-gray-300 hover:text-white transition-colors"
+                                >
+                                    <span className="flex items-center gap-2 text-sm font-mono">
+                                        <Bug className="w-4 h-4 text-yellow-400" />
+                                        Debug Panel
+                                        <span className="text-xs text-gray-500">(?debug=1)</span>
+                                    </span>
+                                    {debugOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                                {debugOpen && (
+                                    <div className="px-5 pb-5 space-y-3">
+                                        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                                            {Object.entries(debugData.timings || {}).map(([key, val]) => (
+                                                <div key={key} className="flex justify-between bg-gray-800 rounded-lg px-3 py-2">
+                                                    <span className="text-gray-400">{key}</span>
+                                                    <span className="text-green-400">{String(val)}ms</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 text-xs font-mono flex-wrap">
+                                            <span className="bg-blue-900/50 text-blue-300 px-2 py-1 rounded">model: {debugData.modelUsed}</span>
+                                            <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">reqId: {debugData.requestId}</span>
+                                            <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded">conf: {debugData.confidence}%</span>
+                                            <span className="bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded">spike: {debugData.spikeReduction}%</span>
+                                        </div>
+                                        <details className="text-xs">
+                                            <summary className="text-gray-400 cursor-pointer hover:text-gray-200 font-mono">Raw AI Response JSON</summary>
+                                            <pre className="mt-2 bg-gray-800 rounded-xl p-3 text-gray-300 overflow-x-auto max-h-80 overflow-y-auto font-mono text-[10px] leading-relaxed">
+                                                {JSON.stringify(debugData.rawResult, null, 2)}
+                                            </pre>
+                                        </details>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
