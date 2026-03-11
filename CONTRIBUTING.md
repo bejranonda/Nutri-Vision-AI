@@ -56,8 +56,10 @@ This project adheres to a code of conduct that all contributors are expected to 
 2. **Add your API keys** to `.env`:
    ```env
    GEMINI_API_KEY=your_key_here
+   GOOGLE_AI_API_KEY=your_key_here
    SECRET_KEY=generate_with_openssl_rand_hex_32
    JWT_SECRET_KEY=another_secret_key
+   CLOUDFLARE_API_TOKEN=your_token_here
    ```
 
 3. **Start the development environment**:

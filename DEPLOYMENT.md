@@ -19,7 +19,12 @@ Set the `CLOUDFLARE_API_TOKEN` environment variable in `frontend/.env.local` or 
 CLOUDFLARE_API_TOKEN=your_token_here
 ```
 
-> **⚠️ Security Tip:** Storing tokens in `.env` files is much safer than hardcoding them. Ensure your `.env` files are included in `.gitignore` to prevent accidental leaks.
+Also, set your Google AI API key as a secret in Cloudflare Pages:
+```bash
+echo "your-google-api-key" | npx wrangler pages secret put GOOGLE_AI_API_KEY --project-name your-project-name
+```
+
+> **⚠️ Security Tip:** Storing tokens in `.env` files is much safer than hardcoding them. Ensure your `.env` files are included in `.gitignore` to prevent accidental leaks. Use UTF-8 encoding for all environment files.
 
 2. **Initialize D1 Database**
 ```bash

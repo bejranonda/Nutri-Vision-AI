@@ -87,8 +87,11 @@ try { ... } catch (err) {
 3.  **Testing**:
     - Run `npm run type-check` before pushing frontend changes.
     - Ensure all backend unit tests pass (`pytest`).
-4.  **Security**:
-    - Never commit `.env` or `.env.local`.
+4. **Security**:
+    - Never commit `.env` or `.env.local`. Ensure they are always in `.gitignore`.
+    - **No Hardcoded Keys**: API keys must never be hardcoded in source files or scripts (even test scripts). Always load from `process.env`.
+    - **Encoding**: Ensure `.env` files are saved with **UTF-8** encoding. Avoid using PowerShell `>>` for appends as it may use UTF-16LE, which causes parsing failures in Node.js.
+    - **Cloudflare Secrets**: In production, use `wrangler pages secret put` to manage sensitive values.
     - Always use `SECRET_KEY` from environment variables for JWT.
     - Validate all user-supplied data using Pydantic.
 
