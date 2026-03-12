@@ -2,7 +2,7 @@
 
 ## 1. AI-Driven Visual Analysis (The "Vision" in Nutri-Vision)
 Leveraging **Cloudflare Workers AI and Google AI**, our application doesn't just "count calories"; it **analyzes meal composition** with high reliability.
-- **Dual-Provider Fallback (v2.1.7)**: Uses the massive Cloudflare Llama 3.2 11B Vision for accuracy, with an automatic fallback to Google's highly reliable Gemma 3 27B model for 99.9% uptime.
+- **Dual-Provider Fallback (v2.1.8)**: Uses the massive Cloudflare Llama 3.2 11B Vision for accuracy, with an automatic fallback to Google's highly reliable Gemma 3 27B model for 99.9% uptime.
 - **Ingredient Decomposition**: Identifies what's on the plate (e.g., hidden sugars, fiber, protein).
 - **UPF Detection**: Flags ultra-processed ingredients that disrupt metabolism.
 - **Dynamic Recommendations**: Provides a step-by-step eating sequence (🥦 ➔ 🍗 ➔ 🍚) based on the specific meal scanned.

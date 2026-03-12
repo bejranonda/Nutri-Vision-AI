@@ -67,8 +67,8 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
   - Credit cards (local banks)
 - **Freemium Model**:
   - Free: 10 scans/month, basic nutrition info
-  - Premium (฿199/month): Unlimited scans, meal planning, AI coach
-  - Family Plan (฿399/month): Up to 4 users
+  - Premium (฿199/month or ฿1,699/year): Unlimited scans, meal planning, AI coach
+  - Family Plan (฿299/month or ฿2,499/year): Up to 5 users
 
 #### 6. **Mobile-First PWA**
 - **Progressive Web App**: Install like native app, no app store needed
@@ -291,7 +291,7 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
   - AI chat (5 questions/day)
   - Ads (non-intrusive)
 
-- **Premium Tier** (฿199/month or ฿1,990/year):
+- **Premium Tier** (฿199/month or ฿1,699/year):
   - Unlimited scans
   - Full 8-dimension scoring
   - Complete recipe database (1000+)
@@ -301,9 +301,9 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
   - Export data
   - Priority support
 
-- **Family Plan** (฿399/month):
+- **Family Plan** (฿299/month or ฿2,499/year):
   - All Premium features
-  - Up to 4 user accounts
+  - Up to 5 user accounts
   - Shared meal plans
   - Family health dashboard
 
