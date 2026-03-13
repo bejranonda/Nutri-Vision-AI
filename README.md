@@ -17,6 +17,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 
 | Feature | Free | Premium (฿199/mo) | Family (฿299/mo) |
 |---------|------|--------------------|-------------------|
+| AI Scan Modes | Meal only | Meal, Menu, Drink/Snack | Meal, Menu, Drink/Snack |
 | Food Scanning | 10/month | ∞ | ∞ |
 | Health Score | 3 dimensions | 8 dimensions | 8 dimensions |
 | AI Coach Shinny | 3 Q/day | ∞ | ∞ |
@@ -28,7 +29,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 
 ### 📱 App Pages
 - **Home** — Landing page with concept explanation & features
-- **Scan** — AI food analysis with eating sequence visualization & 8-dimension scoring
+- **Scan** — AI food analysis with 3 dynamic modes (Meal, Menu, Drink/Snack), sequence visualization & 8-dimension scoring. Features an advanced Debug UI.
 - **Demo** — Interactive walkthrough of food sequencing with blood sugar curves
 - **Login** — Authentication with email, Google, LINE, and promo code redemption
 - **Dashboard** — Member stats, streak tracking, daily challenges, gamification
@@ -53,10 +54,10 @@ Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB)
-2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks.
+2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks. The AI step features an **Auto-Correction Loop** that automatically catches validation errors and retries the inference.
 3. Server-side AI timeout (45s total) using `Promise.race` and `AbortController` for zero-hang execution.
-4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, and raw JSON responses.
-5. Strict JSON schema validation and data sanitization before rendering.
+4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, failed JSON capture, and raw JSON responses with export capabilities.
+5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
 6. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 
 ## 🛠 Tech Stack

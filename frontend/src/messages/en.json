@@ -85,6 +85,7 @@
     "fiber_g": "Fiber",
     "try_again": "Scan Another",
     "error_title": "Sorry! 🙏",
+    "error_oops": "Oops!",
     "error_message": "Shinny couldn't analyze this image",
     "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
     "low_confidence": {
@@ -131,7 +132,56 @@
       "processing": "Processing results..."
     },
     "shinny_tip_title": "Shinny's Tip",
-    "analyzed_by": "Analyzed by"
+    "analyzed_by": "Analyzed by",
+    "scan_modes": {
+      "title": "What would you like to scan?",
+      "meal": {
+        "title": "Meal Scan",
+        "description": "One or many dishes",
+        "upload_hint": "📸 Take a photo of your dishes on the table"
+      },
+      "menu": {
+        "title": "Menu Scan",
+        "description": "Restaurant menu",
+        "upload_hint": "📋 Take a photo of the restaurant menu"
+      },
+      "drink_snack": {
+        "title": "Drink & Snack",
+        "description": "Beverages & snacks",
+        "upload_hint": "🥤 Take a photo of your drink or snack"
+      }
+    },
+    "multi_dish": {
+      "overview_title": "Meal Overview",
+      "cross_dish_sequence": "Eat across dishes in this order",
+      "total_nutrition": "Total Meal Nutrition",
+      "add_another": "Add Another Dish",
+      "dish_label": "Dish {n}"
+    },
+    "menu_scan": {
+      "items_found": "Menu Items Found",
+      "items_label": "items",
+      "scanned_label": "Menu Scanned",
+      "health_rating": "Health Rating",
+      "recommendations": "Shinny Recommends",
+      "combo_title": "Best Combo",
+      "scenarios": {
+        "light": "Light Meal",
+        "protein": "High Protein",
+        "gut_friendly": "Gut Friendly",
+        "blood_sugar_safe": "Blood Sugar Safe",
+        "balanced": "Most Balanced",
+        "indulgent": "Treat Yourself"
+      }
+    },
+    "drink_snack": {
+      "sugar_cubes": "Equals {n} sugar cubes",
+      "sugar_label": "Sugar",
+      "of_sugar": "of sugar",
+      "health_alerts": "Health Alerts",
+      "alternatives": "Healthier Alternatives",
+      "timing": "Best Time to Enjoy"
+    }
   },
   "demo": {
     "title": "How Shinny Guide Works",

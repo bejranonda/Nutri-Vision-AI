@@ -85,6 +85,7 @@
     "fiber_g": "Ballaststoffe",
     "try_again": "Erneut scannen",
     "error_title": "Entschuldigung! 🙏",
+    "error_oops": "Hoppla!",
     "error_message": "Shinny konnte dieses Bild nicht analysieren",
     "timeout_message": "Die Analyse dauert zu lange. Bitte versuche es erneut mit einem einfacheren Foto.",
     "low_confidence": {
@@ -131,7 +132,56 @@
       "processing": "Ergebnisse werden verarbeitet..."
     },
     "shinny_tip_title": "Shinnys Tipp",
-    "analyzed_by": "Analysiert von"
+    "analyzed_by": "Analysiert von",
+    "scan_modes": {
+      "title": "Was möchtest du scannen?",
+      "meal": {
+        "title": "Mahlzeit scannen",
+        "description": "Ein oder mehrere Gerichte",
+        "upload_hint": "📸 Mache ein Foto deiner Gerichte auf dem Tisch"
+      },
+      "menu": {
+        "title": "Menü scannen",
+        "description": "Speisekarte",
+        "upload_hint": "📋 Mache ein Foto der Speisekarte"
+      },
+      "drink_snack": {
+        "title": "Getränk & Snack",
+        "description": "Getränke & Snacks",
+        "upload_hint": "🥤 Mache ein Foto deines Getränks oder Snacks"
+      }
+    },
+    "multi_dish": {
+      "overview_title": "Mahlzeit-Übersicht",
+      "cross_dish_sequence": "Essreihenfolge über alle Gerichte",
+      "total_nutrition": "Gesamt-Nährwerte",
+      "add_another": "Weiteres Gericht hinzufügen",
+      "dish_label": "Gericht {n}"
+    },
+    "menu_scan": {
+      "items_found": "Gefundene Menüeinträge",
+      "items_label": "Einträge",
+      "scanned_label": "Menü gescannt",
+      "health_rating": "Gesundheitsbewertung",
+      "recommendations": "Shinny empfiehlt",
+      "combo_title": "Beste Kombination",
+      "scenarios": {
+        "light": "Leichte Mahlzeit",
+        "protein": "Proteinreich",
+        "gut_friendly": "Darmfreundlich",
+        "blood_sugar_safe": "Blutzucker-sicher",
+        "balanced": "Am ausgewogensten",
+        "indulgent": "Gönne dir was"
+      }
+    },
+    "drink_snack": {
+      "sugar_cubes": "Entspricht {n} Zuckerwürfeln",
+      "sugar_label": "Zucker",
+      "of_sugar": "an Zucker",
+      "health_alerts": "Gesundheitswarnungen",
+      "alternatives": "Gesündere Alternativen",
+      "timing": "Beste Zeit zum Genießen"
+    }
   },
   "demo": {
     "title": "So funktioniert Shinny Guide",

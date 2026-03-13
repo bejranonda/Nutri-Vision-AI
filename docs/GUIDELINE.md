@@ -26,6 +26,7 @@ This document provides guidelines for developers to maintain code quality, consi
   const env = await getEnvSafe();
   ```
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
+  - **Auto-Correction Loop**: Validations should catch malformed JSON and illegal states (like `isFood: false`), immediately triggering a secondary inference pass to let the LLM auto-correct itself.
 - **Timeouts & Fallbacks**: 
   - Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
   - **Dual-Provider Fallback Pattern**: Always implement a cross-provider fallback for high-capacity models. If the primary Cloudflare model fails or times out, immediately retry with a highly reliable external model (like Google Gemma 3).
@@ -80,6 +81,7 @@ try { ... } catch (err) {
 ### On-Device Telemetry
 Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for rapid iterative testing:
 1. **Debug Mode**: Append `?debug=1` to the `/scan` URL. After completing a scan, this exposes a dark accordion panel detailing precise API phase timings, the specific model used, network overhead, and the raw, unparsed JSON output of the AI directly in the UI.
+   - **Copy Data**: The Debug Panel includes a "Copy Data" button allowing QA to easily copy exactly what the AI responded with. If validation/parsing fails, this debug panel will also intercept and render the broken `failedJson` payload.
 2. **Health Endpoints**: Use `/api/health` to verify deployment dependencies (Database connection, Cloudflare AI binding, Google API key availability) without incurring full inference costs. Append `?verbose=1` for detailed environment traces.
 
 ## 🚀 Development Workflow

@@ -85,6 +85,7 @@
     "fiber_g": "ไฟเบอร์",
     "try_again": "สแกนอาหารอื่น",
     "error_title": "ขอโทษนะคะ! 🙏",
+    "error_oops": "อุ๊ย!",
     "error_message": "ชินนี่วิเคราะห์ภาพนี้ไม่สำเร็จ",
     "timeout_message": "การวิเคราะห์ใช้เวลานานเกินไป กรุณาลองอีกครั้งด้วยรูปที่ชัดกว่านี้",
     "low_confidence": {
@@ -131,7 +132,56 @@
       "processing": "กำลังประมวลผล..."
     },
     "shinny_tip_title": "เคล็ดลับจากชินนี่",
-    "analyzed_by": "วิเคราะห์โดย"
+    "analyzed_by": "วิเคราะห์โดย",
+    "scan_modes": {
+      "title": "คุณต้องการสแกนอะไร?",
+      "meal": {
+        "title": "สแกนอาหาร",
+        "description": "หนึ่งหรือหลายจาน",
+        "upload_hint": "📸 ถ่ายรูปอาหารบนโต๊ะ"
+      },
+      "menu": {
+        "title": "สแกนเมนู",
+        "description": "เมนูร้านอาหาร",
+        "upload_hint": "📋 ถ่ายรูปเมนูร้านอาหาร"
+      },
+      "drink_snack": {
+        "title": "เครื่องดื่ม & ขนม",
+        "description": "เครื่องดื่มและของว่าง",
+        "upload_hint": "🥤 ถ่ายรูปเครื่องดื่มหรือขนมของคุณ"
+      }
+    },
+    "multi_dish": {
+      "overview_title": "ภาพรวมมื้ออาหาร",
+      "cross_dish_sequence": "ลำดับการกินข้ามจาน",
+      "total_nutrition": "โภชนาการรวมทั้งมื้อ",
+      "add_another": "เพิ่มอาหารอีกจาน",
+      "dish_label": "จานที่ {n}"
+    },
+    "menu_scan": {
+      "items_found": "รายการเมนูที่พบ",
+      "items_label": "รายการ",
+      "scanned_label": "สแกนเมนูแล้ว",
+      "health_rating": "คะแนนสุขภาพ",
+      "recommendations": "ชินนี่แนะนำ",
+      "combo_title": "คอมโบที่ดีที่สุด",
+      "scenarios": {
+        "light": "มื้อเบาๆ",
+        "protein": "โปรตีนสูง",
+        "gut_friendly": "ดีต่อลำไส้",
+        "blood_sugar_safe": "ปลอดภัยต่อน้ำตาล",
+        "balanced": "สมดุลที่สุด",
+        "indulgent": "ปล่อยใจเลย"
+      }
+    },
+    "drink_snack": {
+      "sugar_cubes": "เท่ากับ {n} ก้อนน้ำตาล",
+      "sugar_label": "น้ำตาล",
+      "of_sugar": "ของน้ำตาล",
+      "health_alerts": "คำเตือนด้านสุขภาพ",
+      "alternatives": "ทางเลือกที่ดีกว่า",
+      "timing": "เวลาที่ดีที่สุดในการดื่ม"
+    }
   },
   "demo": {
     "title": "Shinny Guide ทำงานอย่างไร",

@@ -1,88 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
-import { type AiSequenceStep } from '@/lib/ai-prompt';
-import { addScanToHistory, createThumbnail, getScanHistory } from '@/lib/scan-history';
+import { type ScanMode, type AiMultiDishResponse, type AiMenuResponse, type AiDrinkSnackResponse } from '@/lib/ai-prompt';
+import { addScanToHistory, createThumbnail } from '@/lib/scan-history';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
-
-/** Structured type for food analysis results (mock or API). */
-export interface SequenceStep {
-    step: number;
-    emoji: string;
-    items: string;
-    category: 'fiber' | 'protein' | 'carb' | 'sugar';
-}
-
-export interface AnalysisResult {
-    name: string;
-    items: string[];
-    nutrition: { calories: number; protein: number; carbs: number; fat: number; fiber?: number };
-    scores: Record<string, number>;
-    sequence: SequenceStep[];
-    spikeReduction: number;
-    tip?: string;
-    confidence?: number;
-}
-
-// ... mock data omitted for brevity, but make sure the types matches ...
-const MOCK_ANALYSES: AnalysisResult[] = [
-    {
-        name: 'pad_thai',
-        items: ['🍜 Rice Noodles', '🥚 Egg', '🥜 Peanuts', '🌱 Bean Sprouts', '🍤 Shrimp', '🧄 Garlic'],
-        nutrition: { calories: 380, protein: 18, carbs: 52, fat: 12, fiber: 3 },
-        scores: { blood_sugar: 45, gut_health: 62, inflammation: 55, nutrient_density: 68, processing: 72, protein_quality: 75, micronutrient: 58, overall: 61 },
-        sequence: [
-            { step: 1, emoji: '🌱', items: 'Bean Sprouts, Chives', category: 'fiber' },
-            { step: 2, emoji: '🍤', items: 'Shrimp, Egg, Peanuts', category: 'protein' },
-            { step: 3, emoji: '🍜', items: 'Rice Noodles', category: 'carb' },
-            { step: 4, emoji: '🍬', items: 'Tamarind Sauce (sweet)', category: 'sugar' },
-        ],
-        spikeReduction: 65,
-        confidence: 95
-    },
-    {
-        name: 'som_tam',
-        items: ['🥕 Green Papaya', '🍅 Tomatoes', '🥜 Peanuts', '🦐 Dried Shrimp', '🌶️ Chili', '🍋 Lime'],
-        nutrition: { calories: 180, protein: 8, carbs: 22, fat: 6, fiber: 8 },
-        scores: { blood_sugar: 82, gut_health: 88, inflammation: 78, nutrient_density: 85, processing: 92, protein_quality: 55, micronutrient: 80, overall: 82 },
-        sequence: [
-            { step: 1, emoji: '🥕', items: 'Green Papaya, Tomatoes', category: 'fiber' },
-            { step: 2, emoji: '🦐', items: 'Dried Shrimp, Peanuts', category: 'protein' },
-            { step: 3, emoji: '🍚', items: 'Sticky Rice (if served)', category: 'carb' },
-            { step: 4, emoji: '🍬', items: 'Palm Sugar (in dressing)', category: 'sugar' },
-        ],
-        spikeReduction: 72,
-        confidence: 92
-    },
-    {
-        name: 'green_curry',
-        items: ['🍗 Chicken', '🥦 Thai Eggplant', '🌿 Thai Basil', '🥥 Coconut Milk', '🌶️ Green Curry Paste', '🍚 Rice'],
-        nutrition: { calories: 520, protein: 28, carbs: 45, fat: 24, fiber: 5 },
-        scores: { blood_sugar: 52, gut_health: 70, inflammation: 65, nutrient_density: 72, processing: 68, protein_quality: 82, micronutrient: 68, overall: 68 },
-        sequence: [
-            { step: 1, emoji: '🥦', items: 'Thai Eggplant, Basil', category: 'fiber' },
-            { step: 2, emoji: '🍗', items: 'Chicken, Coconut Milk', category: 'protein' },
-            { step: 3, emoji: '🍚', items: 'Jasmine Rice', category: 'carb' },
-            { step: 4, emoji: '🍬', items: 'Palm Sugar (in curry)', category: 'sugar' },
-        ],
-        spikeReduction: 58,
-        confidence: 88
-    },
-];
-
-const CATEGORY_COLORS: Record<string, string> = {
-    fiber: 'bg-sequence-fiber',
-    protein: 'bg-sequence-protein',
-    carb: 'bg-sequence-carb',
-    sugar: 'bg-sequence-sugar',
-};
+import ScanModeSelector from '@/components/scan/ScanModeSelector';
+import DishCard from '@/components/scan/DishCard';
+import MealOverview from '@/components/scan/MealOverview';
+import MenuResults from '@/components/scan/MenuResults';
+import DrinkSnackResults from '@/components/scan/DrinkSnackResults';
 
 /** Loading phase messages for the phased loading indicator */
 const LOADING_PHASES = [
@@ -102,14 +35,24 @@ export default function ScanPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
+    // Scan mode
+    const [scanMode, setScanMode] = useState<ScanMode>('meal');
+
+    // Core scan state
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [dragOver, setDragOver] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [nonFoodReason, setNonFoodReason] = useState<string | null>(null);
     const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
     const [loadingPhase, setLoadingPhase] = useState(0);
     const [modelUsed, setModelUsed] = useState<string | null>(null);
+
+    // Mode-specific results
+    const [mealResult, setMealResult] = useState<AiMultiDishResponse | null>(null);
+    const [menuResult, setMenuResult] = useState<AiMenuResponse | null>(null);
+    const [drinkResult, setDrinkResult] = useState<AiDrinkSnackResponse | null>(null);
+    const [overallScore, setOverallScore] = useState<number>(0);
 
     // Debug mode — activated via ?debug=1 URL parameter
     const searchParams = useSearchParams();
@@ -117,11 +60,13 @@ export default function ScanPage() {
     const [debugData, setDebugData] = useState<Record<string, any> | null>(null);
     const [debugOpen, setDebugOpen] = useState(false);
 
-    useEffect(() => {
-        logger.trackFeature('Scan Page', 'loading', { locale, tier });
-    }, [locale, tier]);
+    const hasResult = mealResult || menuResult || drinkResult || nonFoodReason;
 
-    /** Compress and resize image before sending to AI — prevents 10MB+ iPhone photos from timing out the Worker */
+    useEffect(() => {
+        logger.trackFeature('Scan Page', 'loading', { locale, tier, scanMode });
+    }, [locale, tier, scanMode]);
+
+    /** Compress and resize image before sending to AI */
     function compressImage(base64: string, maxSize = 1024, quality = 0.8): Promise<string> {
         return new Promise((resolve, reject) => {
             const img = new window.Image();
@@ -129,14 +74,11 @@ export default function ScanPage() {
                 try {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
-
-                    // Scale down proportionally if larger than maxSize
                     if (width > maxSize || height > maxSize) {
                         const ratio = Math.min(maxSize / width, maxSize / height);
                         width = Math.round(width * ratio);
                         height = Math.round(height * ratio);
                     }
-
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d')!;
@@ -152,12 +94,11 @@ export default function ScanPage() {
     }
 
     /** Validate file before processing */
-    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
-    const MIN_FILE_SIZE = 500; // 500 bytes — anything smaller is likely corrupt
+    const MAX_FILE_SIZE = 15 * 1024 * 1024;
+    const MIN_FILE_SIZE = 500;
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
 
     async function handleImageUpload(file: File) {
-        // Early validation — fail fast before compression
         if (!file.type.startsWith('image/')) {
             logger.warn('🚫 SCAN REJECTED | Not an image file', { type: file.type, name: file.name });
             setErrorMessage(t('error_message'));
@@ -174,28 +115,33 @@ export default function ScanPage() {
             return;
         }
         if (file.size < MIN_FILE_SIZE) {
-            logger.warn('🚫 SCAN REJECTED | File too small (likely corrupt)', { size: file.size });
+            logger.warn('🚫 SCAN REJECTED | File too small', { size: file.size });
             setErrorMessage(t('error_message'));
             return;
         }
 
         const scanStartTime = Date.now();
         logger.scanStart({ fileSize: file.size, fileType: file.type, locale, tier });
+        logger.info(`📋 Scan mode: ${scanMode}`);
 
         const reader = new FileReader();
         reader.onload = async (e) => {
             const rawBase64 = e.target?.result as string;
             setUploadedImage(rawBase64);
             setIsAnalyzing(true);
-            setAnalysis(null);
+            setMealResult(null);
+            setMenuResult(null);
+            setDrinkResult(null);
+            setOverallScore(0);
             setErrorMessage(null);
             setErrorRequestId(null);
             setLoadingPhase(0);
             setModelUsed(null);
             setDebugData(null);
             setDebugOpen(false);
+            setNonFoodReason(null);
 
-            // Phased loading indicator — cycle through phases while waiting
+            // Phased loading indicator
             const phaseTimers: ReturnType<typeof setTimeout>[] = [];
             let cumulative = 0;
             LOADING_PHASES.forEach((phase, i) => {
@@ -203,11 +149,10 @@ export default function ScanPage() {
                 phaseTimers.push(setTimeout(() => setLoadingPhase(i + 1), cumulative));
             });
 
-            // Collect timing data for debug panel
             const timings: Record<string, number> = {};
 
             try {
-                // Compress before sending — reduces 10MB+ photos to ~100-200KB
+                // Compress image
                 setLoadingPhase(0);
                 const compressStartTime = Date.now();
                 const compressedBase64 = await compressImage(rawBase64);
@@ -216,15 +161,14 @@ export default function ScanPage() {
                 logger.info(`📦 COMPRESS TIMING | ${timings.compressMs}ms | ${(rawBase64.length / 1024).toFixed(0)}KB → ${(compressedBase64.length / 1024).toFixed(0)}KB`);
                 setLoadingPhase(1);
 
-                const body = JSON.stringify({ imageBase64: compressedBase64, locale });
+                const body = JSON.stringify({ imageBase64: compressedBase64, locale, scanMode });
                 logger.scanApiCall({ payloadSize: body.length, locale });
 
-                // Helper: single API call with 30s timeout
+                // API call with timeout
                 const API_TIMEOUT_MS = 30_000;
                 async function callAnalyzeApi(attempt: number): Promise<{ res: Response; responseText: string; durationMs: number }> {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
                     try {
                         const start = Date.now();
                         const res = await fetch('/api/analyze', {
@@ -244,12 +188,11 @@ export default function ScanPage() {
                 // First attempt
                 let { res, responseText, durationMs: apiDurationMs } = await callAnalyzeApi(1);
                 logger.scanApiResponse({ status: res.status, durationMs: apiDurationMs, responseSize: responseText.length, ok: res.ok });
-
                 timings.apiCallMs = apiDurationMs;
 
-                // Single retry on 503 (transient AI failure)
+                // Retry on 503
                 if (res.status === 503) {
-                    logger.scanRetry({ attempt: 2, reason: 'API returned 503 (transient AI failure)', requestId: undefined });
+                    logger.scanRetry({ attempt: 2, reason: 'API returned 503', requestId: undefined });
                     const retry = await callAnalyzeApi(2);
                     res = retry.res;
                     responseText = retry.responseText;
@@ -270,82 +213,81 @@ export default function ScanPage() {
                     const errMsg = data.message || data.error || `Server error (${res.status})`;
                     logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
                     if (data.requestId) setErrorRequestId(data.requestId);
+                    
+                    if (isDebugMode && data.failedJson) {
+                         setDebugData({
+                             timings,
+                             modelUsed: data.modelUsed || 'unknown',
+                             requestId: data.requestId,
+                             confidence: 0,
+                             scanMode: scanMode,
+                             overallScore: 0,
+                             rawResult: null,
+                             failedJson: data.failedJson
+                         });
+                    }
                     throw new Error(errMsg);
                 }
 
                 setLoadingPhase(2);
-
-                // Map the standardized API format to the UI format
-                const result: AnalysisResult = {
-                    name: data.result.foodName || 'scanned_food',
-                    items: data.result.detectedItems,
-                    nutrition: {
-                        calories: data.result.nutritionSummary.calories,
-                        protein: data.result.nutritionSummary.protein,
-                        carbs: data.result.nutritionSummary.carbs,
-                        fat: data.result.nutritionSummary.fat,
-                        fiber: data.result.nutritionSummary.fiber || 0
-                    },
-                    scores: {
-                        blood_sugar: data.result.scores.bloodSugar,
-                        gut_health: data.result.scores.gutHealth,
-                        inflammation: data.result.scores.inflammation,
-                        nutrient_density: data.result.scores.nutrientDensity,
-                        processing: data.result.scores.processing,
-                        protein_quality: data.result.scores.proteinQuality,
-                        micronutrient: data.result.scores.micronutrient,
-                        overall: data.overallScore
-                    },
-                    // Use structured sequence from AI — supports both new object format and legacy strings
-                    sequence: Array.isArray(data.result.sequence)
-                        ? data.result.sequence.map((s: AiSequenceStep) => ({
-                            step: s.step,
-                            emoji: s.emoji || '💡',
-                            items: s.items,
-                            category: s.category || 'fiber',
-                        }))
-                        : [],
-                    spikeReduction: data.spikeReduction || data.result.spikeReduction || 60,
-                    tip: data.result.tip,
-                    confidence: data.confidence || 0
-                };
-
                 setModelUsed(data.modelUsed || null);
+                setOverallScore(data.overallScore || 0);
 
-                setAnalysis(result);
+                // Route results to mode-specific state
+                const resultScanMode = data.scanMode || scanMode;
+                const resultData = data.result;
+
+                // 1. Check if AI explicitly rejected it as "not food"
+                if (resultData && resultData.isFood === false) {
+                    setNonFoodReason(resultData.nonFoodReason || t('error_message'));
+                } 
+                // 2. Otherwise route to the correct UI component
+                else if (resultScanMode === 'meal') {
+                    setMealResult(resultData as AiMultiDishResponse);
+                } else if (resultScanMode === 'menu') {
+                    setMenuResult(resultData as AiMenuResponse);
+                } else if (resultScanMode === 'drink_snack') {
+                    setDrinkResult(resultData as AiDrinkSnackResponse);
+                }
+
                 timings.totalMs = Date.now() - scanStartTime;
                 logger.scanSuccess({
-                    foodName: result.name,
-                    confidence: result.confidence || 0,
+                    foodName: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.name || 'Meal') : resultScanMode === 'menu' ? 'Menu Scan' : (data.result.itemName || 'Drink/Snack'),
+                    confidence: data.confidence || 0,
                     overallScore: data.overallScore,
                     durationMs: timings.totalMs
                 });
 
-                // Populate debug panel data (only stored when ?debug=1)
+                // Debug panel data
                 if (isDebugMode) {
                     setDebugData({
                         timings,
                         modelUsed: data.modelUsed,
                         requestId: data.requestId,
                         confidence: data.confidence,
-                        spikeReduction: data.spikeReduction,
-                        rawResult: data.result,
+                        scanMode: resultScanMode,
                         overallScore: data.overallScore,
+                        rawResult: data.result,
+                        failedJson: null
                     });
                 }
 
-                // Save to client-side scan history (works without auth)
+                // Save to client-side history
                 try {
-                    const thumbnail = uploadedImage ? await createThumbnail(uploadedImage) : undefined;
+                    const thumbnail = rawBase64 ? await createThumbnail(rawBase64) : undefined;
                     addScanToHistory({
-                        foodName: result.name,
-                        confidence: result.confidence || 0,
+                        foodName: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.name || 'Meal')
+                            : resultScanMode === 'menu' ? 'Menu Scan'
+                            : (data.result.itemName || 'Drink/Snack'),
+                        confidence: data.confidence || 0,
                         overallScore: data.overallScore,
-                        spikeReduction: result.spikeReduction,
+                        spikeReduction: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.spikeReduction || 0) : 0,
                         modelUsed: data.modelUsed || 'unknown',
-                        tip: result.tip,
+                        tip: resultScanMode === 'meal' ? data.result.overallTip : data.result.tip,
                         thumbnail,
-                        nutrition: result.nutrition as any,
+                        nutrition: resultScanMode === 'meal'
+                            ? (data.result.dishes?.[0]?.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 })
+                            : (data.result.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }),
                         debug: isDebugMode ? { requestId: data.requestId, timings } : undefined,
                     });
                     logger.debug('📝 Scan saved to client history');
@@ -353,10 +295,8 @@ export default function ScanPage() {
                     logger.debug('Failed to save scan history', historyErr);
                 }
 
-                // Sync store
                 useAuthStore.getState().initAuth();
             } catch (err: any) {
-                // Detect timeout vs other errors
                 if (err.name === 'AbortError') {
                     logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime, reason: 'timeout' });
                     setErrorMessage(t('timeout_message'));
@@ -386,7 +326,10 @@ export default function ScanPage() {
 
     function resetScan() {
         setUploadedImage(null);
-        setAnalysis(null);
+        setMealResult(null);
+        setMenuResult(null);
+        setDrinkResult(null);
+        setOverallScore(0);
         setIsAnalyzing(false);
         setErrorMessage(null);
         setErrorRequestId(null);
@@ -394,12 +337,16 @@ export default function ScanPage() {
         setModelUsed(null);
         setDebugData(null);
         setDebugOpen(false);
+        setNonFoodReason(null);
     }
 
     const scansUsed = user?.scansThisMonth || 0;
     const activeTier = (tier as 'free' | 'premium' | 'family') || 'free';
     const scansLimit = TIER_LIMITS[activeTier].scansPerMonth;
     const canStillScan = activeTier === 'premium' || activeTier === 'family' || scansUsed < scansLimit;
+
+    // Mode-specific upload hint
+    const uploadHint = t(`scan_modes.${scanMode}.upload_hint`);
 
     return (
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50">
@@ -426,7 +373,7 @@ export default function ScanPage() {
 
             <div className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
                 {/* Title */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
                         {t('title')}
                     </h1>
@@ -436,8 +383,13 @@ export default function ScanPage() {
                     </p>
                 </div>
 
-                {/* Upload area - show if not analyzing and no results */}
-                {!uploadedImage && !isAnalyzing && !analysis && (
+                {/* Scan Mode Selector — show before upload area */}
+                {!uploadedImage && !isAnalyzing && !hasResult && (
+                    <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
+                )}
+
+                {/* Upload area — show if not analyzing and no results */}
+                {!uploadedImage && !isAnalyzing && !hasResult && (
                     <div
                         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                         onDragLeave={() => setDragOver(false)}
@@ -445,16 +397,16 @@ export default function ScanPage() {
                         className={`backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-16 max-w-lg mx-auto shadow-glass text-center transition-all duration-300 ${dragOver ? 'ring-4 ring-brand-primary-400 scale-105 bg-brand-primary-50/60' : 'hover:-translate-y-2 hover:shadow-glass-hover'
                             } ${!canStillScan ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                        {/* Camera input — opens device camera on mobile */}
                         <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
-                        {/* File picker — opens gallery/file browser */}
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
 
                         <div className="w-24 h-24 mx-auto bg-gradient-to-br from-brand-primary-100 to-brand-secondary-100 rounded-3xl flex items-center justify-center mb-6 cursor-pointer" onClick={() => canStillScan && fileInputRef.current?.click()}>
                             <Upload className="w-12 h-12 text-brand-primary-400" />
                         </div>
                         <p className="text-lg font-semibold text-gray-700 mb-2">{t('drag_drop')}</p>
-                        <p className="text-gray-400 mb-4">{t('or_click')}</p>
+                        <p className="text-gray-400 mb-2">{t('or_click')}</p>
+                        {/* Mode-specific hint */}
+                        <p className="text-sm text-brand-primary-500/70 font-medium mb-4">{uploadHint}</p>
                         <p className="text-xs text-gray-400">{t('supported_formats')}</p>
 
                         <div className="flex justify-center gap-3 mt-6">
@@ -481,7 +433,7 @@ export default function ScanPage() {
                     </div>
                 )}
 
-                {/* Analyzing state — with phased progress indicator */}
+                {/* Analyzing state */}
                 {isAnalyzing && (
                     <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
                         {uploadedImage && (
@@ -496,7 +448,6 @@ export default function ScanPage() {
                             </div>
                             <span className="text-xl font-bold text-gray-700 bg-white/50 px-4 py-1 rounded-full">{t('shinny_analyzing')}</span>
                         </div>
-                        {/* Phased loading indicator */}
                         <div className="space-y-2 mt-4">
                             {LOADING_PHASES.map((phase, i) => (
                                 <div key={phase.key} className={`flex items-center justify-center gap-2 text-sm transition-all duration-500 ${loadingPhase >= i ? 'text-gray-700 opacity-100' : 'text-gray-300 opacity-50'}`}>
@@ -510,8 +461,29 @@ export default function ScanPage() {
                     </div>
                 )}
 
-                {/* Error State */}
-                {errorMessage && !isAnalyzing && !analysis && (
+                {/* Graceful Non-Food Error State */}
+                {nonFoodReason && !isAnalyzing && (
+                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
+                        {uploadedImage && (
+                            <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg opacity-80">
+                                <img src={uploadedImage} alt="Not Food" className="w-full h-full object-cover" />
+                            </div>
+                        )}
+                        <div className="flex flex-col items-center gap-4 mb-4">
+                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-brand-primary-200 shadow-lg">
+                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
+                            </div>
+                            <h3 className="text-xl font-bold text-brand-primary-700">{t('error_oops')}</h3>
+                        </div>
+                        <p className="text-gray-700 mb-6 text-lg">{nonFoodReason}</p>
+                        <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
+                            <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
+                        </button>
+                    </div>
+                )}
+
+                {/* API Error State */}
+                {errorMessage && !isAnalyzing && !hasResult && !nonFoodReason && (
                     <div className="backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
                         {uploadedImage && (
                             <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg opacity-60">
@@ -535,227 +507,252 @@ export default function ScanPage() {
                     </div>
                 )}
 
-                {/* Analysis Results */}
-                {analysis && !isAnalyzing && (
-                    <div className="space-y-6 animate-slide-up">
-                        {/* Food Image + Detected Items */}
-                        <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass relative overflow-hidden">
-                            {/* Low Confidence Warning */}
-                            {analysis.confidence !== undefined && analysis.confidence < 70 && (
-                                <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-start gap-4 animate-slide-up">
-                                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-orange-200">
-                                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny Warning" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-orange-800 font-bold mb-1">
-                                            {t('low_confidence.title')}
-                                        </h3>
-                                        <p className="text-orange-700 text-sm">
-                                            {t('low_confidence.message')}
-                                        </p>
-                                        <p className="text-orange-600/70 text-xs mt-2 font-mono">
-                                            Confidence Score: {analysis.confidence}%
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+                {/* ═══════════════════════════════════════════════════════
+                    RESULTS — mode-specific rendering
+                   ═══════════════════════════════════════════════════════ */}
 
-                            <div className="flex flex-col md:flex-row gap-6">
-                                {uploadedImage && (
+                {/* MEAL RESULTS */}
+                {mealResult && !isAnalyzing && (
+                    <div className="space-y-6 animate-slide-up">
+                        {/* Uploaded Image */}
+                        {uploadedImage && (
+                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                <div className="flex flex-col md:flex-row gap-6">
                                     <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
                                         <img src={uploadedImage} alt="Food" className="w-full h-full object-cover" />
                                     </div>
-                                )}
-                                <div className="flex-1">
-                                    {analysis.name && analysis.name !== 'scanned_food' && (
-                                        <h2 className="text-2xl font-black text-gray-900 mb-1">{analysis.name}</h2>
-                                    )}
-                                    <h3 className="text-lg font-bold text-gray-600 mb-3">{t('detected_items')}</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {analysis.items.map((item: string, i: number) => (
-                                            <span key={i} className="px-3 py-1.5 bg-brand-primary-50 text-brand-primary-700 rounded-full text-sm font-medium">
-                                                {item}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    {/* Nutrition summary — responsive grid */}
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
-                                        {(['calories', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g'] as const).map((key) => {
-                                            const nutritionKey = key.replace('_g', '') as keyof typeof analysis.nutrition;
-                                            return (
-                                                <div key={key} className="text-center p-2 bg-gray-50 rounded-xl">
-                                                    <p className="text-xs text-gray-500">{t(key)}</p>
-                                                    <p className="text-lg font-bold text-gray-800">
-                                                        {analysis.nutrition[nutritionKey]}
-                                                        {key !== 'calories' && <span className="text-xs text-gray-400">g</span>}
-                                                    </p>
+                                    <div className="flex-1 flex flex-col justify-center">
+                                        {/* Low Confidence Warning */}
+                                        {mealResult.confidence < 70 && (
+                                            <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3 mb-3">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-orange-200">
+                                                    <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Eating Sequence */}
-                        <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                            <h2 className="text-xl font-bold text-gray-800 mb-1">{t('sequence.title')}</h2>
-                            <p className="text-sm text-gray-500 mb-4">{t('sequence.subtitle')}</p>
-                            <div className="flex flex-col md:flex-row items-stretch gap-3">
-                                {analysis.sequence.map((step: any, i: number) => (
-                                    <div key={i} className="flex-1 flex items-center gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 group hover:shadow-glass transition-all">
-                                        <div className={`w-10 h-10 ${CATEGORY_COLORS[step.category]} text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform`}>
-                                            {step.step}
-                                        </div>
-                                        <div>
-                                            <p className="text-2xl">{step.emoji}</p>
-                                            <p className="text-xs text-gray-600 font-medium">{step.items}</p>
-                                        </div>
-                                        {i < analysis.sequence.length - 1 && (
-                                            <ChevronRight className="hidden md:block w-4 h-4 text-gray-300 ml-auto" />
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-orange-800">{t('low_confidence.title')}</h4>
+                                                    <p className="text-xs text-orange-700">{t('low_confidence.message')}</p>
+                                                </div>
+                                            </div>
                                         )}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-green-500" />
-                                <span className="text-green-700 font-semibold text-sm">
-                                    {t('sequence.spike_reduction')}: <span className="text-lg">{analysis.spikeReduction}%</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Shinny's Tip — display the AI-generated tip */}
-                        {analysis.tip && (
-                            <div className="backdrop-blur-md bg-gradient-to-br from-brand-primary-50/90 to-brand-secondary-50/90 rounded-3xl p-5 shadow-glass">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow-md">
-                                        <img src="/images/shinny_avatar_explaining.png" alt="Shinny Tip" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-brand-primary-700 mb-1 flex items-center gap-1">
-                                            <Info className="w-3.5 h-3.5" /> {t('shinny_tip_title')}
-                                        </h3>
-                                        <p className="text-gray-700 text-sm leading-relaxed">{analysis.tip}</p>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm text-gray-500 font-medium">{mealResult.dishCount} {mealResult.dishCount > 1 ? 'dishes detected' : 'dish detected'}</p>
+                                                <p className={`text-3xl font-black ${overallScore >= 75 ? 'text-green-500' : overallScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                                                    {overallScore}<span className="text-sm text-gray-400 font-medium">/100</span>
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Health Scores with prominent overall score badge */}
-                        <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                            {/* Overall Score Badge */}
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-gray-800">{t('results')}</h2>
-                                <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl ${
-                                    (analysis.scores.overall || 0) >= 75 ? 'bg-green-50 border border-green-200' :
-                                    (analysis.scores.overall || 0) >= 50 ? 'bg-yellow-50 border border-yellow-200' :
-                                    'bg-red-50 border border-red-200'
-                                }`}>
-                                    <div className={`text-3xl font-black ${
-                                        (analysis.scores.overall || 0) >= 75 ? 'text-green-500' :
-                                        (analysis.scores.overall || 0) >= 50 ? 'text-yellow-500' :
-                                        'text-red-500'
-                                    }`}>
-                                        {analysis.scores.overall || 0}
-                                        <span className="text-sm text-gray-400 font-medium">/100</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 font-medium">{t('scores.overall')}</div>
+                        {/* Per-Dish Cards */}
+                        {mealResult.dishes.length > 1 && (
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800 mb-3 px-1">{t('detected_items')}</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {mealResult.dishes.map((dish, i) => (
+                                        <DishCard key={i} dish={dish} index={i} totalDishes={mealResult.dishCount} />
+                                    ))}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {ALL_SCORE_DIMENSIONS.filter(dim => dim !== 'overall').map((dim) => {
-                                    const isLocked = !FREE_SCORE_DIMENSIONS.includes(dim) && tier === 'free';
-                                    const score = analysis.scores[dim as keyof typeof analysis.scores];
-                                    const scoreColor = score >= 75 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
-                                    const bgColor = score >= 75 ? 'bg-green-50' : score >= 50 ? 'bg-yellow-50' : 'bg-red-50';
+                        )}
 
-                                    return (
-                                        <div key={dim} className={`relative p-4 rounded-2xl ${bgColor} ${isLocked ? 'opacity-60' : ''} transition-all hover:-translate-y-1`}>
-                                            {isLocked && (
-                                                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
-                                                    <Lock className="w-5 h-5 text-gray-400" />
-                                                </div>
-                                            )}
-                                            <p className="text-xs text-gray-500 font-medium mb-1">{t(`scores.${dim}`)}</p>
-                                            <p className={`text-2xl font-black ${scoreColor}`}>
-                                                {isLocked ? '—' : score}
-                                                {!isLocked && <span className="text-sm text-gray-400">/100</span>}
-                                            </p>
-                                            {/* Mini progress bar */}
-                                            {!isLocked && (
-                                                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                                                    <div className={`h-1.5 rounded-full transition-all duration-700 ${score >= 75 ? 'bg-green-400' : score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`} style={{ width: `${score}%` }}></div>
-                                                </div>
-                                            )}
+                        {/* Single dish — inline details (backwards-compatible with old UI feel) */}
+                        {mealResult.dishes.length === 1 && (
+                            <DishCard dish={mealResult.dishes[0]} index={0} totalDishes={1} />
+                        )}
+
+                        {/* Meal Overview — cross-dish sequence + totals */}
+                        <MealOverview data={mealResult} />
+
+                        {/* Health Scores */}
+                        {mealResult.dishes.length > 0 && (
+                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-gray-800">{t('results')}</h2>
+                                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl ${
+                                        overallScore >= 75 ? 'bg-green-50 border border-green-200' :
+                                        overallScore >= 50 ? 'bg-yellow-50 border border-yellow-200' :
+                                        'bg-red-50 border border-red-200'
+                                    }`}>
+                                        <div className={`text-3xl font-black ${
+                                            overallScore >= 75 ? 'text-green-500' :
+                                            overallScore >= 50 ? 'text-yellow-500' :
+                                            'text-red-500'
+                                        }`}>
+                                            {overallScore}
+                                            <span className="text-sm text-gray-400 font-medium">/100</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div className="text-xs text-gray-500 font-medium">{t('scores.overall')}</div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {ALL_SCORE_DIMENSIONS.filter(dim => dim !== 'overall').map((dim) => {
+                                        const isLocked = !FREE_SCORE_DIMENSIONS.includes(dim) && tier === 'free';
+                                        // Average score across all dishes
+                                        const score = Math.round(
+                                            mealResult.dishes.reduce((sum, d) => sum + (d.scores[dim as keyof typeof d.scores] || 0), 0) / mealResult.dishes.length
+                                        );
+                                        const scoreColor = score >= 75 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
+                                        const bgColor = score >= 75 ? 'bg-green-50' : score >= 50 ? 'bg-yellow-50' : 'bg-red-50';
 
-                            {tier === 'free' && (
-                                <Link href={`/${locale}/pricing`} className="mt-4 flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-brand-primary-50 to-brand-secondary-50 rounded-xl text-brand-primary-600 font-semibold text-sm hover:shadow-brand transition-all">
-                                    <Star className="w-4 h-4" />
-                                    {t('upgrade_hint')}
-                                    <ChevronRight className="w-4 h-4" />
-                                </Link>
-                            )}
+                                        return (
+                                            <div key={dim} className={`relative p-4 rounded-2xl ${bgColor} ${isLocked ? 'opacity-60' : ''} transition-all hover:-translate-y-1`}>
+                                                {isLocked && (
+                                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+                                                        <Lock className="w-5 h-5 text-gray-400" />
+                                                    </div>
+                                                )}
+                                                <p className="text-xs text-gray-500 font-medium mb-1">{t(`scores.${dim}`)}</p>
+                                                <p className={`text-2xl font-black ${scoreColor}`}>
+                                                    {isLocked ? '—' : score}
+                                                    {!isLocked && <span className="text-sm text-gray-400">/100</span>}
+                                                </p>
+                                                {!isLocked && (
+                                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                                        <div className={`h-1.5 rounded-full transition-all duration-700 ${score >= 75 ? 'bg-green-400' : score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`} style={{ width: `${score}%` }}></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {tier === 'free' && (
+                                    <Link href={`/${locale}/pricing`} className="mt-4 flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-brand-primary-50 to-brand-secondary-50 rounded-xl text-brand-primary-600 font-semibold text-sm hover:shadow-brand transition-all">
+                                        <Star className="w-4 h-4" />
+                                        {t('upgrade_hint')}
+                                        <ChevronRight className="w-4 h-4" />
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* MENU RESULTS */}
+                {menuResult && !isAnalyzing && (
+                    <div className="space-y-6 animate-slide-up">
+                        {uploadedImage && (
+                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                <div className="flex flex-col md:flex-row gap-6">
+                                    <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
+                                        <img src={uploadedImage} alt="Menu" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 flex flex-col justify-center">
+                                        <p className="text-sm text-gray-500 font-medium">{t('menu_scan.scanned_label')}</p>
+                                        <h2 className="text-2xl font-black text-gray-900">{menuResult.menuItems.length} {t('menu_scan.items_label')}</h2>
+                                        {menuResult.confidence < 70 && (
+                                            <p className="text-xs text-orange-600 mt-1">⚠️ {t('low_confidence.title')}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <MenuResults data={menuResult} />
+                    </div>
+                )}
+
+                {/* DRINK & SNACK RESULTS */}
+                {drinkResult && !isAnalyzing && (
+                    <div className="space-y-6 animate-slide-up">
+                        {uploadedImage && (
+                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                <div className="flex flex-col md:flex-row gap-6 items-center">
+                                    <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
+                                        <img src={uploadedImage} alt="Drink/Snack" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1">
+                                        {drinkResult.confidence < 70 && (
+                                            <div className="p-2 bg-orange-50 rounded-lg mb-2">
+                                                <p className="text-xs text-orange-600">⚠️ {t('low_confidence.title')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <DrinkSnackResults data={drinkResult} />
+                    </div>
+                )}
+
+                {/* Scan again button — shown for all modes */}
+                {hasResult && !isAnalyzing && (
+                    <div className="text-center mt-8">
+                        <div className="mb-4">
+                            <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
                         </div>
-
-                        {/* Scan again button + model badge */}
-                        <div className="text-center">
-                            <div className="mb-4">
-                                <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
-                            </div>
+                        <div className="flex items-center justify-center gap-3">
                             <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
                                 <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                             </button>
-                            {modelUsed && (
-                                <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
-                                    <Cpu className="w-3 h-3" />
-                                    <span>{t('analyzed_by')} {modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
-                                </div>
+                        </div>
+                        {modelUsed && (
+                            <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                                <Cpu className="w-3 h-3" />
+                                <span>{t('analyzed_by')} {modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Debug Panel */}
+                {isDebugMode && debugData && (hasResult || errorMessage) && !isAnalyzing && (
+                    <div className="mt-6 backdrop-blur-md bg-gray-900/95 rounded-3xl shadow-glass overflow-hidden text-left">
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
+                             <button
+                                onClick={() => setDebugOpen(!debugOpen)}
+                                className="flex items-center justify-between flex-1 text-gray-300 hover:text-white transition-colors"
+                            >
+                                <span className="flex items-center gap-2 text-sm font-mono">
+                                    <Bug className="w-4 h-4 text-yellow-400" />
+                                    Debug Panel
+                                    <span className="text-xs text-gray-500">(?debug=1)</span>
+                                </span>
+                                {debugOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                            {debugOpen && (
+                                <button
+                                    className="ml-4 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-mono rounded-md border border-gray-700 transition"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
+                                        const btn = e.currentTarget;
+                                        btn.innerText = 'Copied!';
+                                        setTimeout(() => btn.innerText = 'Copy Data', 2000);
+                                    }}
+                                >
+                                    Copy Data
+                                </button>
                             )}
                         </div>
-
-                        {/* Debug Panel — only visible with ?debug=1 URL param */}
-                        {isDebugMode && debugData && (
-                            <div className="backdrop-blur-md bg-gray-900/95 rounded-3xl shadow-glass overflow-hidden">
-                                <button
-                                    onClick={() => setDebugOpen(!debugOpen)}
-                                    className="w-full flex items-center justify-between px-5 py-3 text-gray-300 hover:text-white transition-colors"
-                                >
-                                    <span className="flex items-center gap-2 text-sm font-mono">
-                                        <Bug className="w-4 h-4 text-yellow-400" />
-                                        Debug Panel
-                                        <span className="text-xs text-gray-500">(?debug=1)</span>
-                                    </span>
-                                    {debugOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </button>
-                                {debugOpen && (
-                                    <div className="px-5 pb-5 space-y-3">
-                                        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                                            {Object.entries(debugData.timings || {}).map(([key, val]) => (
-                                                <div key={key} className="flex justify-between bg-gray-800 rounded-lg px-3 py-2">
-                                                    <span className="text-gray-400">{key}</span>
-                                                    <span className="text-green-400">{String(val)}ms</span>
-                                                </div>
-                                            ))}
+                        {debugOpen && (
+                            <div className="px-5 pb-5 pt-3 space-y-3">
+                                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                                    {Object.entries(debugData.timings || {}).map(([key, val]) => (
+                                        <div key={key} className="flex justify-between bg-gray-800 rounded-lg px-3 py-2">
+                                            <span className="text-gray-400">{key}</span>
+                                            <span className="text-green-400">{String(val)}ms</span>
                                         </div>
-                                        <div className="flex gap-2 text-xs font-mono flex-wrap">
-                                            <span className="bg-blue-900/50 text-blue-300 px-2 py-1 rounded">model: {debugData.modelUsed}</span>
-                                            <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">reqId: {debugData.requestId}</span>
-                                            <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded">conf: {debugData.confidence}%</span>
-                                            <span className="bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded">spike: {debugData.spikeReduction}%</span>
-                                        </div>
-                                        <details className="text-xs">
-                                            <summary className="text-gray-400 cursor-pointer hover:text-gray-200 font-mono">Raw AI Response JSON</summary>
-                                            <pre className="mt-2 bg-gray-800 rounded-xl p-3 text-gray-300 overflow-x-auto max-h-80 overflow-y-auto font-mono text-[10px] leading-relaxed">
-                                                {JSON.stringify(debugData.rawResult, null, 2)}
-                                            </pre>
-                                        </details>
-                                    </div>
-                                )}
+                                    ))}
+                                </div>
+                                <div className="flex gap-2 text-xs font-mono flex-wrap">
+                                    <span className="bg-blue-900/50 text-blue-300 px-2 py-1 rounded">model: {debugData.modelUsed}</span>
+                                    <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">mode: {debugData.scanMode}</span>
+                                    {debugData.requestId && <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">reqId: {debugData.requestId}</span>}
+                                    <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded">conf: {debugData.confidence}%</span>
+                                    <span className="bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded">score: {debugData.overallScore}/100</span>
+                                </div>
+                                <details className="text-xs" open={!!debugData.failedJson}>
+                                    <summary className={`cursor-pointer font-mono ${debugData.failedJson ? 'text-red-400 hover:text-red-300 font-bold' : 'text-gray-400 hover:text-gray-200'}`}>
+                                        {debugData.failedJson ? 'Failed AI Response (JSON Parse/Validation Error)' : 'Raw AI Response JSON'}
+                                    </summary>
+                                    <pre className={`mt-2 rounded-xl p-3 overflow-x-auto max-h-80 overflow-y-auto font-mono text-[10px] leading-relaxed ${debugData.failedJson ? 'bg-red-950/50 text-red-200 border border-red-900/50' : 'bg-gray-800 text-gray-300'}`}>
+                                        {debugData.failedJson ? debugData.failedJson : JSON.stringify(debugData.rawResult, null, 2)}
+                                    </pre>
+                                </details>
                             </div>
                         )}
                     </div>

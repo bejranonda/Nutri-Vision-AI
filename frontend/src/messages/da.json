@@ -85,6 +85,7 @@
     "fiber_g": "Fibre",
     "try_again": "Scan Igen",
     "error_title": "Undskyld! 🙏",
+    "error_oops": "Hovsa!",
     "error_message": "Shinny kunne ikke analysere dette billede",
     "timeout_message": "Analysen tager for lang tid. Prøv igen med et enklere foto.",
     "low_confidence": {
@@ -131,7 +132,56 @@
       "processing": "Behandler resultater..."
     },
     "shinny_tip_title": "Shinnys Tip",
-    "analyzed_by": "Analyseret af"
+    "analyzed_by": "Analyseret af",
+    "scan_modes": {
+      "title": "Hvad vil du scanne?",
+      "meal": {
+        "title": "Scan måltid",
+        "description": "En eller flere retter",
+        "upload_hint": "📸 Tag et billede af dine retter på bordet"
+      },
+      "menu": {
+        "title": "Scan menu",
+        "description": "Restaurantmenu",
+        "upload_hint": "📋 Tag et billede af menukortet"
+      },
+      "drink_snack": {
+        "title": "Drik & Snack",
+        "description": "Drikkevarer & snacks",
+        "upload_hint": "🥤 Tag et billede af din drik eller snack"
+      }
+    },
+    "multi_dish": {
+      "overview_title": "Måltidsoversigt",
+      "cross_dish_sequence": "Spiserækkefølge på tværs af retter",
+      "total_nutrition": "Samlet ernæring",
+      "add_another": "Tilføj endnu en ret",
+      "dish_label": "Ret {n}"
+    },
+    "menu_scan": {
+      "items_found": "Fundne menupunkter",
+      "items_label": "punkter",
+      "scanned_label": "Menu scannet",
+      "health_rating": "Sundhedsvurdering",
+      "recommendations": "Shinny anbefaler",
+      "combo_title": "Bedste kombination",
+      "scenarios": {
+        "light": "Let måltid",
+        "protein": "Høj protein",
+        "gut_friendly": "Tarmvenlig",
+        "blood_sugar_safe": "Blodsukker-sikker",
+        "balanced": "Mest balanceret",
+        "indulgent": "Forkæl dig selv"
+      }
+    },
+    "drink_snack": {
+      "sugar_cubes": "Svarer til {n} sukkerknalder",
+      "sugar_label": "Sukker",
+      "of_sugar": "af sukker",
+      "health_alerts": "Sundhedsadvarsler",
+      "alternatives": "Sundere alternativer",
+      "timing": "Bedste tidspunkt at nyde"
+    }
   },
   "demo": {
     "title": "Sådan virker Shinny Guide",

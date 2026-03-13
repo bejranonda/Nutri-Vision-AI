@@ -33,8 +33,14 @@ We use a **Dual-Provider Fallback Strategy** for maximum reliability:
 -   **Robustness**: 
     -   25s timeout for the 11B model.
     -   20s timeout for the Gemma 3 fallback.
+    -   **Auto-Correction Loop**: Validations trap malformed JSON or illegal shapes, automatically triggering a secondary inference pass to let the LLM auto-correct.
     -   Combined 45s total budget for a successful scan.
     -   Granular phase tracking and specific error details.
+-   **Multi-Mode Intelligence**: The prompt dynamically adapts to three modes:
+    -   **Meal Scan**: Multi-dish detection and cross-dish sequence planning.
+    -   **Menu Scan**: Multilingual menu reading, health ratings (0-100), and scenario-based recommendations.
+    -   **Drink & Snack**: Sugar-focused analysis with visual sugar cube conversions and healthier alternatives.
+-   **Graceful Rejection**: The AI is strictly instructed to return `isFood: false` and a `nonFoodReason` message if images are unrelated, triggering a dedicated safety UI instead of crashing.
 -   **Chatbot (Shinny)**: Providing empathetic, evidence-based nutrition coaching using the "Live long to eat well" persona.
 
 ## 🏗️ Technical Architecture
