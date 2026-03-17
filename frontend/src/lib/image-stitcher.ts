@@ -4,19 +4,27 @@
  * while allowing users to scan multiple items in a single request.
  */
 export async function stitchImagesToCanvas(base64Images: string[]): Promise<string> {
-    if (!base64Images || base64Images.length === 0) return '';
-    if (base64Images.length === 1) return base64Images[0];
+    // Filter out empty or invalid entries
+    const validImages = base64Images.filter(s => s && s.length > 100);
+    if (!validImages || validImages.length === 0) return '';
+    if (validImages.length === 1) return validImages[0];
 
-    const loadImg = (src: string): Promise<HTMLImageElement> => {
-        return new Promise((resolve, reject) => {
+    const loadImg = (src: string): Promise<HTMLImageElement | null> => {
+        return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error('Failed to load image for stitching'));
+            img.onerror = () => {
+                console.warn('Skipping broken image in collage');
+                resolve(null); // Skip broken images instead of failing entire batch
+            };
             img.src = src;
         });
     };
 
-    const images = await Promise.all(base64Images.map(loadImg));
+    const loadedResults = await Promise.all(validImages.map(loadImg));
+    const images = loadedResults.filter((img): img is HTMLImageElement => img !== null);
+    if (images.length === 0) throw new Error('No images could be loaded for stitching');
+    if (images.length === 1) return validImages[0];
     
     // Determine grid columns and rows based on count (max 10)
     let cols = 1, rows = 1;

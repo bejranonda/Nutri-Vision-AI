@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS, canAddMorePhotos } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
@@ -19,8 +19,15 @@ import MenuResults from '@/components/scan/MenuResults';
 import DrinkSnackResults from '@/components/scan/DrinkSnackResults';
 
 /** Loading phase messages for the phased loading indicator */
-const LOADING_PHASES = [
+const LOADING_PHASES_SINGLE = [
     { key: 'compressing', emoji: '📦', duration: 2000 },
+    { key: 'analyzing', emoji: '🤖', duration: 8000 },
+    { key: 'processing', emoji: '✨', duration: 5000 },
+] as const;
+
+const LOADING_PHASES_MULTI = [
+    { key: 'stitching', emoji: '🧩', duration: 1500 },
+    { key: 'compressing', emoji: '📦', duration: 1500 },
     { key: 'analyzing', emoji: '🤖', duration: 8000 },
     { key: 'processing', emoji: '✨', duration: 5000 },
 ] as const;
@@ -124,6 +131,14 @@ export default function ScanPage() {
         const reader = new FileReader();
         reader.onload = async (e) => {
             const rawBase64 = e.target?.result as string;
+
+            // Compress immediately to reduce memory footprint in state
+            let compressed: string;
+            try {
+                compressed = await compressImage(rawBase64, 1200, 0.85);
+            } catch {
+                compressed = rawBase64; // fallback to raw if compression fails
+            }
             
             if (hasResult || nonFoodReason) {
                 setMealResult(null);
@@ -131,9 +146,13 @@ export default function ScanPage() {
                 setDrinkResult(null);
                 setOverallScore(0);
                 setNonFoodReason(null);
-                setUploadedImages([rawBase64]);
+                setUploadedImages([compressed]);
             } else {
-                setUploadedImages(prev => [...prev, rawBase64]);
+                const maxPhotos = TIER_LIMITS[(tier as 'free' | 'premium' | 'family') || 'free'].maxPhotosPerScan;
+                setUploadedImages(prev => {
+                    if (prev.length >= maxPhotos) return prev;
+                    return [...prev, compressed];
+                });
             }
             
             setErrorMessage(null);
@@ -152,6 +171,8 @@ export default function ScanPage() {
         const scanStartTime = Date.now();
         logger.scanStart({ photoCount: uploadedImages.length, locale, tier });
         logger.info(`📋 Scan mode: ${scanMode}`);
+
+        const LOADING_PHASES = uploadedImages.length > 1 ? LOADING_PHASES_MULTI : LOADING_PHASES_SINGLE;
 
         setIsAnalyzing(true);
         setMealResult(null);
@@ -185,7 +206,15 @@ export default function ScanPage() {
             if (uploadedImages.length === 1) {
                 finalImageBase64 = await compressImage(uploadedImages[0]);
             } else {
-                finalImageBase64 = await stitchImagesToCanvas(uploadedImages);
+                try {
+                    finalImageBase64 = await stitchImagesToCanvas(uploadedImages);
+                } catch (stitchErr) {
+                    logger.error('🧩 Canvas stitching failed', stitchErr);
+                    setErrorMessage(t('multi_photo.stitch_error'));
+                    setIsAnalyzing(false);
+                    phaseTimers.forEach(t => clearTimeout(t));
+                    return;
+                }
             }
             
             timings.compressMs = Date.now() - compressStartTime;
@@ -348,13 +377,14 @@ export default function ScanPage() {
     function handleDrop(e: React.DragEvent) {
         e.preventDefault();
         setDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file) handleImageUpload(file);
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        files.forEach(file => handleImageUpload(file));
     }
 
     function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (file) handleImageUpload(file);
+        if (e.target) e.target.value = ''; // Reset so re-selecting the same file works
     }
 
     function resetScan() {
@@ -471,39 +501,60 @@ export default function ScanPage() {
                 {uploadedImages.length > 0 && !isAnalyzing && !hasResult && !nonFoodReason && !errorMessage && (
                     <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-xl mx-auto shadow-glass animate-bounce-in border border-white/40">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">{uploadedImages.length} Photo{uploadedImages.length > 1 ? 's' : ''} Selected</h2>
+                            <h2 className="text-xl font-bold text-gray-800">{uploadedImages.length} {t('multi_photo.photos_selected', { count: uploadedImages.length })}</h2>
                             <p className="text-sm text-gray-500">{uploadedImages.length}/{TIER_LIMITS[activeTier].maxPhotosPerScan}</p>
                         </div>
                         
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
                             {uploadedImages.map((img, idx) => (
                                 <div key={idx} className="aspect-square rounded-2xl overflow-hidden shadow-md relative group">
                                     <img src={img} alt={`Upload ${idx+1}`} className="w-full h-full object-cover" />
+                                    <button
+                                        onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
+                                        className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                                        aria-label={t('multi_photo.remove_photo')}
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
                             ))}
-                            {canAddMorePhotos(activeTier, uploadedImages.length) && (
-                                <div 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="aspect-square rounded-2xl border-2 border-dashed border-brand-primary-300 flex flex-col items-center justify-center cursor-pointer hover:bg-brand-primary-50 transition-colors text-brand-primary-400"
-                                >
-                                    <Plus className="w-8 h-8 mb-2" />
-                                    <span className="text-xs font-semibold">Add Photo</span>
-                                </div>
-                            )}
                         </div>
 
-                        {!canAddMorePhotos(activeTier, uploadedImages.length) && (
-                            <p className="text-sm text-brand-accent-600 mb-6 bg-brand-accent-50 py-2 rounded-xl text-center px-4">
-                                You've reached the maximum of {TIER_LIMITS[activeTier].maxPhotosPerScan} photos per scan for your tier.
+                        {canAddMorePhotos(activeTier, uploadedImages.length) ? (
+                            <div className="flex flex-col items-center justify-center gap-3 mb-8 bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+                                <p className="text-sm text-gray-500 font-medium">{t('multi_photo.add_another')} ({uploadedImages.length}/{TIER_LIMITS[activeTier].maxPhotosPerScan})</p>
+                                <div className="flex justify-center gap-3">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white text-sm font-semibold rounded-xl shadow-sm transition-all hover:shadow-md"
+                                    >
+                                        <Camera className="w-4 h-4" /> {t('take_photo')}
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-all"
+                                    >
+                                        <Upload className="w-4 h-4" /> {t('upload')}
+                                    </button>
+                                </div>
+                                {activeTier === 'free' && (
+                                    <p className="text-xs text-brand-primary-500 mt-2 font-medium">
+                                        <Lock className="w-3 h-3 inline mr-1" /> {t('multi_photo.upgrade_hint')}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-brand-accent-600 mb-8 bg-brand-accent-50 py-2 rounded-xl text-center px-4 font-medium">
+                                {t('multi_photo.max_reached', { max: TIER_LIMITS[activeTier].maxPhotosPerScan })}
                             </p>
                         )}
                         
                         <div className="flex gap-4 max-w-md mx-auto">
                             <button onClick={() => setUploadedImages([])} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">
-                                Cancel
+                                {t('multi_photo.cancel')}
                             </button>
                             <button onClick={() => handleAnalyze()} className="flex-[2] px-4 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 shadow-brand hover:shadow-brand-lg transition-all flex items-center justify-center gap-2">
-                                <Sparkles className="w-5 h-5" /> Analyze Now
+                                <Sparkles className="w-5 h-5" /> {t('multi_photo.analyze_now')}
                             </button>
                         </div>
                     </div>
@@ -525,7 +576,7 @@ export default function ScanPage() {
                             <span className="text-xl font-bold text-gray-700 bg-white/50 px-4 py-1 rounded-full">{t('shinny_analyzing')}</span>
                         </div>
                         <div className="space-y-2 mt-4">
-                            {LOADING_PHASES.map((phase, i) => (
+                            {(uploadedImages.length > 1 ? LOADING_PHASES_MULTI : LOADING_PHASES_SINGLE).map((phase, i) => (
                                 <div key={phase.key} className={`flex items-center justify-center gap-2 text-sm transition-all duration-500 ${loadingPhase >= i ? 'text-gray-700 opacity-100' : 'text-gray-300 opacity-50'}`}>
                                     <span>{phase.emoji}</span>
                                     <span className="font-medium">{t(`loading_phases.${phase.key}`)}</span>

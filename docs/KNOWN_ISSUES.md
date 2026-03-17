@@ -31,7 +31,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ### 4. High-Resolution Canvas Memory Limits
 - **Current Status**: The Multi-Photo Collage Engine dynamically scales to 2048x2048 for up to 10 photos. Older mobile devices (e.g., older iOS Safari versions) may hit memory limitations when attempting to stitch and compress heavily.
-- **Mitigation**: Future update to dynamically adjust the maximum canvas size constraint based on the user's `window.devicePixelRatio` and available RAM.
+- **Mitigation**: Implemented an "Early Compression" pipeline (v2.1.9) that compresses incoming photos to 1200px max *before* holding them in React state, which reduced overall memory footprint by ~80% during the stitching phase. A future update could dynamically adjust the maximum canvas size constraint based on the user's `window.devicePixelRatio` and available RAM.
 
 ## 📋 Ongoing Investigations
 

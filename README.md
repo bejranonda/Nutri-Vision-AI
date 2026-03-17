@@ -58,8 +58,8 @@ The analysis pipeline is built for **Edge Reliability**:
 3. Server-side AI timeout (45s total) using `Promise.race` and `AbortController` for zero-hang execution.
 4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, failed JSON capture, and raw JSON responses with export capabilities.
 5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
-6. **Multi-Photo Collage Engine**: Client-side canvas stitching combining up to 10 photos resolving Edge limitations.
-6. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
+6. **Multi-Photo Collage Engine**: Client-side canvas stitching combining up to 10 photos, resolving Edge memory limitations via "Early Compression" (1200px max) before state storage.
+7. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 
 ## 🛠 Tech Stack
 

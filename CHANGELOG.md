@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🖼️ **Client-Side Image Stitching**: Engineered a frontend canvas stitcher that automatically calculates optimal grid layouts and scales resolution dynamically depending on photo count to preserve AI precision, combining all images before edge upload.
 - ✅ **Review Stage UX**: Added a review stage where users can preview their selected photos or remove them before confirming the "Analyze" action.
 
+### Fixed & Improved
+- 🗜️ **Edge Memory Optimization**: Implemented early compression (1200px max) on file selection before storing images in React state to reduce frontend memory footprint natively.
+- 🛡️ **Stitching Resilience**: The canvas stitcher now gracefully skips empty or broken base64 inputs without failing the entire batch, and handles generic canvas failures gracefully.
+- 🌍 **Full i18n & UX Polish**: Supported drag-and-drop for multi-file selections, replaced all hardcoded strings with localization keys (EN, TH, DE, DA), and updated the visual loading phase to include a specific "Stitching..." indicator.
+
 ---
 
 ## [2.1.8] - 2026-03-11

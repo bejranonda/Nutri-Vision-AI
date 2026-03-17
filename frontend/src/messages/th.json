@@ -127,12 +127,23 @@
       "mango_sticky": "ข้าวเหนียวมะม่วง"
     },
     "loading_phases": {
-      "compressing": "กำลังบีบอัดภาพ...",
+      "stitching": "กำลังรวมรูปภาพ...",
+      "compressing": "กำลังบีบอัดรูปภาพ...",
       "analyzing": "กำลังวิเคราะห์ด้วย AI...",
       "processing": "กำลังประมวลผล..."
     },
     "shinny_tip_title": "เคล็ดลับจากชินนี่",
     "analyzed_by": "วิเคราะห์โดย",
+    "multi_photo": {
+      "photos_selected": "รูปที่เลือก",
+      "add_another": "เพิ่มรูปอีก",
+      "remove_photo": "ลบรูป",
+      "upgrade_hint": "อัปเกรดเป็น Premium เพื่อเพิ่มได้สูงสุด 10 รูป!",
+      "max_reached": "คุณเลือกรูปครบ {max} รูปแล้วสำหรับแพ็กเกจของคุณ",
+      "cancel": "ยกเลิก",
+      "analyze_now": "วิเคราะห์เลย",
+      "stitch_error": "ไม่สามารถรวมรูปได้ ลองใช้รูปน้อยลงหรือรูปขนาดเล็กลง"
+    },
     "scan_modes": {
       "title": "คุณต้องการสแกนอะไร?",
       "meal": {

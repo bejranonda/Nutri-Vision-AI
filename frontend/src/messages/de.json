@@ -127,12 +127,23 @@
       "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
+      "stitching": "Fotos werden zusammengefügt...",
       "compressing": "Bild wird komprimiert...",
-      "analyzing": "Analyse mit KI...",
+      "analyzing": "KI-Analyse läuft...",
       "processing": "Ergebnisse werden verarbeitet..."
     },
     "shinny_tip_title": "Shinnys Tipp",
     "analyzed_by": "Analysiert von",
+    "multi_photo": {
+      "photos_selected": "Foto(s) ausgewählt",
+      "add_another": "Weiteres Foto hinzufügen",
+      "remove_photo": "Foto entfernen",
+      "upgrade_hint": "Upgrade auf Premium für bis zu 10 Fotos!",
+      "max_reached": "Du hast das Maximum von {max} Fotos pro Scan für dein Abo erreicht.",
+      "cancel": "Abbrechen",
+      "analyze_now": "Jetzt analysieren",
+      "stitch_error": "Fotos konnten nicht kombiniert werden. Versuche weniger oder kleinere Bilder."
+    },
     "scan_modes": {
       "title": "Was möchtest du scannen?",
       "meal": {

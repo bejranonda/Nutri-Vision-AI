@@ -39,7 +39,8 @@ This document provides guidelines for developers to maintain code quality, consi
   }
   ```
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
-- **Image Processing**: All image transformations (like multi-photo collages) must happen **Client-Side** (e.g., via HTML5 Canvas) before upload to preserve Edge execution bandwidth, API boundaries, and memory overhead.
+- **Image Processing**: All heavy image transformations (like multi-photo collages) must happen **Client-Side** (e.g., via HTML5 Canvas) to preserve Edge execution bandwidth, API boundaries, and network payloads. 
+  - **Early Compression**: To prevent React state and mobile browser memory bloat, high-volume image features must compress incoming photos (e.g., `1200px` max, `0.85` quality) *before* storing them in frontend memory arrays.
 - **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) as LLM JSON can be malformed.
 
 ## 📊 Logging & Debugging
