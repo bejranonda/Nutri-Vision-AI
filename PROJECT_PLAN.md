@@ -127,6 +127,7 @@ Following this sequence can reduce blood sugar spikes by up to **70%**!
 
 ### 1. Image Recognition & Analysis
 - **Upload or Camera**: Take photo or upload from gallery
+- **Multi-Photo Scan**: Combine multiple photos into a single meal collage (Free: 3, Premium: 10).
 - **Multi-ingredient Detection**: Identify multiple items in one image
 - **Thai Food Specialization**: Training data includes Thai cuisine
 - **Portion Estimation**: AI estimates serving size

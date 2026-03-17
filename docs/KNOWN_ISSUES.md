@@ -29,6 +29,10 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Current Status**: Local file storage is used in the development backend (`./uploads`), which is not persistent on Cloudflare Pages.
 - **Mitigation**: Plans to integrate Cloudflare R2 for persistent image storage.
 
+### 4. High-Resolution Canvas Memory Limits
+- **Current Status**: The Multi-Photo Collage Engine dynamically scales to 2048x2048 for up to 10 photos. Older mobile devices (e.g., older iOS Safari versions) may hit memory limitations when attempting to stitch and compress heavily.
+- **Mitigation**: Future update to dynamically adjust the maximum canvas size constraint based on the user's `window.devicePixelRatio` and available RAM.
+
 ## 📋 Ongoing Investigations
 
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.

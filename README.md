@@ -18,7 +18,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 | Feature | Free | Premium (฿199/mo) | Family (฿299/mo) |
 |---------|------|--------------------|-------------------|
 | AI Scan Modes | Meal only | Meal, Menu, Drink/Snack | Meal, Menu, Drink/Snack |
-| Food Scanning | 10/month | ∞ | ∞ |
+| Food Scanning | 10 scans/mo (up to 3 photos) | ∞ (up to 10 photos) | ∞ (up to 10 photos) |
 | Health Score | 3 dimensions | 8 dimensions | 8 dimensions |
 | AI Coach Shinny | 3 Q/day | ∞ | ∞ |
 | Custom AI Avatar | — | ✓ (Dynamic Postures) | ✓ |
@@ -58,6 +58,7 @@ The analysis pipeline is built for **Edge Reliability**:
 3. Server-side AI timeout (45s total) using `Promise.race` and `AbortController` for zero-hang execution.
 4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, failed JSON capture, and raw JSON responses with export capabilities.
 5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
+6. **Multi-Photo Collage Engine**: Client-side canvas stitching combining up to 10 photos resolving Edge limitations.
 6. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 
 ## 🛠 Tech Stack

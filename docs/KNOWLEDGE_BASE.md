@@ -37,7 +37,7 @@ We use a **Dual-Provider Fallback Strategy** for maximum reliability:
     -   Combined 45s total budget for a successful scan.
     -   Granular phase tracking and specific error details.
 -   **Multi-Mode Intelligence**: The prompt dynamically adapts to three modes:
-    -   **Meal Scan**: Multi-dish detection and cross-dish sequence planning.
+    -   **Meal Scan**: Multi-dish detection and cross-dish sequence planning. Native support for multi-photo collages (up to 10 photos stitched client-side).
     -   **Menu Scan**: Multilingual menu reading, health ratings (0-100), and scenario-based recommendations.
     -   **Drink & Snack**: Sugar-focused analysis with visual sugar cube conversions and healthier alternatives.
 -   **Graceful Rejection**: The AI is strictly instructed to return `isFood: false` and a `nonFoodReason` message if images are unrelated, triggering a dedicated safety UI instead of crashing.

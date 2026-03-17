@@ -97,8 +97,8 @@ class Logger {
   }
 
   /** Log when user initiates a food scan (image upload) */
-  scanStart(ctx: { fileSize: number; fileType: string; locale: string; tier: string }) {
-    this.info(`🔍 SCAN START | file=${ctx.fileType} size=${(ctx.fileSize / 1024).toFixed(1)}KB`, ctx);
+  scanStart(ctx: { photoCount?: number; fileSize?: number; fileType?: string; locale: string; tier: string }) {
+    this.info(`🔍 SCAN START | photos=${ctx.photoCount || 1}${ctx.fileType ? ` file=${ctx.fileType}` : ''}${ctx.fileSize ? ` size=${(ctx.fileSize / 1024).toFixed(1)}KB` : ''}`, ctx);
   }
 
   /** Log after image compression completes */

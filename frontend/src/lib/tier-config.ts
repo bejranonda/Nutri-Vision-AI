@@ -9,6 +9,7 @@ export type SubscriptionTier = 'free' | 'premium' | 'family';
 export interface TierLimits {
     scansPerMonth: number;
     aiQuestionsPerDay: number;
+    maxPhotosPerScan: number;
     recipesAccess: number;
     scoresDimensions: number;
     familyMembers: number;
@@ -23,6 +24,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     free: {
         scansPerMonth: 10,
         aiQuestionsPerDay: 3,
+        maxPhotosPerScan: 3,
         recipesAccess: 100,
         scoresDimensions: 3, // Only overall, blood sugar, gut health
         familyMembers: 0,
@@ -35,6 +37,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     premium: {
         scansPerMonth: Infinity,
         aiQuestionsPerDay: Infinity,
+        maxPhotosPerScan: 10,
         recipesAccess: 1000,
         scoresDimensions: 8,
         familyMembers: 0,
@@ -47,6 +50,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     family: {
         scansPerMonth: Infinity,
         aiQuestionsPerDay: Infinity,
+        maxPhotosPerScan: 10,
         recipesAccess: 1000,
         familyMembers: 5,
         scoresDimensions: 8,
@@ -109,4 +113,8 @@ export function canScan(tier: SubscriptionTier, currentMonthScans: number): bool
 
 export function canAskAI(tier: SubscriptionTier, todayQuestions: number): boolean {
     return todayQuestions < TIER_LIMITS[tier].aiQuestionsPerDay;
+}
+
+export function canAddMorePhotos(tier: SubscriptionTier, currentPhotoCount: number): boolean {
+    return currentPhotoCount < TIER_LIMITS[tier].maxPhotosPerScan;
 }

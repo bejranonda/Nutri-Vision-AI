@@ -39,6 +39,7 @@ This document provides guidelines for developers to maintain code quality, consi
   }
   ```
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
+- **Image Processing**: All image transformations (like multi-photo collages) must happen **Client-Side** (e.g., via HTML5 Canvas) before upload to preserve Edge execution bandwidth, API boundaries, and memory overhead.
 - **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) as LLM JSON can be malformed.
 
 ## 📊 Logging & Debugging

@@ -5,6 +5,15 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.9] - 2026-03-17
+
+### Added
+- 📸 **Multi-Photo Scan (Collage System)**: Users can now upload multiple photos for a single meal analysis (Free: up to 3, Premium/Family: up to 10).
+- 🖼️ **Client-Side Image Stitching**: Engineered a frontend canvas stitcher that automatically calculates optimal grid layouts and scales resolution dynamically depending on photo count to preserve AI precision, combining all images before edge upload.
+- ✅ **Review Stage UX**: Added a review stage where users can preview their selected photos or remove them before confirming the "Analyze" action.
+
+---
+
 ## [2.1.8] - 2026-03-11
 
 ### Added
