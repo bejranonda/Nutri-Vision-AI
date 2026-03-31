@@ -31,11 +31,10 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ### 4. High-Resolution Canvas Memory Limits
 - **Current Status**: The Multi-Photo Collage Engine dynamically scales to 2048x2048 for up to 10 photos. Older mobile devices (e.g., older iOS Safari versions) may hit memory limitations when attempting to stitch and compress heavily.
-- **Mitigation**: Implemented an "Early Compression" pipeline (v2.1.9) that compresses incoming photos to 1200px max *before* holding them in React state, which reduced overall memory footprint by ~80% during the stitching phase. A future update could dynamically adjust the maximum canvas size constraint based on the user's `window.devicePixelRatio` and available RAM.
+- **Mitigation**: Implemented an "Early Compression" pipeline (v2.1.9) that compresses incoming photos to 1200px max *before* holding them in React state. Also added **Dynamic Canvas Scaling** using the `navigator.deviceMemory` API to restrict max tile size to 500px for models with `< 4GB` of RAM, practically eliminating Safari Out-Of-Memory reloads.
 
 ## 📋 Ongoing Investigations
 
--   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
 -   **Language Consistency**: Ensuring the AI's "Shinny" persona remains consistent across all 4 languages.
 
@@ -64,3 +63,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ### Non-Food Image Analysis Crashes (v2.1.9)
 - **Root Cause**: Uploading images of pets or random objects caused the backend AI to return 422 Unprocessable Entity, which was not gracefully handled by the frontend, leading to unhelpful generic timeout/crash errors constraint.
 - **Fix**: Implemented the `isFood` boolean flag within the schema natively. Backends no longer return HTTP 422 for bad images, but HTTP 200 with an explicit `isFood: false` and `nonFoodReason` message gracefully rendered in the UI by the Shinny Mascot.
+
+### Truncated JSON on Menu/Multi-Dish Scans (v2.1.9)
+- **Root Cause**: Google Gemma fallback was restricted to `maxOutputTokens: 1024`, meaning complex Thai food scans (e.g., 10 item menu scans) routinely clipped the trailing JSON object closures.
+- **Fix**: Increased `maxOutputTokens` from 1024 to 4096. Additionally implemented `safeParseJson` algorithm extracting `{...}` bounds directly if standard `JSON.parse` fails from prepended conversational text. 

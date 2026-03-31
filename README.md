@@ -43,7 +43,7 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
-## 🧠 AI Methodology & Analysis (v2.1.8)
+## 🧠 AI Methodology & Analysis (v2.1.9)
 
 Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly resilient **Dual-Provider Fallback Strategy**.
 
@@ -53,12 +53,12 @@ Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly
     *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with the Gemma 3 27B model to ensure a successful response even under high load.
 
 The analysis pipeline is built for **Edge Reliability**:
-1. Client-side canvas compression (reduces 10MB photos to ~150KB)
-2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks. The AI step features an **Auto-Correction Loop** that automatically catches validation errors and retries the inference.
-3. Server-side AI timeout (45s total) using `Promise.race` and `AbortController` for zero-hang execution.
-4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings, model attribution, failed JSON capture, and raw JSON responses with export capabilities.
+1. Client-side canvas compression (reduces 10MB photos to ~150KB), now with skipping double-compression for single photos.
+2. **10-Phase Fault-Tolerant Pipeline**: Each stage (DB, Session, AI) is individually isolated in `try/catch` blocks. The AI step features an **Auto-Correction Loop** using a `safeParseJson` strategy and preferred Google provider diversity on retry.
+3. Server-side AI timeout (45s total) using `Promise.race`, now with `4096` output tokens for complex multi-dish extraction.
+4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings.
 5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
-6. **Multi-Photo Collage Engine**: Client-side canvas stitching combining up to 10 photos, resolving Edge memory limitations via "Early Compression" (1200px max) before state storage.
+6. **Multi-Photo Collage Engine**: Client-side canvas stitching up to 10 photos, with **Dynamic Canvas Scaling** to prevent memory crashes on older phones (scales based on `navigator.deviceMemory`).
 7. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 
 ## 🛠 Tech Stack

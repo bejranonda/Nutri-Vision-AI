@@ -36,8 +36,11 @@ export async function stitchImagesToCanvas(base64Images: string[]): Promise<stri
     else if (n <= 9) { cols = 3; rows = 3; }
     else { cols = 4; rows = 3; } // max 10-12
 
-    // Base target resolution per tile
-    const TARGET_CELL_SIZE = 800; // Large enough for AI precision
+    // Dynamic target resolution per tile — scale down for low-memory devices
+    const isLowMemory = typeof navigator !== 'undefined' && 
+        'deviceMemory' in navigator && 
+        (navigator as any).deviceMemory < 4;
+    const TARGET_CELL_SIZE = isLowMemory ? Math.min(500, Math.floor(1600 / cols)) : 800;
     const PADDING = 20; // White border between photos
 
     const finalWidth = Math.floor((cols * TARGET_CELL_SIZE) + ((cols + 1) * PADDING));

@@ -9,6 +9,27 @@ import { TIER_LIMITS, SubscriptionTier } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
 import { getEnvSafe } from '@/lib/cloudflare';
 import { buildLocalizedPrompt, validateAiResponse, validateMultiDishResponse, validateMenuResponse, validateDrinkSnackResponse, type ScanMode } from '@/lib/ai-prompt';
+import { extractBase64Data, decodeBase64ToBytes } from '@/lib/utils';
+
+/** Safely parse JSON from AI response — tries direct parse first, then regex extraction */
+function safeParseJson(raw: string): { parsed?: any; error?: Error } {
+    // 1. Try direct parse first (most reliable)
+    try {
+        return { parsed: JSON.parse(raw) };
+    } catch { /* fall through to regex extraction */ }
+
+    // 2. Try extracting JSON object from surrounding text/markdown
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            return { parsed: JSON.parse(jsonMatch[0]) };
+        } catch (e: any) {
+            return { error: new Error(`Regex-extracted JSON also invalid: ${e.message}`) };
+        }
+    }
+
+    return { error: new Error('No JSON object found in AI response') };
+}
 
 /** Validate base64 image data format */
 function validateImageBase64(imageBase64: string): { valid: boolean; error?: string; rawBytes?: number } {
@@ -180,13 +201,9 @@ export async function POST(req: NextRequest) {
                 promptLength: localizedPrompt.length 
             });
 
-            // Decode base64 to byte array — pass Uint8Array directly to avoid doubling memory
-            const base64Data = imageBase64.split(',')[1];
-            const binaryString = atob(base64Data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
+            // Decode base64 to byte array — Edge-safe using shared utility
+            const base64Data = extractBase64Data(imageBase64);
+            const bytes = decodeBase64ToBytes(base64Data);
 
             const aiPromise = env.AI.run(model, {
                 prompt: localizedPrompt,
@@ -208,9 +225,9 @@ export async function POST(req: NextRequest) {
             });
 
             try {
-                const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-                const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
-                return { parsedJson, rawResponse };
+                const { parsed, error } = safeParseJson(rawResponse);
+                if (error) throw error;
+                return { parsedJson: parsed, rawResponse };
             } catch (parseErr: any) {
                 logger.error(`❌ AI PARSE FAIL [cloudflare] [${requestId}]`, {
                     error: parseErr.message,
@@ -229,7 +246,7 @@ export async function POST(req: NextRequest) {
 
             logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
 
-            const base64Data = imageBase64.split(',')[1];
+            const base64Data = extractBase64Data(imageBase64);
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
             const payload = {
@@ -241,7 +258,7 @@ export async function POST(req: NextRequest) {
                 }],
                 generationConfig: {
                     temperature: 0.1, // Low temperature for consistent JSON
-                    maxOutputTokens: 1024
+                    maxOutputTokens: 4096
                 }
             };
 
@@ -273,9 +290,9 @@ export async function POST(req: NextRequest) {
                 });
 
                 try {
-                    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-                    const parsedJson = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse);
-                    return { parsedJson, rawResponse };
+                    const { parsed, error } = safeParseJson(rawResponse);
+                    if (error) throw error;
+                    return { parsedJson: parsed, rawResponse };
                 } catch (parseErr: any) {
                     logger.error(`❌ AI PARSE FAIL [google] [${requestId}]`, {
                         error: parseErr.message,
@@ -302,21 +319,14 @@ export async function POST(req: NextRequest) {
                 let aiResult: any;
                 let usedModel = '';
                 
-                // Attempt 1 inside loop: Cloudflare
+                // Attempt Cloudflare first, fallback to Google
                 try {
                     if (!env.AI) throw new Error('AI_BINDING_MISSING');
-                    
-                    // If we have a correction prompt, we simply append it to the main prompt via a small hack in the model parameter for this codebase
-                    // Actually, a better way is to rebuild the prompt, but since `attemptAiInference` builds the prompt internally without args, 
-                    // we'll modify it slightly: it's better to do the retry logic inside the route handler where we call it.
-                    // Wait, `attemptAiInference` doesn't take a prompt override. Let's just catch the error and throw it up to the next model for now
-                    // To keep it clean, we will use the validation functions on parsedJson.
-                    
                     aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                     usedModel = 'cloudflare-llama-3.2-11b';
                 } catch (cfErr: any) {
                     if (googleKey) {
-                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed, trying Google...`);
+                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google...`);
                         aiResult = await attemptGoogleInference(googleKey, 20000);
                         usedModel = 'google-gemma-3-27b';
                     } else {
@@ -350,17 +360,29 @@ export async function POST(req: NextRequest) {
                 modelUsed = res.model;
             } catch (err: any) {
                 lastError = err;
-                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying...`);
+                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with fallback provider...`);
                 
-                // Attempt 2 (Retry immediately, relying on LLM temperature variations or Google fallback)
+                // Attempt 2: Prefer Google fallback on retry for provider diversity
                 try {
-                    const res2 = await runInferenceWithValidation();
+                    let res2;
+                    if (googleKey) {
+                        // On retry, try Google directly for provider diversity
+                        const aiResult = await attemptGoogleInference(googleKey, 25000);
+                        if (aiResult.error) throw new Error(`JSON Parse Error: ${aiResult.error.message}`);
+                        let validatedData;
+                        if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
+                        else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
+                        else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
+                        res2 = { data: validatedData, model: 'google-gemma-3-27b' };
+                    } else {
+                        res2 = await runInferenceWithValidation();
+                    }
                     resultJson = res2.data;
                     modelUsed = res2.model;
-                    logger.info(`✅ AI AUTO-CORRECT SUCCESS [${requestId}]`);
+                    logger.info(`✅ AI AUTO-CORRECT SUCCESS [${requestId}] | Model: ${modelUsed}`);
                 } catch (retryErr: any) {
                     logger.error(`❌ AI AUTO-CORRECT FAILED (Attempt 2) [${requestId}] | Error: ${retryErr.message}`);
-                    throw retryErr; // Throw final error to the 503 catch block
+                    throw retryErr;
                 }
             }
 
@@ -380,7 +402,7 @@ export async function POST(req: NextRequest) {
                     error: 'AI not available',
                     message: 'Food analysis requires Cloudflare Workers AI. The AI binding is not configured.',
                     requestId
-                }, { status: 503 });
+                }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
             }
 
             return NextResponse.json({
@@ -390,7 +412,7 @@ export async function POST(req: NextRequest) {
                 failedJson: failedJsonText, // Send broken JSON to client debug panel
                 requestId,
                 durationMs: aiDurationMs
-            }, { status: 503 });
+            }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
         }
 
         // ── Phase 8: Calculate Overall Score ──────────────────────
@@ -503,7 +525,7 @@ export async function POST(req: NextRequest) {
             modelUsed,
             limitReached: activeUser ? (activeUser.scansThisMonth + 1) >= (TIER_LIMITS[currentTier]?.scansPerMonth || 10) : false,
             requestId
-        }, { status: 200 });
+        }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
 
     } catch (error: any) {
         const totalDurationMs = Date.now() - requestStartTime;
@@ -523,7 +545,7 @@ export async function POST(req: NextRequest) {
                 phase: currentPhase,
                 requestId
             },
-            { status: 500 }
+            { status: 500, headers: { 'Cache-Control': 'no-store' } }
         );
     }
 }

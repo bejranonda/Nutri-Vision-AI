@@ -40,17 +40,17 @@ frontend/src/
 ## Key Documents
 - [Business Strategy](file:///d:/Git/Werapol/Nutri-Vision-AI/docs/business-strategy.md) — Problem, solution, personas, GTM, financials
 - [Monetization](file:///d:/Git/Werapol/Nutri-Vision-AI/research/business/monetization.md) — Pricing tiers and promo code strategy
-## AI Methodology (v2.1.7)
+## AI Methodology (v2.1.9)
 - **Identify-First**: Focus on identifying ingredients before dish naming to reduce hallucinations.
-- **Dual-Provider Fallback**: Attempts Cloudflare Llama 3.2 11B Vision first; falls back to Google Gemma 3 27B if primary fails or times out.
-- **10-Phase Pipeline**: Fault-tolerant API route for resilient scanning.
+- **Dual-Provider Fallback**: Attempts Cloudflare Llama 3.2 11B Vision first; falls back to Google Gemma 3 27B (now with 4096 tokens) if primary fails, times out, or returns severely malformed JSON (`safeParseJson` checks).
+- **10-Phase Pipeline**: Fault-tolerant API route for resilient scanning featuring Edge cache control, lazy session cleanup, and robust error cataloging (`error_class` logging in DB schema).
 
 ## Current Status (Mar 2026)
 - ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes)
 - ✅ Member system with promo codes (D1 persistent)
 - ✅ i18n in 4 languages
 - ✅ Backend API integration (Cloudflare Workers & D1)
-- ✅ Real AI food analysis with Dual-Provider Fallback (v2.1.7)
+- ✅ Real AI food analysis with Dual-Provider Fallback (v2.1.9)
 - 🔜 Payment integration (PromptPay, Rabbit LINE Pay)
 
 

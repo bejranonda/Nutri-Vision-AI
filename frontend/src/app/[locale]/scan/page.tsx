@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS, canAddMorePhotos } from '@/lib/tier-config';
+import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS, SCORE_I18N_KEYS, canAddMorePhotos } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
 import { type ScanMode, type AiMultiDishResponse, type AiMenuResponse, type AiDrinkSnackResponse } from '@/lib/ai-prompt';
 import { addScanToHistory, createThumbnail } from '@/lib/scan-history';
@@ -204,7 +204,8 @@ export default function ScanPage() {
             let finalImageBase64: string;
             
             if (uploadedImages.length === 1) {
-                finalImageBase64 = await compressImage(uploadedImages[0]);
+                // Single photo already compressed to 1200px during upload — skip double compression
+                finalImageBase64 = uploadedImages[0];
             } else {
                 try {
                     finalImageBase64 = await stitchImagesToCanvas(uploadedImages);
@@ -732,7 +733,7 @@ export default function ScanPage() {
                                                         <Lock className="w-5 h-5 text-gray-400" />
                                                     </div>
                                                 )}
-                                                <p className="text-xs text-gray-500 font-medium mb-1">{t(`scores.${dim}`)}</p>
+                                                <p className="text-xs text-gray-500 font-medium mb-1">{t(`scores.${SCORE_I18N_KEYS[dim] || dim}`)}</p>
                                                 <p className={`text-2xl font-black ${scoreColor}`}>
                                                     {isLocked ? '—' : score}
                                                     {!isLocked && <span className="text-sm text-gray-400">/100</span>}

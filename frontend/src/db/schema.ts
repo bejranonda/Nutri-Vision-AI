@@ -63,6 +63,9 @@ export const foodScans = sqliteTable('food_scans', {
     scoreProteinQuality: real('score_protein_quality'),
     scoreMicronutrient: real('score_micronutrient'),
     scoreOverall: real('score_overall'),
+    modelUsed: text('model_used'),
+    scanMode: text('scan_mode'), // meal, menu, drink_snack
+    errorClass: text('error_class'), // null = success, else: timeout, parse_error, model_error, etc.
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 

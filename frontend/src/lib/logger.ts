@@ -37,11 +37,11 @@ function classifyError(error: any): ErrorCategory {
   const msg = (error?.message || String(error)).toLowerCase();
 
   if (msg.includes('timeout') || msg.includes('timed out') || msg.includes('aborted')) return 'timeout';
-  if (msg.includes('network') || msg.includes('fetch') || msg.includes('econnrefused') || msg.includes('dns')) return 'network';
-  if (msg.includes('rate limit') || msg.includes('429') || msg.includes('quota')) return 'rate_limit';
+  if (msg.includes('network') || msg.includes('fetch failed') || msg.includes('econnrefused') || msg.includes('dns')) return 'network';
+  if (msg.includes('rate limit') || msg.includes('status: 429') || msg.includes('status 429') || msg.includes('quota')) return 'rate_limit';
   if (msg.includes('json') || msg.includes('parse') || msg.includes('unexpected token') || msg.includes('syntax')) return 'parse_error';
-  if (msg.includes('invalid') || msg.includes('validation') || msg.includes('missing')) return 'validation';
-  if (msg.includes('model') || msg.includes('inference') || msg.includes('ai') || msg.includes('500')) return 'model_error';
+  if (msg.includes('invalid') || msg.includes('validation') || msg.includes('missing field')) return 'validation';
+  if (msg.includes('model') || msg.includes('inference') || msg.includes('ai_binding') || msg.includes('status: 500') || msg.includes('status 500') || msg.includes('internal server error')) return 'model_error';
   return 'unknown';
 }
 

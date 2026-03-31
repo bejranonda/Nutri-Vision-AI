@@ -87,17 +87,29 @@ export const TIER_PRICING: Record<Exclude<SubscriptionTier, 'free'>, TierPricing
     },
 };
 
-export const FREE_SCORE_DIMENSIONS = ['overall', 'blood_sugar', 'gut_health'];
+export const FREE_SCORE_DIMENSIONS = ['overall', 'bloodSugar', 'gutHealth'];
 export const ALL_SCORE_DIMENSIONS = [
-    'blood_sugar',
-    'gut_health',
+    'bloodSugar',
+    'gutHealth',
     'inflammation',
-    'nutrient_density',
+    'nutrientDensity',
     'processing',
-    'protein_quality',
+    'proteinQuality',
     'micronutrient',
     'overall',
 ];
+
+/** Map camelCase score keys to i18n translation keys (used in scan page) */
+export const SCORE_I18N_KEYS: Record<string, string> = {
+    bloodSugar: 'blood_sugar',
+    gutHealth: 'gut_health',
+    inflammation: 'inflammation',
+    nutrientDensity: 'nutrient_density',
+    processing: 'processing',
+    proteinQuality: 'protein_quality',
+    micronutrient: 'micronutrient',
+    overall: 'overall',
+};
 
 export function isFeatureAvailable(tier: SubscriptionTier, feature: keyof TierLimits): boolean {
     const limits = TIER_LIMITS[tier];

@@ -26,12 +26,12 @@ This document provides guidelines for developers to maintain code quality, consi
   const env = await getEnvSafe();
   ```
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
-  - **Auto-Correction Loop**: Validations should catch malformed JSON and illegal states (like `isFood: false`), immediately triggering a secondary inference pass to let the LLM auto-correct itself.
+  - **Auto-Correction Loop**: Validations (`safeParseJson`) should catch malformed JSON and illegal states, triggering a secondary inference pass using a provider fallback (e.g. Google) rather than looping the same deterministic error.
 - **Timeouts & Fallbacks**: 
   - Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
   - **Dual-Provider Fallback Pattern**: Always implement a cross-provider fallback for high-capacity models. If the primary Cloudflare model fails or times out, immediately retry with a highly reliable external model (like Google Gemma 3).
   ```typescript
-  // v2.1.7 Pattern
+  // v2.1.9 Pattern
   try {
       result = await attemptPrimaryInference(CLOUDFLARE_MODEL, 25000);
   } catch {
@@ -39,9 +39,9 @@ This document provides guidelines for developers to maintain code quality, consi
   }
   ```
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
-- **Image Processing**: All heavy image transformations (like multi-photo collages) must happen **Client-Side** (e.g., via HTML5 Canvas) to preserve Edge execution bandwidth, API boundaries, and network payloads. 
+    - **Dynamic Scaling**: Low-memory devices scaling down canvas size.
   - **Early Compression**: To prevent React state and mobile browser memory bloat, high-volume image features must compress incoming photos (e.g., `1200px` max, `0.85` quality) *before* storing them in frontend memory arrays.
-- **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) as LLM JSON can be malformed.
+- **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) using `safeParseJson` strategies to catch markdown prefixes before LLM JSON structures.
 
 ## 📊 Logging & Debugging
 

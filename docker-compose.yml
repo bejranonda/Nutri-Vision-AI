@@ -6,9 +6,9 @@ services:
     image: postgres:15-alpine
     container_name: nutrivision-db
     environment:
-      POSTGRES_USER: nutrivision
-      POSTGRES_PASSWORD: nutrivision123
-      POSTGRES_DB: nutrivision
+      POSTGRES_USER: ${POSTGRES_USER:-nutrivision}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nutrivision_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-nutrivision}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

@@ -32,7 +32,7 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI-powered nutrition analysis and recipe assistant specialized in Thai cuisine",
-    version="1.0.0",
+    version="2.1.9",
     docs_url=settings.API_DOCS_URL if settings.ENABLE_API_DOCS else None,
     redoc_url="/redoc" if settings.ENABLE_API_DOCS else None,
     openapi_url="/openapi.json" if settings.ENABLE_API_DOCS else None,
@@ -112,7 +112,7 @@ async def health_check():
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
-        "version": "1.0.0",
+        "version": "2.1.9",
         "environment": settings.APP_ENV
     }
 
@@ -125,7 +125,7 @@ async def root():
     """
     return {
         "app": settings.APP_NAME,
-        "version": "1.0.0",
+        "version": "2.1.9",
         "description": "AI-powered nutrition analysis for Thai cuisine",
         "docs": f"{settings.BACKEND_URL}{settings.API_DOCS_URL}" if settings.ENABLE_API_DOCS else None,
         "languages": settings.SUPPORTED_LANGUAGES,

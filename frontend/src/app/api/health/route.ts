@@ -24,7 +24,7 @@ export async function GET(req: Request) {
         const hasAI = !!env?.AI;
         const hasDB = !!env?.DB;
         const hasGoogleKey = !!(env?.GOOGLE_AI_API_KEY || env?.GEMINI_API_KEY);
-        const isCloudflareRuntime = env !== process.env;
+        const isCloudflareRuntime = env !== (process.env as unknown);
 
         // DB connectivity check (lightweight — just tests the binding, no actual query)
         let dbStatus = 'unconfigured';

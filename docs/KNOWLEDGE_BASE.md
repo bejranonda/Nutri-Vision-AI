@@ -33,11 +33,11 @@ We use a **Dual-Provider Fallback Strategy** for maximum reliability:
 -   **Robustness**: 
     -   25s timeout for the 11B model.
     -   20s timeout for the Gemma 3 fallback.
-    -   **Auto-Correction Loop**: Validations trap malformed JSON or illegal shapes, automatically triggering a secondary inference pass to let the LLM auto-correct.
+    -   **Auto-Correction Loop**: Validations trap malformed JSON (`safeParseJson` tries direct, then regex extraction). On failure, it triggers a secondary inference pass preferring Google for provider diversity instead of looping the same model.
     -   Combined 45s total budget for a successful scan.
     -   Granular phase tracking and specific error details.
 -   **Multi-Mode Intelligence**: The prompt dynamically adapts to three modes:
-    -   **Meal Scan**: Multi-dish detection and cross-dish sequence planning. Native support for multi-photo collages (up to 10 photos stitched client-side with early compression to optimize memory).
+    -   **Meal Scan**: Multi-dish detection and cross-dish sequence planning. Native support for multi-photo collages (up to 10 photos stitched client-side with early compression and **Dynamic Canvas Scaling** for `< 4GB` low-memory phones).
     -   **Menu Scan**: Multilingual menu reading, health ratings (0-100), and scenario-based recommendations.
     -   **Drink & Snack**: Sugar-focused analysis with visual sugar cube conversions and healthier alternatives.
 -   **Graceful Rejection**: The AI is strictly instructed to return `isFood: false` and a `nonFoodReason` message if images are unrelated, triggering a dedicated safety UI instead of crashing.
@@ -56,7 +56,9 @@ The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipelin
 2. If non-critical services (like D1 Database or Sessions) fail, the pipeline logs the failure but continues, allowing anonymous scans to succeed.
 3. **Edge-Safe Binaries**: Node.js `Buffer.from` is avoided for base64 decoding because it lacks standard support in Edge runtimes. We use `atob()` and `Uint8Array` natively.
 4. **Server-Side AI Timeouts & Fallbacks**: The system uses a recursive `attemptAiInference()` pattern. The `env.AI.run()` binding is wrapped in a `Promise.race([aiPromise, timeoutPromise])` to abort gracefully. If the primary attempt fails, it triggers the secondary fallback model immediately.
-5. **Binding Access**: All Cloudflare bindings (AI, DB, KV, R2) **must** be accessed via the shared helpers in `src/lib/cloudflare.ts` (`getEnv()` or `getEnvSafe()`). The legacy pattern `(req as any).context?.env` does NOT work in the OpenNext runtime and will return `undefined`.
+5. **Binding Access**: All Cloudflare bindings (AI, DB, KV, R2) **must** be accessed via the shared helpers in `src/lib/cloudflare.ts` (`getEnv()` or `getEnvSafe()`), returning a fully-typed `CloudflareEnv` interface to prevent silent `undefined` errors.
+6. **No-Store Caching**: Given the dynamic, personalized nature of our AI payloads and localized DB states, all API outputs carry `Cache-Control: no-store` headers to prevent CDN lock-in.
+7. **Lazy Session Cleanup**: Login generation invokes an opportunistic background pruning task to auto-clean expired sessions and reduce row limits.
 
 ### Model Evaluation & Testing
 To ensure the high accuracy of the Dual-Provider architecture, we maintain a standalone testing suite in `scripts/test-models.mjs`. This script evaluates our fallback configurations directly against a control set of images located in `research/test-image/`. This ensures both the Cloudflare and Google AI nodes produce consistent, high-quality JSON schemas before production deployments.
