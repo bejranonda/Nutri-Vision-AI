@@ -43,7 +43,7 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
-## 🧠 AI Methodology & Analysis (v2.1.9)
+## 🧠 AI Methodology & Analysis (v2.1.10)
 
 Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly resilient **Dual-Provider Fallback Strategy**.
 

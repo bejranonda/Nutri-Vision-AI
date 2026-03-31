@@ -64,6 +64,10 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Root Cause**: Uploading images of pets or random objects caused the backend AI to return 422 Unprocessable Entity, which was not gracefully handled by the frontend, leading to unhelpful generic timeout/crash errors constraint.
 - **Fix**: Implemented the `isFood` boolean flag within the schema natively. Backends no longer return HTTP 422 for bad images, but HTTP 200 with an explicit `isFood: false` and `nonFoodReason` message gracefully rendered in the UI by the Shinny Mascot.
 
+### Multi-Photo Upload Concurrency & UI Freezing (v2.1.10)
+- **Root Cause**: Drag-and-dropping or selecting multiple heavy images concurrently triggered massive CPU spikes as all images attempted Base64 canvas compression simultaneously on the main thread. Additionally, React state race conditions caused the final `setUploadedImages` to overwrite earlier ones if the UI was in a "results" state.
+- **Fix**: Implemented `processMultipleFiles` to process uploads strictly sequentially. Replaced parallel `.forEach` loops with an async `for...of` loop that yields to the browser event loop (`await new Promise(r => setTimeout(r, 15))`), keeping the UI responsive. The loop also strictly pre-filters uploads against Tier photo limits before starting any intensive operations.
+
 ### Truncated JSON on Menu/Multi-Dish Scans (v2.1.9)
 - **Root Cause**: Google Gemma fallback was restricted to `maxOutputTokens: 1024`, meaning complex Thai food scans (e.g., 10 item menu scans) routinely clipped the trailing JSON object closures.
 - **Fix**: Increased `maxOutputTokens` from 1024 to 4096. Additionally implemented `safeParseJson` algorithm extracting `{...}` bounds directly if standard `JSON.parse` fails from prepended conversational text. 

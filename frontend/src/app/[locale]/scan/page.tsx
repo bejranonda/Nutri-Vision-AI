@@ -106,63 +106,85 @@ export default function ScanPage() {
     const MIN_FILE_SIZE = 500;
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
 
-    async function handleImageUpload(file: File) {
-        if (!file.type.startsWith('image/')) {
-            logger.warn('🚫 SCAN REJECTED | Not an image file', { type: file.type, name: file.name });
-            setErrorMessage(t('error_message'));
-            return;
-        }
-        if (!ALLOWED_TYPES.includes(file.type)) {
-            logger.warn('🚫 SCAN REJECTED | Unsupported image type', { type: file.type });
-            setErrorMessage(`Unsupported image format: ${file.type}`);
-            return;
-        }
-        if (file.size > MAX_FILE_SIZE) {
-            logger.warn('🚫 SCAN REJECTED | File too large', { sizeMB: (file.size / 1024 / 1024).toFixed(1) });
-            setErrorMessage(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 15MB.`);
-            return;
-        }
-        if (file.size < MIN_FILE_SIZE) {
-            logger.warn('🚫 SCAN REJECTED | File too small', { size: file.size });
-            setErrorMessage(t('error_message'));
-            return;
-        }
+    async function processMultipleFiles(files: File[]) {
+        if (files.length === 0) return;
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const rawBase64 = e.target?.result as string;
-
-            // Compress immediately to reduce memory footprint in state
-            let compressed: string;
-            try {
-                compressed = await compressImage(rawBase64, 1200, 0.85);
-            } catch {
-                compressed = rawBase64; // fallback to raw if compression fails
-            }
-            
-            if (hasResult || nonFoodReason) {
-                setMealResult(null);
-                setMenuResult(null);
-                setDrinkResult(null);
-                setOverallScore(0);
-                setNonFoodReason(null);
-                setUploadedImages([compressed]);
-            } else {
-                const maxPhotos = TIER_LIMITS[(tier as 'free' | 'premium' | 'family') || 'free'].maxPhotosPerScan;
-                setUploadedImages(prev => {
-                    if (prev.length >= maxPhotos) return prev;
-                    return [...prev, compressed];
-                });
-            }
-            
+        let currentCount = uploadedImages.length;
+        if (hasResult || nonFoodReason || errorMessage) {
+            setMealResult(null);
+            setMenuResult(null);
+            setDrinkResult(null);
+            setOverallScore(0);
+            setNonFoodReason(null);
             setErrorMessage(null);
             setErrorRequestId(null);
             setLoadingPhase(0);
             setModelUsed(null);
             setDebugData(null);
             setDebugOpen(false);
-        };
-        reader.readAsDataURL(file);
+            currentCount = 0;
+            setUploadedImages([]);
+        }
+
+        const maxPhotos = TIER_LIMITS[(tier as 'free' | 'premium' | 'family') || 'free'].maxPhotosPerScan;
+        const availableSlots = maxPhotos - currentCount;
+        
+        if (availableSlots <= 0) return;
+
+        let invalidCount = 0;
+        let lastErrorMsg = '';
+        const validFiles = files.filter(file => {
+            if (!file.type.startsWith('image/')) {
+                lastErrorMsg = t('error_message');
+                invalidCount++; return false;
+            }
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                lastErrorMsg = `Unsupported format: ${file.type}`;
+                invalidCount++; return false;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                lastErrorMsg = `File too large (${(file.size/1024/1024).toFixed(1)}MB)`;
+                invalidCount++; return false;
+            }
+            if (file.size < MIN_FILE_SIZE) {
+                lastErrorMsg = t('error_message');
+                invalidCount++; return false;
+            }
+            return true;
+        }).slice(0, availableSlots);
+
+        if (invalidCount > 0) {
+            setErrorMessage(files.length === 1 ? lastErrorMsg : `Skipped ${invalidCount} unsupported/oversized file(s).`);
+            if (validFiles.length === 0) return;
+        }
+
+        // Process sequentially
+        for (const file of validFiles) {
+            try {
+                await new Promise(r => setTimeout(r, 15)); // Yield to paint
+
+                const rawBase64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                
+                let compressed: string;
+                try {
+                    compressed = await compressImage(rawBase64, 1200, 0.85);
+                } catch {
+                    compressed = rawBase64; 
+                }
+                
+                setUploadedImages(current => {
+                    if (current.length >= maxPhotos) return current;
+                    return [...current, compressed];
+                });
+            } catch (err) {
+                logger.error('Error processing valid file', err);
+            }
+        }
     }
 
     async function handleAnalyze() {
@@ -254,12 +276,17 @@ export default function ScanPage() {
             // Retry on 503
             if (res.status === 503) {
                 logger.scanRetry({ attempt: 2, reason: 'API returned 503', requestId: undefined });
+                await new Promise(r => setTimeout(r, 1500)); // 1.5s backoff
                 const retry = await callAnalyzeApi(2);
                 res = retry.res;
                 responseText = retry.responseText;
                 apiDurationMs += retry.durationMs;
                 timings.retryMs = retry.durationMs;
                 logger.scanApiResponse({ status: res.status, durationMs: retry.durationMs, responseSize: responseText.length, ok: res.ok });
+            }
+
+            if (!res.ok && !responseText.trim().startsWith('{')) {
+                throw new Error(`Server error (${res.status}): ${res.statusText || 'Bad Gateway'}`);
             }
 
             let data;
@@ -378,13 +405,15 @@ export default function ScanPage() {
     function handleDrop(e: React.DragEvent) {
         e.preventDefault();
         setDragOver(false);
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-        files.forEach(file => handleImageUpload(file));
+        const files = Array.from(e.dataTransfer.files);
+        processMultipleFiles(files);
     }
 
     function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (file) handleImageUpload(file);
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            processMultipleFiles(files);
+        }
         if (e.target) e.target.value = ''; // Reset so re-selecting the same file works
     }
 
@@ -436,6 +465,10 @@ export default function ScanPage() {
             </div>
 
             <div className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
+                {/* Hidden File Inputs */}
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" />
+
                 {/* Title */}
                 <div className="text-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
@@ -461,9 +494,6 @@ export default function ScanPage() {
                         className={`backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-16 max-w-lg mx-auto shadow-glass text-center transition-all duration-300 ${dragOver ? 'ring-4 ring-brand-primary-400 scale-105 bg-brand-primary-50/60' : 'hover:-translate-y-2 hover:shadow-glass-hover'
                             } ${!canStillScan ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
-                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
-
                         <div className="w-24 h-24 mx-auto bg-gradient-to-br from-brand-primary-100 to-brand-secondary-100 rounded-3xl flex items-center justify-center mb-6 cursor-pointer" onClick={() => canStillScan && fileInputRef.current?.click()}>
                             <Upload className="w-12 h-12 text-brand-primary-400" />
                         </div>
