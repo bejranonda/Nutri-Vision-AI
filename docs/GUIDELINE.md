@@ -8,6 +8,7 @@ This document provides guidelines for developers to maintain code quality, consi
 - **Framework**: Next.js 14 (App Router).
 - **Styling**: Vanilla Tailwind CSS. Avoid external component libraries when possible for maximum flexibility and performance.
 - **Components**: Use Client Components (`'use client'`) only when necessary (interactive elements, hooks).
+- **Composable Architecture**: For complex components exceeding 300 lines (e.g., Pages with deep state, file uploader chains, and API fetching), logic **must** be extracted into focused Custom Hooks (`useScanAnalysis`, etc.). Do not build monolithic `page.tsx` files.
 - **Internationalization**: Always use `next-intl`. Never hardcode strings.
 - **Logging**: Use the unified `logger` from `@/lib/logger`.
 

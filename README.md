@@ -43,7 +43,7 @@ Built-in codes for Shinny fanclub and launch promotions:
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
 
-## 🧠 AI Methodology & Analysis (v2.1.10)
+## 🧠 AI Methodology & Analysis (v2.2.0)
 
 Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly resilient **Dual-Provider Fallback Strategy**.
 
@@ -58,6 +58,7 @@ The analysis pipeline is built for **Edge Reliability**:
 3. Server-side AI timeout (45s total) using `Promise.race`, now with `4096` output tokens for complex multi-dish extraction.
 4. Request Tracing & Telemetry: Every scan is unique-indexed. Use the `?debug=1` query parameter on the scan page for real-time phase timings.
 5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
+6. **Decoupled Architecture**: Logic is fully isolated via custom hooks (`useScanUpload`, `useScanAnalysis`, `useScanDebug`), ensuring a clean Orchestrator Page.
 6. **Multi-Photo Collage Engine**: Client-side canvas stitching up to 10 photos, with **Dynamic Canvas Scaling** to prevent memory crashes on older phones (scales based on `navigator.deviceMemory`).
 7. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
 

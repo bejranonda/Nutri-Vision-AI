@@ -1,36 +1,30 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRef, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Upload, Camera, Sparkles, Lock, ChevronRight, Star, Info, Cpu, Bug, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ArrowLeft, Scan, Cpu } from 'lucide-react';
+
 import { useAuthStore } from '@/lib/auth-store';
-import { FREE_SCORE_DIMENSIONS, ALL_SCORE_DIMENSIONS, TIER_LIMITS, SCORE_I18N_KEYS, canAddMorePhotos } from '@/lib/tier-config';
+import { TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
-import { type ScanMode, type AiMultiDishResponse, type AiMenuResponse, type AiDrinkSnackResponse } from '@/lib/ai-prompt';
-import { addScanToHistory, createThumbnail } from '@/lib/scan-history';
-import { stitchImagesToCanvas } from '@/lib/image-stitcher';
+import { type ScanMode } from '@/lib/ai-prompt';
+
+// Components
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ScanModeSelector from '@/components/scan/ScanModeSelector';
 import DishCard from '@/components/scan/DishCard';
 import MealOverview from '@/components/scan/MealOverview';
 import MenuResults from '@/components/scan/MenuResults';
 import DrinkSnackResults from '@/components/scan/DrinkSnackResults';
+import ScanUploadArea from '@/components/scan/ScanUploadArea';
+import ScanLoadingOverlay from '@/components/scan/ScanLoadingOverlay';
+import ScanDebugPanel from '@/components/scan/ScanDebugPanel';
 
-/** Loading phase messages for the phased loading indicator */
-const LOADING_PHASES_SINGLE = [
-    { key: 'compressing', emoji: '📦', duration: 2000 },
-    { key: 'analyzing', emoji: '🤖', duration: 8000 },
-    { key: 'processing', emoji: '✨', duration: 5000 },
-] as const;
-
-const LOADING_PHASES_MULTI = [
-    { key: 'stitching', emoji: '🧩', duration: 1500 },
-    { key: 'compressing', emoji: '📦', duration: 1500 },
-    { key: 'analyzing', emoji: '🤖', duration: 8000 },
-    { key: 'processing', emoji: '✨', duration: 5000 },
-] as const;
+// Hooks
+import { useScanUpload } from '@/hooks/scan/useScanUpload';
+import { useScanAnalysis } from '@/hooks/scan/useScanAnalysis';
+import { useScanDebug } from '@/hooks/scan/useScanDebug';
 
 export default function ScanPage() {
     const t = useTranslations('scan');
@@ -40,414 +34,72 @@ export default function ScanPage() {
 
     const { user, isAuthenticated } = useAuthStore();
     const tier = (isAuthenticated && user?.subscriptionTier) ? user.subscriptionTier : 'free';
+    const activeTier = (tier as 'free' | 'premium' | 'family') || 'free';
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
-    // Scan mode
     const [scanMode, setScanMode] = useState<ScanMode>('meal');
 
-    // Core scan state
-    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [dragOver, setDragOver] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [nonFoodReason, setNonFoodReason] = useState<string | null>(null);
-    const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
-    const [loadingPhase, setLoadingPhase] = useState(0);
-    const [modelUsed, setModelUsed] = useState<string | null>(null);
+    // Debug Hook
+    const debug = useScanDebug();
 
-    // Mode-specific results
-    const [mealResult, setMealResult] = useState<AiMultiDishResponse | null>(null);
-    const [menuResult, setMenuResult] = useState<AiMenuResponse | null>(null);
-    const [drinkResult, setDrinkResult] = useState<AiDrinkSnackResponse | null>(null);
-    const [overallScore, setOverallScore] = useState<number>(0);
+    // Analysis Hook
+    const analysis = useScanAnalysis({
+        locale,
+        tier,
+        isDebugMode: debug.isDebugMode,
+        setDebugData: debug.setDebugData
+    });
 
-    // Debug mode — activated via ?debug=1 URL parameter
-    const searchParams = useSearchParams();
-    const isDebugMode = searchParams.get('debug') === '1';
-    const [debugData, setDebugData] = useState<Record<string, any> | null>(null);
-    const [debugOpen, setDebugOpen] = useState(false);
+    // Upload Hook
+    const upload = useScanUpload({
+        tier,
+        onReset: analysis.resetAnalysis
+    });
 
-    const hasResult = mealResult || menuResult || drinkResult || nonFoodReason;
+    const scansUsed = user?.scansThisMonth || 0;
+    const scansLimit = TIER_LIMITS[activeTier].scansPerMonth;
+    const canStillScan = activeTier === 'premium' || activeTier === 'family' || scansUsed < scansLimit;
 
     useEffect(() => {
         logger.trackFeature('Scan Page', 'loading', { locale, tier, scanMode });
     }, [locale, tier, scanMode]);
 
-    /** Compress and resize image before sending to AI */
-    function compressImage(base64: string, maxSize = 1024, quality = 0.8): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const img = new window.Image();
-            img.onload = () => {
-                try {
-                    const canvas = document.createElement('canvas');
-                    let { width, height } = img;
-                    if (width > maxSize || height > maxSize) {
-                        const ratio = Math.min(maxSize / width, maxSize / height);
-                        width = Math.round(width * ratio);
-                        height = Math.round(height * ratio);
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d')!;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                } catch (canvasErr) {
-                    reject(canvasErr);
-                }
-            };
-            img.onerror = () => reject(new Error('Failed to load image for compression'));
-            img.src = base64;
-        });
-    }
-
-    /** Validate file before processing */
-    const MAX_FILE_SIZE = 15 * 1024 * 1024;
-    const MIN_FILE_SIZE = 500;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
-
-    async function processMultipleFiles(files: File[]) {
-        if (files.length === 0) return;
-
-        let currentCount = uploadedImages.length;
-        if (hasResult || nonFoodReason || errorMessage) {
-            setMealResult(null);
-            setMenuResult(null);
-            setDrinkResult(null);
-            setOverallScore(0);
-            setNonFoodReason(null);
-            setErrorMessage(null);
-            setErrorRequestId(null);
-            setLoadingPhase(0);
-            setModelUsed(null);
-            setDebugData(null);
-            setDebugOpen(false);
-            currentCount = 0;
-            setUploadedImages([]);
-        }
-
-        const maxPhotos = TIER_LIMITS[(tier as 'free' | 'premium' | 'family') || 'free'].maxPhotosPerScan;
-        const availableSlots = maxPhotos - currentCount;
-        
-        if (availableSlots <= 0) return;
-
-        let invalidCount = 0;
-        let lastErrorMsg = '';
-        const validFiles = files.filter(file => {
-            if (!file.type.startsWith('image/')) {
-                lastErrorMsg = t('error_message');
-                invalidCount++; return false;
-            }
-            if (!ALLOWED_TYPES.includes(file.type)) {
-                lastErrorMsg = `Unsupported format: ${file.type}`;
-                invalidCount++; return false;
-            }
-            if (file.size > MAX_FILE_SIZE) {
-                lastErrorMsg = `File too large (${(file.size/1024/1024).toFixed(1)}MB)`;
-                invalidCount++; return false;
-            }
-            if (file.size < MIN_FILE_SIZE) {
-                lastErrorMsg = t('error_message');
-                invalidCount++; return false;
-            }
-            return true;
-        }).slice(0, availableSlots);
-
-        if (invalidCount > 0) {
-            setErrorMessage(files.length === 1 ? lastErrorMsg : `Skipped ${invalidCount} unsupported/oversized file(s).`);
-            if (validFiles.length === 0) return;
-        }
-
-        // Process sequentially
-        for (const file of validFiles) {
-            try {
-                await new Promise(r => setTimeout(r, 15)); // Yield to paint
-
-                const rawBase64 = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target?.result as string);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-                
-                let compressed: string;
-                try {
-                    compressed = await compressImage(rawBase64, 1200, 0.85);
-                } catch {
-                    compressed = rawBase64; 
-                }
-                
-                setUploadedImages(current => {
-                    if (current.length >= maxPhotos) return current;
-                    return [...current, compressed];
-                });
-            } catch (err) {
-                logger.error('Error processing valid file', err);
-            }
-        }
-    }
-
-    async function handleAnalyze() {
-        if (uploadedImages.length === 0) return;
-
-        const scanStartTime = Date.now();
-        logger.scanStart({ photoCount: uploadedImages.length, locale, tier });
-        logger.info(`📋 Scan mode: ${scanMode}`);
-
-        const LOADING_PHASES = uploadedImages.length > 1 ? LOADING_PHASES_MULTI : LOADING_PHASES_SINGLE;
-
-        setIsAnalyzing(true);
-        setMealResult(null);
-        setMenuResult(null);
-        setDrinkResult(null);
-        setOverallScore(0);
-        setErrorMessage(null);
-        setErrorRequestId(null);
-        setLoadingPhase(0);
-        setModelUsed(null);
-        setDebugData(null);
-        setDebugOpen(false);
-        setNonFoodReason(null);
-
-        // Phased loading indicator
-        const phaseTimers: ReturnType<typeof setTimeout>[] = [];
-        let cumulative = 0;
-        LOADING_PHASES.forEach((phase, i) => {
-            cumulative += phase.duration;
-            phaseTimers.push(setTimeout(() => setLoadingPhase(i + 1), cumulative));
-        });
-
-        const timings: Record<string, number> = {};
-
-        try {
-            // Compress and Stitch images
-            setLoadingPhase(0);
-            const compressStartTime = Date.now();
-            let finalImageBase64: string;
-            
-            if (uploadedImages.length === 1) {
-                // Single photo already compressed to 1200px during upload — skip double compression
-                finalImageBase64 = uploadedImages[0];
-            } else {
-                try {
-                    finalImageBase64 = await stitchImagesToCanvas(uploadedImages);
-                } catch (stitchErr) {
-                    logger.error('🧩 Canvas stitching failed', stitchErr);
-                    setErrorMessage(t('multi_photo.stitch_error'));
-                    setIsAnalyzing(false);
-                    phaseTimers.forEach(t => clearTimeout(t));
-                    return;
-                }
-            }
-            
-            timings.compressMs = Date.now() - compressStartTime;
-            logger.info(`📦 COMPRESS/STITCH TIMING | ${timings.compressMs}ms`);
-            setLoadingPhase(1);
-
-            const body = JSON.stringify({ imageBase64: finalImageBase64, locale, scanMode });
-            logger.scanApiCall({ payloadSize: body.length, locale });
-
-            // API call with timeout
-            const API_TIMEOUT_MS = 30_000;
-            async function callAnalyzeApi(attempt: number): Promise<{ res: Response; responseText: string; durationMs: number }> {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-                try {
-                    const start = Date.now();
-                    const res = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body,
-                        signal: controller.signal
-                    });
-                    const responseText = await res.text();
-                    const durationMs = Date.now() - start;
-                    return { res, responseText, durationMs };
-                } finally {
-                    clearTimeout(timeoutId);
-                }
-            }
-
-            // First attempt
-            let { res, responseText, durationMs: apiDurationMs } = await callAnalyzeApi(1);
-            logger.scanApiResponse({ status: res.status, durationMs: apiDurationMs, responseSize: responseText.length, ok: res.ok });
-            timings.apiCallMs = apiDurationMs;
-
-            // Retry on 503
-            if (res.status === 503) {
-                logger.scanRetry({ attempt: 2, reason: 'API returned 503', requestId: undefined });
-                await new Promise(r => setTimeout(r, 1500)); // 1.5s backoff
-                const retry = await callAnalyzeApi(2);
-                res = retry.res;
-                responseText = retry.responseText;
-                apiDurationMs += retry.durationMs;
-                timings.retryMs = retry.durationMs;
-                logger.scanApiResponse({ status: res.status, durationMs: retry.durationMs, responseSize: responseText.length, ok: res.ok });
-            }
-
-            if (!res.ok && !responseText.trim().startsWith('{')) {
-                throw new Error(`Server error (${res.status}): ${res.statusText || 'Bad Gateway'}`);
-            }
-
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseErr: any) {
-                logger.scanError('parse', parseErr, { responseSize: responseText.length, responsePreview: responseText.substring(0, 200) });
-                throw new Error(t('error_message'));
-            }
-
-            if (!res.ok) {
-                const errMsg = data.message || data.error || `Server error (${res.status})`;
-                logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
-                if (data.requestId) setErrorRequestId(data.requestId);
-                
-                if (isDebugMode && data.failedJson) {
-                     setDebugData({
-                         timings,
-                         modelUsed: data.modelUsed || 'unknown',
-                         requestId: data.requestId,
-                         confidence: 0,
-                         scanMode: scanMode,
-                         overallScore: 0,
-                         rawResult: null,
-                         failedJson: data.failedJson
-                     });
-                }
-                throw new Error(errMsg);
-            }
-
-            setLoadingPhase(2);
-            setModelUsed(data.modelUsed || null);
-            setOverallScore(data.overallScore || 0);
-
-            // Route results to mode-specific state
-            const resultScanMode = data.scanMode || scanMode;
-            const resultData = data.result;
-
-            // 1. Check if AI explicitly rejected it as "not food"
-            if (resultData && resultData.isFood === false) {
-                setNonFoodReason(resultData.nonFoodReason || t('error_message'));
-            } 
-            // 2. Otherwise route to the correct UI component
-            else if (resultScanMode === 'meal') {
-                setMealResult(resultData as AiMultiDishResponse);
-            } else if (resultScanMode === 'menu') {
-                setMenuResult(resultData as AiMenuResponse);
-            } else if (resultScanMode === 'drink_snack') {
-                setDrinkResult(resultData as AiDrinkSnackResponse);
-            }
-
-            timings.totalMs = Date.now() - scanStartTime;
-            logger.scanSuccess({
-                foodName: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.name || 'Meal') : resultScanMode === 'menu' ? 'Menu Scan' : (data.result.itemName || 'Drink/Snack'),
-                confidence: data.confidence || 0,
-                overallScore: data.overallScore,
-                durationMs: timings.totalMs
-            });
-
-            // Debug panel data
-            if (isDebugMode) {
-                setDebugData({
-                    timings,
-                    modelUsed: data.modelUsed,
-                    requestId: data.requestId,
-                    confidence: data.confidence,
-                    scanMode: resultScanMode,
-                    overallScore: data.overallScore,
-                    rawResult: data.result,
-                    failedJson: null
-                });
-            }
-
-            // Save to client-side history
-            try {
-                let thumbnailBase64 = finalImageBase64;
-                if (uploadedImages.length > 0) {
-                     thumbnailBase64 = uploadedImages[0];
-                }
-                const thumbnail = thumbnailBase64 ? await createThumbnail(thumbnailBase64) : undefined;
-                addScanToHistory({
-                    foodName: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.name || 'Meal')
-                        : resultScanMode === 'menu' ? 'Menu Scan'
-                        : (data.result.itemName || 'Drink/Snack'),
-                    confidence: data.confidence || 0,
-                    overallScore: data.overallScore,
-                    spikeReduction: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.spikeReduction || 0) : 0,
-                    modelUsed: data.modelUsed || 'unknown',
-                    tip: resultScanMode === 'meal' ? data.result.overallTip : data.result.tip,
-                    thumbnail,
-                    nutrition: resultScanMode === 'meal'
-                        ? (data.result.dishes?.[0]?.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 })
-                        : (data.result.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }),
-                    debug: isDebugMode ? { requestId: data.requestId, timings } : undefined,
-                });
-                logger.debug('📝 Scan saved to client history');
-            } catch (historyErr) {
-                logger.debug('Failed to save scan history', historyErr);
-            }
-
-            useAuthStore.getState().initAuth();
-        } catch (err: any) {
-            if (err.name === 'AbortError') {
-                logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime, reason: 'timeout' });
-                setErrorMessage(t('timeout_message'));
-            } else {
-                logger.scanError('complete', err, { locale, tier, totalDurationMs: Date.now() - scanStartTime });
-                setErrorMessage(err.message || t('error_message'));
-            }
-        } finally {
-            setIsAnalyzing(false);
-            phaseTimers.forEach(t => clearTimeout(t));
-        }
-    }
-
-    function handleDrop(e: React.DragEvent) {
+    // Handlers
+    const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        setDragOver(false);
+        upload.setDragOver(false);
         const files = Array.from(e.dataTransfer.files);
-        processMultipleFiles(files);
-    }
+        upload.processMultipleFiles(files, !!analysis.hasResult || !!analysis.nonFoodReason || !!upload.uploadError);
+    };
 
-    function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
-            processMultipleFiles(files);
+            upload.processMultipleFiles(files, !!analysis.hasResult || !!analysis.nonFoodReason || !!upload.uploadError);
         }
-        if (e.target) e.target.value = ''; // Reset so re-selecting the same file works
-    }
+        if (e.target) e.target.value = '';
+    };
 
-    function resetScan() {
-        setUploadedImages([]);
-        setMealResult(null);
-        setMenuResult(null);
-        setDrinkResult(null);
-        setOverallScore(0);
-        setIsAnalyzing(false);
-        setErrorMessage(null);
-        setErrorRequestId(null);
-        setLoadingPhase(0);
-        setModelUsed(null);
-        setDebugData(null);
-        setDebugOpen(false);
-        setNonFoodReason(null);
-    }
+    const handleAnalyzeTrigger = () => {
+        analysis.analyze(upload.uploadedImages, scanMode);
+    };
 
-    const scansUsed = user?.scansThisMonth || 0;
-    const activeTier = (tier as 'free' | 'premium' | 'family') || 'free';
-    const scansLimit = TIER_LIMITS[activeTier].scansPerMonth;
-    const canStillScan = activeTier === 'premium' || activeTier === 'family' || scansUsed < scansLimit;
+    const resetScan = () => {
+        upload.clearImages();
+        analysis.resetAnalysis();
+    };
 
-    // Mode-specific upload hint
-    const uploadHint = t(`scan_modes.${scanMode}.upload_hint`);
+    const isUploading = upload.uploadedImages.length > 0 && !analysis.isAnalyzing && !analysis.hasResult && !analysis.nonFoodReason && !upload.uploadError && !analysis.analysisError;
+    const isReadyForUpload = upload.uploadedImages.length === 0 && !analysis.isAnalyzing && !analysis.hasResult && !analysis.nonFoodReason;
 
     return (
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50">
-            {/* Background */}
+            {/* Background elements */}
             <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-brand-primary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float"></div>
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
 
-            {/* Header */}
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-50">
                 <div className="flex items-center justify-between">
                     <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
@@ -456,7 +108,7 @@ export default function ScanPage() {
                     <div className="flex items-center gap-3">
                         {isAuthenticated && (
                             <div className="text-sm text-gray-500">
-                                {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{tier === 'premium' || tier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
+                                {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{activeTier === 'premium' || activeTier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
                             </div>
                         )}
                         <LanguageSwitcher currentLocale={locale} />
@@ -465,11 +117,9 @@ export default function ScanPage() {
             </div>
 
             <div className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
-                {/* Hidden File Inputs */}
                 <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
                 <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" />
 
-                {/* Title */}
                 <div className="text-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
                         {t('title')}
@@ -480,440 +130,219 @@ export default function ScanPage() {
                     </p>
                 </div>
 
-                {/* Scan Mode Selector — show before upload area */}
-                {uploadedImages.length === 0 && !isAnalyzing && !hasResult && (
-                    <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
+                {isReadyForUpload && (
+                    <>
+                        <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
+                        <ScanUploadArea 
+                            scanMode={scanMode}
+                            tier={tier}
+                            canStillScan={canStillScan}
+                            dragOver={upload.dragOver}
+                            setDragOver={upload.setDragOver}
+                            fileInputRef={fileInputRef}
+                            cameraInputRef={cameraInputRef}
+                            handleDrop={handleDrop}
+                            handleFileInput={handleFileInput}
+                            uploadedImages={upload.uploadedImages}
+                            onRemoveImage={upload.removeImage}
+                            onClearImages={upload.clearImages}
+                            onAnalyze={handleAnalyzeTrigger}
+                        />
+                    </>
                 )}
 
-                {/* Upload area — show if not analyzing and no results */}
-                {uploadedImages.length === 0 && !isAnalyzing && !hasResult && (
-                    <div
-                        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={handleDrop}
-                        className={`backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-16 max-w-lg mx-auto shadow-glass text-center transition-all duration-300 ${dragOver ? 'ring-4 ring-brand-primary-400 scale-105 bg-brand-primary-50/60' : 'hover:-translate-y-2 hover:shadow-glass-hover'
-                            } ${!canStillScan ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                        <div className="w-24 h-24 mx-auto bg-gradient-to-br from-brand-primary-100 to-brand-secondary-100 rounded-3xl flex items-center justify-center mb-6 cursor-pointer" onClick={() => canStillScan && fileInputRef.current?.click()}>
-                            <Upload className="w-12 h-12 text-brand-primary-400" />
-                        </div>
-                        <p className="text-lg font-semibold text-gray-700 mb-2">{t('drag_drop')}</p>
-                        <p className="text-gray-400 mb-2">{t('or_click')}</p>
-                        {/* Mode-specific hint */}
-                        <p className="text-sm text-brand-primary-500/70 font-medium mb-4">{uploadHint}</p>
-                        <p className="text-xs text-gray-400">{t('supported_formats')}</p>
-
-                        <div className="flex justify-center gap-3 mt-6">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); canStillScan && cameraInputRef.current?.click(); }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-semibold rounded-xl shadow-brand transition-all hover:shadow-brand-lg"
-                            >
-                                <Camera className="w-4 h-4" /> {t('take_photo')}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); canStillScan && fileInputRef.current?.click(); }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-all"
-                            >
-                                <Upload className="w-4 h-4" /> {t('upload')}
-                            </button>
-                        </div>
-
-                        {!canStillScan && (
-                            <div className="mt-6 p-3 bg-brand-accent-100 rounded-xl text-sm text-brand-accent-700">
-                                <Lock className="w-4 h-4 inline mr-1" />
-                                {t('upgrade_hint')}
-                            </div>
-                        )}
-                    </div>
+                {isUploading && (
+                    <ScanUploadArea 
+                        scanMode={scanMode}
+                        tier={tier}
+                        canStillScan={canStillScan}
+                        dragOver={upload.dragOver}
+                        setDragOver={upload.setDragOver}
+                        fileInputRef={fileInputRef}
+                        cameraInputRef={cameraInputRef}
+                        handleDrop={handleDrop}
+                        handleFileInput={handleFileInput}
+                        uploadedImages={upload.uploadedImages}
+                        onRemoveImage={upload.removeImage}
+                        onClearImages={upload.clearImages}
+                        onAnalyze={handleAnalyzeTrigger}
+                    />
                 )}
 
-                
-                {/* Review Stage: Photos uploaded but not analyzed yet */}
-                {uploadedImages.length > 0 && !isAnalyzing && !hasResult && !nonFoodReason && !errorMessage && (
-                    <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-xl mx-auto shadow-glass animate-bounce-in border border-white/40">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">{uploadedImages.length} {t('multi_photo.photos_selected', { count: uploadedImages.length })}</h2>
-                            <p className="text-sm text-gray-500">{uploadedImages.length}/{TIER_LIMITS[activeTier].maxPhotosPerScan}</p>
+                {analysis.isAnalyzing && (
+                    <ScanLoadingOverlay 
+                        uploadedImages={upload.uploadedImages} 
+                        loadingPhase={analysis.loadingPhase} 
+                    />
+                )}
+
+                {(upload.uploadError || analysis.analysisError) && !analysis.isAnalyzing && (
+                    <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in border-2 border-red-100">
+                        <div className="w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <img src="/images/shinny_avatar_confused.png" alt="Error" className="w-16 h-16 object-cover rounded-full" />
                         </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">{t('error_title')}</h3>
+                        <p className="text-red-500 mb-6 font-medium">{upload.uploadError || analysis.analysisError}</p>
                         
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                            {uploadedImages.map((img, idx) => (
-                                <div key={idx} className="aspect-square rounded-2xl overflow-hidden shadow-md relative group">
-                                    <img src={img} alt={`Upload ${idx+1}`} className="w-full h-full object-cover" />
-                                    <button
-                                        onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
-                                        className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                                        aria-label={t('multi_photo.remove_photo')}
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-
-                        {canAddMorePhotos(activeTier, uploadedImages.length) ? (
-                            <div className="flex flex-col items-center justify-center gap-3 mb-8 bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
-                                <p className="text-sm text-gray-500 font-medium">{t('multi_photo.add_another')} ({uploadedImages.length}/{TIER_LIMITS[activeTier].maxPhotosPerScan})</p>
-                                <div className="flex justify-center gap-3">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white text-sm font-semibold rounded-xl shadow-sm transition-all hover:shadow-md"
-                                    >
-                                        <Camera className="w-4 h-4" /> {t('take_photo')}
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-all"
-                                    >
-                                        <Upload className="w-4 h-4" /> {t('upload')}
-                                    </button>
-                                </div>
-                                {activeTier === 'free' && (
-                                    <p className="text-xs text-brand-primary-500 mt-2 font-medium">
-                                        <Lock className="w-3 h-3 inline mr-1" /> {t('multi_photo.upgrade_hint')}
-                                    </p>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-brand-accent-600 mb-8 bg-brand-accent-50 py-2 rounded-xl text-center px-4 font-medium">
-                                {t('multi_photo.max_reached', { max: TIER_LIMITS[activeTier].maxPhotosPerScan })}
+                        {analysis.errorRequestId && (
+                            <p className="text-xs text-gray-400 mb-6 font-mono bg-gray-50 inline-block px-3 py-1 rounded-md">
+                                Request ID: {analysis.errorRequestId}
                             </p>
                         )}
                         
-                        <div className="flex gap-4 max-w-md mx-auto">
-                            <button onClick={() => setUploadedImages([])} className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">
-                                {t('multi_photo.cancel')}
-                            </button>
-                            <button onClick={() => handleAnalyze()} className="flex-[2] px-4 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 shadow-brand hover:shadow-brand-lg transition-all flex items-center justify-center gap-2">
-                                <Sparkles className="w-5 h-5" /> {t('multi_photo.analyze_now')}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Analyzing state */}
-                {isAnalyzing && (
-                    <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
-                        {uploadedImages.length > 0 && (
-                            <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg">
-                                <img src={uploadedImages[0]} alt="Food" className="w-full h-full object-cover" />
-                            </div>
-                        )}
-                        <div className="flex flex-col items-center justify-center gap-4 mb-4 mt-6">
-                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg relative">
-                                <img src="/images/shinny_avatar_analyzing.png" alt="Shinny Analyzing" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 border-4 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
-                            </div>
-                            <span className="text-xl font-bold text-gray-700 bg-white/50 px-4 py-1 rounded-full">{t('shinny_analyzing')}</span>
-                        </div>
-                        <div className="space-y-2 mt-4">
-                            {(uploadedImages.length > 1 ? LOADING_PHASES_MULTI : LOADING_PHASES_SINGLE).map((phase, i) => (
-                                <div key={phase.key} className={`flex items-center justify-center gap-2 text-sm transition-all duration-500 ${loadingPhase >= i ? 'text-gray-700 opacity-100' : 'text-gray-300 opacity-50'}`}>
-                                    <span>{phase.emoji}</span>
-                                    <span className="font-medium">{t(`loading_phases.${phase.key}`)}</span>
-                                    {loadingPhase === i && <span className="inline-block w-4 h-4 border-2 border-brand-primary-400 border-t-transparent rounded-full animate-spin"></span>}
-                                    {loadingPhase > i && <span className="text-green-500">✓</span>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Graceful Non-Food Error State */}
-                {nonFoodReason && !isAnalyzing && (
-                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
-                        {uploadedImages.length > 0 && (
-                            <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg opacity-80">
-                                <img src={uploadedImages[0]} alt="Not Food" className="w-full h-full object-cover" />
-                            </div>
-                        )}
-                        <div className="flex flex-col items-center gap-4 mb-4">
-                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-brand-primary-200 shadow-lg">
-                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
-                            </div>
-                            <h3 className="text-xl font-bold text-brand-primary-700">{t('error_oops')}</h3>
-                        </div>
-                        <p className="text-gray-700 mb-6 text-lg">{nonFoodReason}</p>
-                        <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
-                            <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
+                        <button onClick={resetScan} className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                            {t('try_again')}
                         </button>
                     </div>
                 )}
 
-                {/* API Error State */}
-                {errorMessage && !isAnalyzing && !hasResult && !nonFoodReason && (
-                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in">
-                        {uploadedImages.length > 0 && (
-                            <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg opacity-60">
-                                <img src={uploadedImages[0]} alt="Food" className="w-full h-full object-cover" />
-                            </div>
-                        )}
-                        <div className="flex flex-col items-center gap-4 mb-4">
-                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-orange-200 shadow-lg">
-                                <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
-                            </div>
-                            <h3 className="text-xl font-bold text-orange-700">{t('error_title')}</h3>
+                {analysis.nonFoodReason && !analysis.isAnalyzing && (
+                    <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 max-w-lg mx-auto shadow-glass text-center animate-bounce-in border-2 border-orange-100">
+                        <div className="w-48 h-48 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg">
+                            <img src={upload.uploadedImages[0]} alt="Not food" className="w-full h-full object-cover filter grayscale opacity-80" />
                         </div>
-                        <p className="text-gray-600 mb-2">{t('error_message')}</p>
-                        <p className="text-sm text-gray-400 mb-4">{errorMessage}</p>
-                        {errorRequestId && (
-                            <p className="text-xs text-gray-300 mb-4 font-mono">Request ID: {errorRequestId}</p>
-                        )}
-                        <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
-                            <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
+                        <div className="w-20 h-20 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-4 -mt-16 relative z-10 border-4 border-white shadow-sm">
+                            <img src="/images/shinny_avatar_confused.png" alt="Not Food" className="w-16 h-16 object-cover rounded-full" />
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 mb-2">{t('not_food_title')}</h3>
+                        <p className="text-orange-600 mb-6 font-medium text-lg leading-relaxed bg-orange-50/50 p-4 rounded-xl">
+                            "{analysis.nonFoodReason}"
+                        </p>
+                        <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                            {t('try_again')}
                         </button>
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════
-                    RESULTS — mode-specific rendering
-                   ═══════════════════════════════════════════════════════ */}
-
-                {/* MEAL RESULTS */}
-                {mealResult && !isAnalyzing && (
-                    <div className="space-y-6 animate-slide-up">
-                        {/* Uploaded Image */}
-                        {uploadedImages.length > 0 && (
-                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                                <div className="flex flex-col md:flex-row gap-6">
-                                    <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
-                                        <img src={uploadedImages[0]} alt="Food" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 flex flex-col justify-center">
-                                        {/* Low Confidence Warning */}
-                                        {mealResult.confidence < 70 && (
-                                            <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-orange-200">
-                                                    <img src="/images/shinny_avatar_explaining.png" alt="Shinny" className="w-full h-full object-cover" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-sm font-bold text-orange-800">{t('low_confidence.title')}</h4>
-                                                    <p className="text-xs text-orange-700">{t('low_confidence.message')}</p>
-                                                </div>
+                <div className="lg:flex lg:gap-8 lg:items-start max-w-6xl mx-auto">
+                    {/* MEAL RESULTS */}
+                    {analysis.mealResult && !analysis.isAnalyzing && (
+                        <>
+                            <div className="lg:sticky lg:top-8 w-full lg:w-1/3 space-y-4 mb-8 lg:mb-0 z-10 animate-slide-up">
+                                {upload.uploadedImages.length > 0 && (
+                                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-2 shadow-glass overflow-hidden border border-white/40">
+                                        <img src={upload.uploadedImages[0]} alt="Scan" className="w-full aspect-video md:aspect-square object-cover rounded-2xl shadow-inner" />
+                                        {analysis.overallScore > 0 && (
+                                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-lg flex flex-col items-center">
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('score_label')}</span>
+                                                <span className={`text-2xl font-black ${(analysis.overallScore ?? 0) >= 80 ? 'text-green-500' : (analysis.overallScore ?? 0) >= 50 ? 'text-brand-secondary-500' : 'text-orange-500'}`}>
+                                                    {analysis.overallScore}
+                                                </span>
                                             </div>
                                         )}
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-gray-500 font-medium">{mealResult.dishCount} {mealResult.dishCount > 1 ? 'dishes detected' : 'dish detected'}</p>
-                                                <p className={`text-3xl font-black ${overallScore >= 75 ? 'text-green-500' : overallScore >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
-                                                    {overallScore}<span className="text-sm text-gray-400 font-medium">/100</span>
-                                                </p>
+                                        {analysis.mealResult.confidence < 70 && (
+                                            <div className="mt-2 text-center text-xs text-orange-600 font-medium bg-orange-50 py-1.5 rounded-xl">
+                                                ⚠️ {t('low_confidence.title')}
                                             </div>
-                                        </div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="hidden lg:block">
+                                    <div className="backdrop-blur-md bg-white/90 p-6 rounded-3xl shadow-glass border border-white/40text-center">
+                                        <img src="/images/shinny_avatar_celebrating.png" alt="Shinny" className="w-20 h-20 mx-auto drop-shadow-md pb-4" />
+                                        <button onClick={resetScan} className="w-full py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                                            <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
+                                        </button>
+                                        {analysis.modelUsed && (
+                                            <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-brand-primary-300">
+                                                <Cpu className="w-3 h-3" />
+                                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
-                        )}
-
-                        {/* Per-Dish Cards */}
-                        {mealResult.dishes.length > 1 && (
-                            <div>
-                                <h2 className="text-lg font-bold text-gray-800 mb-3 px-1">{t('detected_items')}</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {mealResult.dishes.map((dish, i) => (
-                                        <DishCard key={i} dish={dish} index={i} totalDishes={mealResult.dishCount} />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Single dish — inline details (backwards-compatible with old UI feel) */}
-                        {mealResult.dishes.length === 1 && (
-                            <DishCard dish={mealResult.dishes[0]} index={0} totalDishes={1} />
-                        )}
-
-                        {/* Meal Overview — cross-dish sequence + totals */}
-                        <MealOverview data={mealResult} />
-
-                        {/* Health Scores */}
-                        {mealResult.dishes.length > 0 && (
-                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-bold text-gray-800">{t('results')}</h2>
-                                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl ${
-                                        overallScore >= 75 ? 'bg-green-50 border border-green-200' :
-                                        overallScore >= 50 ? 'bg-yellow-50 border border-yellow-200' :
-                                        'bg-red-50 border border-red-200'
-                                    }`}>
-                                        <div className={`text-3xl font-black ${
-                                            overallScore >= 75 ? 'text-green-500' :
-                                            overallScore >= 50 ? 'text-yellow-500' :
-                                            'text-red-500'
-                                        }`}>
-                                            {overallScore}
-                                            <span className="text-sm text-gray-400 font-medium">/100</span>
+                            
+                            <div className="w-full lg:w-2/3 space-y-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                                <MealOverview data={analysis.mealResult} />
+                                {analysis.mealResult.dishes && analysis.mealResult.dishes.length > 0 && (
+                                    <>
+                                        <h3 className="text-xl font-bold text-gray-800 ml-2 mb-4 mt-8">{t('dishes_found')}</h3>
+                                        <div className="space-y-6">
+                                            {analysis.mealResult.dishes.map((dish, i) => (
+                                                <DishCard key={i} dish={dish} index={i} totalDishes={analysis.mealResult!.dishes.length} />
+                                            ))}
                                         </div>
-                                        <div className="text-xs text-gray-500 font-medium">{t('scores.overall')}</div>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {ALL_SCORE_DIMENSIONS.filter(dim => dim !== 'overall').map((dim) => {
-                                        const isLocked = !FREE_SCORE_DIMENSIONS.includes(dim) && tier === 'free';
-                                        // Average score across all dishes
-                                        const score = Math.round(
-                                            mealResult.dishes.reduce((sum, d) => sum + (d.scores[dim as keyof typeof d.scores] || 0), 0) / mealResult.dishes.length
-                                        );
-                                        const scoreColor = score >= 75 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
-                                        const bgColor = score >= 75 ? 'bg-green-50' : score >= 50 ? 'bg-yellow-50' : 'bg-red-50';
-
-                                        return (
-                                            <div key={dim} className={`relative p-4 rounded-2xl ${bgColor} ${isLocked ? 'opacity-60' : ''} transition-all hover:-translate-y-1`}>
-                                                {isLocked && (
-                                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
-                                                        <Lock className="w-5 h-5 text-gray-400" />
-                                                    </div>
-                                                )}
-                                                <p className="text-xs text-gray-500 font-medium mb-1">{t(`scores.${SCORE_I18N_KEYS[dim] || dim}`)}</p>
-                                                <p className={`text-2xl font-black ${scoreColor}`}>
-                                                    {isLocked ? '—' : score}
-                                                    {!isLocked && <span className="text-sm text-gray-400">/100</span>}
-                                                </p>
-                                                {!isLocked && (
-                                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                                                        <div className={`h-1.5 rounded-full transition-all duration-700 ${score >= 75 ? 'bg-green-400' : score >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`} style={{ width: `${score}%` }}></div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {tier === 'free' && (
-                                    <Link href={`/${locale}/pricing`} className="mt-4 flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-brand-primary-50 to-brand-secondary-50 rounded-xl text-brand-primary-600 font-semibold text-sm hover:shadow-brand transition-all">
-                                        <Star className="w-4 h-4" />
-                                        {t('upgrade_hint')}
-                                        <ChevronRight className="w-4 h-4" />
-                                    </Link>
+                                    </>
                                 )}
                             </div>
-                        )}
-                    </div>
-                )}
+                        </>
+                    )}
 
-                {/* MENU RESULTS */}
-                {menuResult && !isAnalyzing && (
-                    <div className="space-y-6 animate-slide-up">
-                        {uploadedImages.length > 0 && (
-                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                                <div className="flex flex-col md:flex-row gap-6">
-                                    <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
-                                        <img src={uploadedImages[0]} alt="Menu" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 flex flex-col justify-center">
-                                        <p className="text-sm text-gray-500 font-medium">{t('menu_scan.scanned_label')}</p>
-                                        <h2 className="text-2xl font-black text-gray-900">{menuResult.menuItems.length} {t('menu_scan.items_label')}</h2>
-                                        {menuResult.confidence < 70 && (
-                                            <p className="text-xs text-orange-600 mt-1">⚠️ {t('low_confidence.title')}</p>
-                                        )}
+                    {/* MENU RESULTS */}
+                    {analysis.menuResult && !analysis.isAnalyzing && (
+                        <div className="space-y-6 animate-slide-up w-full">
+                            {upload.uploadedImages.length > 0 && (
+                                <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                    <div className="flex flex-col md:flex-row gap-6">
+                                        <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
+                                            <img src={upload.uploadedImages[0]} alt="Menu" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1 flex flex-col justify-center">
+                                            <p className="text-sm text-gray-500 font-medium">{t('menu_scan.scanned_label')}</p>
+                                            <h2 className="text-2xl font-black text-gray-900">{analysis.menuResult.menuItems.length} {t('menu_scan.items_label')}</h2>
+                                            {analysis.menuResult.confidence < 70 && (
+                                                <p className="text-xs text-orange-600 mt-1">⚠️ {t('low_confidence.title')}</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                        <MenuResults data={menuResult} />
-                    </div>
-                )}
+                            )}
+                            <MenuResults data={analysis.menuResult} />
+                        </div>
+                    )}
 
-                {/* DRINK & SNACK RESULTS */}
-                {drinkResult && !isAnalyzing && (
-                    <div className="space-y-6 animate-slide-up">
-                        {uploadedImages.length > 0 && (
-                            <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
-                                <div className="flex flex-col md:flex-row gap-6 items-center">
-                                    <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
-                                        <img src={uploadedImages[0]} alt="Drink/Snack" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1">
-                                        {drinkResult.confidence < 70 && (
-                                            <div className="p-2 bg-orange-50 rounded-lg mb-2">
-                                                <p className="text-xs text-orange-600">⚠️ {t('low_confidence.title')}</p>
-                                            </div>
-                                        )}
+                    {/* DRINK & SNACK RESULTS */}
+                    {analysis.drinkResult && !analysis.isAnalyzing && (
+                        <div className="space-y-6 animate-slide-up w-full">
+                            {upload.uploadedImages.length > 0 && (
+                                <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 shadow-glass">
+                                    <div className="flex flex-col md:flex-row gap-6 items-center">
+                                        <div className="w-full md:w-48 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
+                                            <img src={upload.uploadedImages[0]} alt="Drink/Snack" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1">
+                                            {analysis.drinkResult.confidence < 70 && (
+                                                <div className="p-2 bg-orange-50 rounded-lg mb-2">
+                                                    <p className="text-xs text-orange-600">⚠️ {t('low_confidence.title')}</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                        <DrinkSnackResults data={drinkResult} />
-                    </div>
-                )}
+                            )}
+                            <DrinkSnackResults data={analysis.drinkResult} />
+                        </div>
+                    )}
+                </div>
 
-                {/* Scan again button — shown for all modes */}
-                {hasResult && !isAnalyzing && (
-                    <div className="text-center mt-8">
+                {/* Mobile scan again button */}
+                {analysis.hasResult && !analysis.isAnalyzing && (
+                    <div className="lg:hidden text-center mt-8 pb-8">
                         <div className="mb-4">
                             <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
                         </div>
                         <div className="flex items-center justify-center gap-3">
-                            <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all">
+                            <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
                                 <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                             </button>
                         </div>
-                        {modelUsed && (
+                        {analysis.modelUsed && (
                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
                                 <Cpu className="w-3 h-3" />
-                                <span>{t('analyzed_by')} {modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
                             </div>
                         )}
                     </div>
                 )}
 
                 {/* Debug Panel */}
-                {isDebugMode && debugData && (hasResult || errorMessage) && !isAnalyzing && (
-                    <div className="mt-6 backdrop-blur-md bg-gray-900/95 rounded-3xl shadow-glass overflow-hidden text-left">
-                        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-                             <button
-                                onClick={() => setDebugOpen(!debugOpen)}
-                                className="flex items-center justify-between flex-1 text-gray-300 hover:text-white transition-colors"
-                            >
-                                <span className="flex items-center gap-2 text-sm font-mono">
-                                    <Bug className="w-4 h-4 text-yellow-400" />
-                                    Debug Panel
-                                    <span className="text-xs text-gray-500">(?debug=1)</span>
-                                </span>
-                                {debugOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </button>
-                            {debugOpen && (
-                                <button
-                                    className="ml-4 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-mono rounded-md border border-gray-700 transition"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
-                                        const btn = e.currentTarget;
-                                        btn.innerText = 'Copied!';
-                                        setTimeout(() => btn.innerText = 'Copy Data', 2000);
-                                    }}
-                                >
-                                    Copy Data
-                                </button>
-                            )}
-                        </div>
-                        {debugOpen && (
-                            <div className="px-5 pb-5 pt-3 space-y-3">
-                                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                                    {Object.entries(debugData.timings || {}).map(([key, val]) => (
-                                        <div key={key} className="flex justify-between bg-gray-800 rounded-lg px-3 py-2">
-                                            <span className="text-gray-400">{key}</span>
-                                            <span className="text-green-400">{String(val)}ms</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex gap-2 text-xs font-mono flex-wrap">
-                                    <span className="bg-blue-900/50 text-blue-300 px-2 py-1 rounded">model: {debugData.modelUsed}</span>
-                                    <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">mode: {debugData.scanMode}</span>
-                                    {debugData.requestId && <span className="bg-purple-900/50 text-purple-300 px-2 py-1 rounded">reqId: {debugData.requestId}</span>}
-                                    <span className="bg-amber-900/50 text-amber-300 px-2 py-1 rounded">conf: {debugData.confidence}%</span>
-                                    <span className="bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded">score: {debugData.overallScore}/100</span>
-                                </div>
-                                <details className="text-xs" open={!!debugData.failedJson}>
-                                    <summary className={`cursor-pointer font-mono ${debugData.failedJson ? 'text-red-400 hover:text-red-300 font-bold' : 'text-gray-400 hover:text-gray-200'}`}>
-                                        {debugData.failedJson ? 'Failed AI Response (JSON Parse/Validation Error)' : 'Raw AI Response JSON'}
-                                    </summary>
-                                    <pre className={`mt-2 rounded-xl p-3 overflow-x-auto max-h-80 overflow-y-auto font-mono text-[10px] leading-relaxed ${debugData.failedJson ? 'bg-red-950/50 text-red-200 border border-red-900/50' : 'bg-gray-800 text-gray-300'}`}>
-                                        {debugData.failedJson ? debugData.failedJson : JSON.stringify(debugData.rawResult, null, 2)}
-                                    </pre>
-                                </details>
-                            </div>
-                        )}
-                    </div>
+                {debug.isDebugMode && debug.debugData && (analysis.hasResult || upload.uploadError || analysis.analysisError) && !analysis.isAnalyzing && (
+                    <ScanDebugPanel 
+                        debugData={debug.debugData}
+                        debugOpen={debug.debugOpen}
+                        onToggleDebug={debug.toggleDebug}
+                    />
                 )}
             </div>
         </div>

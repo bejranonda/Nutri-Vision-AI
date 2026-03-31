@@ -40,6 +40,11 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## ✅ Resolved Issues
 
+### Scan Page Monolith Refactor (v2.2.0)
+- **Root Cause**: The `scan/page.tsx` file had organically grown to almost 1000 lines, mixing UI state, API polling, compression logic, and local storage side effects, making future feature expansion risky.
+- **Fix**: Extracted all specific concerns into three scoped React Hooks (`useScanUpload`, `useScanAnalysis`, `useScanDebug`) and compartmentalized the visual layout into clean presentational components (`ScanUploadArea`, `ScanLoadingOverlay`, `ScanDebugPanel`). The page now serves strictly as an orchestrator.
+- **Lesson**: Adopt a composable architecture early. Pushing complex side-effects out of the component scope into dedicated hooks prevents state-syncing bugs when components mount and unmount.
+
 ### Internal Server Error on Food Scan (v2.1.2)
 - **Root Cause**: All API routes used `(req as any).context?.env` which silently returns `undefined` in the `@opennextjs/cloudflare` runtime. The `env.AI` and `env.DB` bindings were never accessible.
 - **Fix**: Replaced with the official `getCloudflareContext()` API from `@opennextjs/cloudflare` across all 6 API routes.

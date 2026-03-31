@@ -49,6 +49,7 @@ We use a **Dual-Provider Fallback Strategy** for maximum reliability:
 -   **App Router**: Modern React patterns for server and client components.
 -   **i18n**: Multi-language support using `next-intl`.
 -   **Edge Compatible**: Optimized to run on Cloudflare Pages/Workers.
+-   **Composable Architecture**: The massive `scan/page.tsx` is decoupled into focused hooks (`useScanUpload`, `useScanAnalysis`, `useScanDebug`) and modular components (`ScanUploadArea`, `ScanLoadingOverlay`, `ScanDebugPanel`) to guarantee long-term maintainability.
 
 ### API Architecture (Cloudflare Edge)
 The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipeline** to guarantee it never crashes the user experience:
