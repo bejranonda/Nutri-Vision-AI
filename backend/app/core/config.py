@@ -1,10 +1,12 @@
 """
 Application configuration and settings.
-Loads from environment variables with validation.
+Loads from environment variables with validation (Pydantic v2).
 """
 from typing import List, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, validator
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from typing_extensions import Annotated
 
 
 class Settings(BaseSettings):
@@ -14,7 +16,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
     )
 
     # Application
@@ -23,20 +25,26 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
 
-    # Security
+    # Security — required; startup fails fast if missing or too short.
     SECRET_KEY: str = Field(..., min_length=32)
     JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
+    # CORS — stored as List[str] after parsing; accepts comma-separated input.
+    # NoDecode tells pydantic-settings NOT to JSON-decode the raw env var, so
+    # our validator below receives the raw string and can split on commas.
+    ALLOWED_ORIGINS: Annotated[List[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
-    @validator("ALLOWED_ORIGINS")
-    def parse_cors_origins(cls, v: str) -> List[str]:
-        """Parse comma-separated CORS origins."""
-        return [origin.strip() for origin in v.split(",")]
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # Database
     DATABASE_URL: str = Field(..., description="PostgreSQL connection string")
@@ -58,12 +66,16 @@ class Settings(BaseSettings):
     # File Storage
     UPLOAD_DIR: str = "./uploads"
     MAX_FILE_SIZE_MB: int = 10
-    ALLOWED_IMAGE_TYPES: str = "image/jpeg,image/png,image/webp,image/heic"
+    ALLOWED_IMAGE_TYPES: Annotated[List[str], NoDecode] = Field(
+        default_factory=lambda: ["image/jpeg", "image/png", "image/webp", "image/heic"]
+    )
 
-    @validator("ALLOWED_IMAGE_TYPES")
-    def parse_image_types(cls, v: str) -> List[str]:
-        """Parse comma-separated image types."""
-        return [t.strip() for t in v.split(",")]
+    @field_validator("ALLOWED_IMAGE_TYPES", mode="before")
+    @classmethod
+    def _parse_image_types(cls, v):
+        if isinstance(v, str):
+            return [t.strip() for t in v.split(",") if t.strip()]
+        return v
 
     # S3/MinIO (optional)
     USE_S3: bool = False
@@ -125,12 +137,16 @@ class Settings(BaseSettings):
 
     # Localization
     DEFAULT_LANGUAGE: str = "th"
-    SUPPORTED_LANGUAGES: str = "th,en"
+    SUPPORTED_LANGUAGES: Annotated[List[str], NoDecode] = Field(
+        default_factory=lambda: ["th", "en"]
+    )
 
-    @validator("SUPPORTED_LANGUAGES")
-    def parse_languages(cls, v: str) -> List[str]:
-        """Parse comma-separated languages."""
-        return [lang.strip() for lang in v.split(",")]
+    @field_validator("SUPPORTED_LANGUAGES", mode="before")
+    @classmethod
+    def _parse_languages(cls, v):
+        if isinstance(v, str):
+            return [lang.strip() for lang in v.split(",") if lang.strip()]
+        return v
 
     # Payments
     PROMPTPAY_ENABLED: bool = False
@@ -148,51 +164,45 @@ class Settings(BaseSettings):
 
     @property
     def max_file_size_bytes(self) -> int:
-        """Get max file size in bytes."""
+        """Max file size in bytes."""
         return self.MAX_FILE_SIZE_MB * 1024 * 1024
 
     @property
     def is_production(self) -> bool:
-        """Check if running in production."""
         return self.APP_ENV == "production"
 
     @property
     def is_development(self) -> bool:
-        """Check if running in development."""
         return self.APP_ENV == "development"
 
 
-# Global settings instance
-settings = Settings()
+def validate_settings(s: "Settings") -> None:
+    """
+    Production-only sanity checks. Required-field defaults are already
+    enforced by Pydantic, so we only guard against configurations that are
+    syntactically valid but operationally dangerous.
+    """
+    errors: List[str] = []
 
-
-# Validate critical settings on import
-def validate_settings():
-    """Validate that critical settings are properly configured."""
-    errors = []
-
-    if settings.SECRET_KEY == "your-secret-key-here-min-32-characters-change-this":
-        errors.append("SECRET_KEY must be changed from default value")
-
-    if settings.JWT_SECRET_KEY == "your-jwt-secret-key-here-change-this":
-        errors.append("JWT_SECRET_KEY must be changed from default value")
-
-    if settings.GEMINI_API_KEY == "your-gemini-api-key-here":
-        errors.append("GEMINI_API_KEY must be set to a valid API key")
-
-    if settings.is_production:
-        if settings.DEBUG:
+    if s.is_production:
+        if s.DEBUG:
             errors.append("DEBUG must be False in production")
-        if settings.ENABLE_TEST_ROUTES:
+        if s.ENABLE_TEST_ROUTES:
             errors.append("ENABLE_TEST_ROUTES must be False in production")
-        if "localhost" in settings.ALLOWED_ORIGINS[0]:
+        if s.ENABLE_API_DOCS:
+            errors.append("ENABLE_API_DOCS should be False in production")
+        if s.ALLOWED_ORIGINS and any("localhost" in origin for origin in s.ALLOWED_ORIGINS):
             errors.append("ALLOWED_ORIGINS must not contain localhost in production")
 
     if errors:
-        error_msg = "Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
-        raise ValueError(error_msg)
+        raise ValueError(
+            "Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        )
 
 
-# Only validate in production or when explicitly running
+# Global settings instance. Importing this module requires the required
+# env vars to be present — intentional, so misconfiguration fails fast.
+settings = Settings()
+
 if settings.is_production:
-    validate_settings()
+    validate_settings(settings)

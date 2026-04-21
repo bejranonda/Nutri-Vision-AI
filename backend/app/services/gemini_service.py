@@ -1,13 +1,17 @@
 """
 Google Gemini AI service for image recognition and chat.
+
 Handles ingredient detection, nutritional analysis, and conversational AI.
 """
-import base64
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
+import re
 import time
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional
+
 import google.generativeai as genai
 from PIL import Image
 
@@ -15,79 +19,153 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Configure Gemini API
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Regex that extracts JSON from an LLM response. Matches ```json fenced blocks,
+# ``` fenced blocks, or the first {...} / [...] in the response. Using regex
+# (instead of naive split) means a missing closing fence or repeated fences
+# don't raise IndexError.
+_FENCED_JSON_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
+_BARE_JSON_RE = re.compile(r"(\{.*\}|\[.*\])", re.DOTALL)
 
 
 class GeminiService:
     """Service for interacting with Google Gemini AI."""
 
-    def __init__(self):
-        """Initialize Gemini service."""
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize the Gemini client.
+
+        Args:
+            api_key: Optional override for the API key. Defaults to settings.
+                     Constructor-level configuration (as opposed to import-time)
+                     makes the module importable in tests without env vars.
+        """
+        self.api_key = api_key or settings.GEMINI_API_KEY
+        genai.configure(api_key=self.api_key)
+
         self.model_name = settings.GEMINI_MODEL
         self.generation_config = {
             "temperature": settings.GEMINI_TEMPERATURE,
             "max_output_tokens": settings.GEMINI_MAX_TOKENS,
         }
-        logger.info(f"Initialized GeminiService with model: {self.model_name}")
+        logger.info("Initialized GeminiService with model: %s", self.model_name)
 
+    # ------------------------------------------------------------------
+    # Food image analysis
+    # ------------------------------------------------------------------
     async def analyze_food_image(
         self,
         image_path: str,
-        language: str = "th"
+        language: str = "th",
     ) -> Dict[str, Any]:
         """
         Analyze a food image and extract nutritional information.
 
-        Args:
-            image_path: Path to the image file
-            language: Response language (th or en)
-
-        Returns:
-            Dictionary containing detected items, nutrition, and scores
+        Runs the blocking Gemini SDK call in a thread so it doesn't stall the
+        event loop. The image file handle is released before the network call.
         """
-        start_time = time.time()
-        logger.info(f"Gemini analysis started for image: {image_path} (Language: {language})")
-        
-        try:
-            # Load image
-            img = Image.open(image_path)
-            logger.debug(f"Image loaded successfully: {image_path} (Size: {img.size})")
+        start = time.time()
+        logger.info("Gemini analysis started for image=%s lang=%s", image_path, language)
 
-            # Create model
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=self.generation_config
-            )
+        # Load image into memory and close the file handle.
+        with Image.open(image_path) as img:
+            img.load()
+            img_size = img.size
+            img_for_request = img.copy()
 
-            # Create prompt based on language
-            prompt = self._create_food_analysis_prompt(language)
-            logger.debug(f"Prompt created (Length: {len(prompt)})")
+        logger.debug("Image loaded: %s (size=%s)", image_path, img_size)
 
-            # Generate response
-            gen_start = time.time()
-            response = model.generate_content([prompt, img])
-            gen_duration = time.time() - gen_start
-            logger.info(f"Gemini generation complete. Duration: {gen_duration:.3f}s")
+        prompt = self._create_food_analysis_prompt(language)
+        logger.debug("Prompt created (length=%d)", len(prompt))
 
-            # Parse response
-            result = self._parse_food_analysis_response(response.text)
-            
-            total_duration = time.time() - start_time
-            logger.info(
-                f"Successfully analyzed food image: {image_path} - "
-                f"Total Time: {total_duration:.3f}s - "
-                f"Items detected: {len(result.get('detected_items', []))}"
-            )
-            return result
+        gen_start = time.time()
+        response = await asyncio.to_thread(self._generate, [prompt, img_for_request])
+        logger.info("Gemini generation complete in %.3fs", time.time() - gen_start)
 
-        except Exception as e:
-            logger.error(f"Error analyzing food image {image_path}: {str(e)}", exc_info=True)
-            raise
+        result = self._parse_json_response(response.text, fallback={
+            "detected_items": [],
+            "nutrition_summary": {},
+            "ingredients": [],
+            "health_insights": {},
+            "thai_food_context": {},
+        })
 
+        logger.info(
+            "Analyzed image=%s total=%.3fs items=%d",
+            image_path,
+            time.time() - start,
+            len(result.get("detected_items", []) or []),
+        )
+        return result
+
+    def _generate(self, parts: List[Any]):
+        """Synchronous wrapper around Gemini content generation (for to_thread)."""
+        model = genai.GenerativeModel(
+            model_name=self.model_name,
+            generation_config=self.generation_config,
+        )
+        return model.generate_content(parts)
+
+    # ------------------------------------------------------------------
+    # Chat
+    # ------------------------------------------------------------------
+    async def chat_nutrition_question(
+        self,
+        question: str,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        language: str = "th",
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Answer nutrition-related questions using Gemini AI."""
+        system_prompt = self._create_chat_system_prompt(language, context)
+
+        # Keep only the last 10 messages and skip malformed entries so a bad
+        # row in history doesn't crash the endpoint.
+        history_lines: List[str] = []
+        for msg in (chat_history or [])[-10:]:
+            if not isinstance(msg, Mapping):
+                continue
+            role = msg.get("role")
+            content = msg.get("content")
+            if role and content:
+                history_lines.append(f"{role}: {content}")
+
+        parts = [system_prompt]
+        if history_lines:
+            parts.append("Previous conversation:\n" + "\n".join(history_lines))
+        parts.append(f"User: {question}\nAssistant:")
+        full_prompt = "\n\n".join(parts)
+
+        response = await asyncio.to_thread(self._generate, [full_prompt])
+
+        logger.info("Answered nutrition question in %s", language)
+        return {
+            "answer": response.text,
+            "model_used": self.model_name,
+            "language": language,
+            "has_context": context is not None,
+        }
+
+    # ------------------------------------------------------------------
+    # Recipe suggestions
+    # ------------------------------------------------------------------
+    async def generate_recipe_suggestions(
+        self,
+        ingredients: List[str],
+        dietary_restrictions: Optional[List[str]] = None,
+        language: str = "th",
+    ) -> Dict[str, Any]:
+        """Generate recipe suggestions based on available ingredients."""
+        prompt = self._create_recipe_suggestion_prompt(ingredients, dietary_restrictions, language)
+        response = await asyncio.to_thread(self._generate, [prompt])
+        result = self._parse_json_response(response.text, fallback={"recipes": []})
+        logger.info("Generated recipe suggestions for %d ingredients", len(ingredients))
+        return result
+
+    # ------------------------------------------------------------------
+    # Prompt builders
+    # ------------------------------------------------------------------
     def _create_food_analysis_prompt(self, language: str) -> str:
-        """Create prompt for food analysis based on language."""
-
+        """Food-analysis prompt. Confidence is specified as 0–1 everywhere."""
         if language == "th":
             return """
 วิเคราะห์ภาพนี้ตามขั้นตอนดังนี้:
@@ -99,6 +177,7 @@ class GeminiService:
 สำคัญมาก:
 - ระบุเฉพาะส่วนประกอบที่เห็นจริงในภาพเท่านั้น ห้ามเดาหรือสมมติส่วนประกอบที่ไม่ปรากฏ
 - ถ้าเป็นผลไม้หรือผักดิบ ให้ระบุว่าเป็นผลไม้/ผัก ไม่ใช่อาหารปรุงแล้ว
+- ระบุค่า confidence เป็นเลขทศนิยมระหว่าง 0.0 ถึง 1.0 (เช่น 0.95 = มั่นใจ 95%)
 
 ตอบในรูปแบบ JSON เท่านั้น (ไม่ต้องมี markdown):
 
@@ -147,12 +226,10 @@ class GeminiService:
   }
 }
 
-ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น 
+ถ้าเป็นอาหารไทย กรุณาระบุข้อมูลเฉพาะของอาหารไทย เช่น ส่วนประกอบตามสูตรไทย น้ำตาลในน้ำจิ้ม เป็นต้น
 เน้นการวิเคราะห์ว่ามีส่วนประกอบของอาหารแปรรูปสูง (UPF) หรือไม่ และให้คำแนะนำตามหลัก "อร่อย ตาม ลำดับ"
-ตั้ง confidence ตาม 0-100 ตามความมั่นใจในการระบุอาหาร ถ้าไม่มั่นใจให้ใส่ค่าต่ำ
 """
-        else:  # English
-            return """
+        return """
 Analyze this image following these steps:
 
 Step 1: Identify whether the image contains food. If not, set isFood to false.
@@ -162,7 +239,7 @@ Step 3: Provide nutritional analysis.
 CRITICAL RULES:
 - Only list ingredients that are ACTUALLY VISIBLE in the image. Do NOT hallucinate items.
 - If the image shows raw fruit or vegetables, identify them as such, NOT as a prepared dish.
-- Set confidence 0-100 based on identification certainty. If uncertain, use LOW values.
+- Provide `confidence` as a decimal between 0.0 and 1.0 (e.g. 0.95 = 95% certain). If uncertain, use a low value.
 
 Respond ONLY with valid JSON (no markdown):
 
@@ -213,103 +290,16 @@ Respond ONLY with valid JSON (no markdown):
   }
 }
 
-If this is Thai food, include specific Thai food context. 
+If this is Thai food, include specific Thai food context.
 Identify Ultra-Processed Food (UPF) ingredients and provide recommendations based on "Delicious in Order" principles.
 """
-
-    def _parse_food_analysis_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse Gemini response into structured data."""
-        logger.debug(f"Parsing Gemini response (Length: {len(response_text)})")
-        try:
-            # Extract JSON from response (handle markdown code blocks)
-            json_text = response_text
-            if "```json" in json_text:
-                json_text = json_text.split("```json")[1].split("```")[0]
-            elif "```" in json_text:
-                json_text = json_text.split("```")[1].split("```")[0]
-
-            # Parse JSON
-            data = json.loads(json_text.strip())
-            logger.debug("JSON parsed successfully")
-            return data
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {str(e)}\nRaw response: {response_text[:500]}...")
-            # Return fallback structure
-            return {
-                "detected_items": [],
-                "nutrition_summary": {},
-                "ingredients": [],
-                "health_insights": {},
-                "thai_food_context": {},
-                "raw_response": response_text
-            }
-
-    async def chat_nutrition_question(
-        self,
-        question: str,
-        chat_history: Optional[List[Dict[str, str]]] = None,
-        language: str = "th",
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Answer nutrition-related questions using Gemini AI.
-
-        Args:
-            question: User's question
-            chat_history: Previous chat messages
-            language: Response language (th or en)
-            context: Optional context (recent scans, user preferences)
-
-        Returns:
-            Dictionary with answer and metadata
-        """
-        try:
-            # Create model
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=self.generation_config
-            )
-
-            # Build system prompt
-            system_prompt = self._create_chat_system_prompt(language, context)
-
-            # Build conversation history
-            messages = []
-            if chat_history:
-                for msg in chat_history[-10:]:  # Last 10 messages for context
-                    messages.append(f"{msg['role']}: {msg['content']}")
-
-            # Add current question
-            full_prompt = f"{system_prompt}\n\n"
-            if messages:
-                full_prompt += "Previous conversation:\n" + "\n".join(messages) + "\n\n"
-            full_prompt += f"User: {question}\nAssistant:"
-
-            # Generate response
-            response = model.generate_content(full_prompt)
-
-            result = {
-                "answer": response.text,
-                "model_used": self.model_name,
-                "language": language,
-                "has_context": context is not None
-            }
-
-            logger.info(f"Successfully answered nutrition question in {language}")
-            return result
-
-        except Exception as e:
-            logger.error(f"Error in chat: {str(e)}")
-            raise
 
     def _create_chat_system_prompt(
         self,
         language: str,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Create system prompt for chat based on language and context."""
-
+        """System prompt for chat based on language and context."""
         if language == "th":
             prompt = """
 คุณคือ "ชินนี่" (Shinny) ผู้เชี่ยวชาญด้านโภชนาการและเจ้าของเพจ/ช่อง "อยู่เพื่อกินบำนาญ" (Live long to eat well)
@@ -326,11 +316,8 @@ Identify Ultra-Processed Food (UPF) ingredients and provide recommendations base
 3. **กิจกรรมหลังมื้ออาหาร**: แนะนำให้เดิน 10-15 นาทีหลังมื้อใหญ่เพื่อช่วยกล้ามเนื้อดึงน้ำตาลไปใช้
 4. **ระวัง UPF**: เตือนเกี่ยวกับอาหารแปรรูปสูงที่มักแฝงน้ำตาลและสารเคมี
 5. **สุขภาพลำไส้**: สนับสนุนการกินอาหารที่มีโปรไบโอติกส์ เช่น กิมจิ นัตโตะ หรือผักดองไทย
-
-ตัวอย่างการตอบ:
-- "ว้าว ผัดไทยน่ากินมากเลยค่ะ! เพื่อไม่ให้น้ำตาลพุ่งสูงเกินไป ลองเริ่มจากกินถั่วงอกกับผักเคียงก่อนนะคะ แล้วค่อยตามด้วยกุ้งและเส้น จบมื้อแล้วอย่าลืมขยับตัวเดินสักนิดนึงน้า เพื่อสุขภาพที่ดีของเราค่ะ"
 """
-        else:  # English
+        else:
             prompt = """
 You are "Shinny", a nutrition expert and the creator of the "อยู่เพื่อกินบำนาญ" (Living to eat your pension / Live long to eat well) movement.
 You are the pioneer of the "Delicious in Order" (อร่อย ตาม ลำดับ) methodology.
@@ -346,85 +333,41 @@ Your Core Principles ("Delicious in Order"):
 3. **Post-meal Activity**: Suggest a 10-15 min walk after big meals to help muscles use up the glucose.
 4. **UPF Awareness**: Warn about Ultra-Processed Foods that hide sugars and additives.
 5. **Gut Health**: Encourage probiotics like Kimchi, Natto, or fermented Thai foods.
-
-Example Response:
-- "Wow, that Pad Thai looks delicious! To keep your blood sugar steady, try starting with the bean sprouts and veggies first, then move to the shrimp and noodles. After you're done, maybe a quick 10-minute stroll? Let's eat well and live long together!"
 """
 
-        # Add context if available
         if context:
-            if language == "th":
-                prompt += "\n\nข้อมูลผู้ใช้:\n"
-                if context.get("recent_scan"):
-                    prompt += f"- เพิ่งสแกนอาหาร: {context['recent_scan']}\n"
-                if context.get("user_goal"):
-                    prompt += f"- เป้าหมาย: {context['user_goal']}\n"
-                if context.get("dietary_restrictions"):
-                    prompt += f"- ข้อจำกัดด้านอาหาร: {', '.join(context['dietary_restrictions'])}\n"
-            else:
-                prompt += "\n\nUser context:\n"
-                if context.get("recent_scan"):
-                    prompt += f"- Recent scan: {context['recent_scan']}\n"
-                if context.get("user_goal"):
-                    prompt += f"- Goal: {context['user_goal']}\n"
-                if context.get("dietary_restrictions"):
-                    prompt += f"- Dietary restrictions: {', '.join(context['dietary_restrictions'])}\n"
-
+            prompt += self._format_user_context(language, context)
         return prompt
 
-    async def generate_recipe_suggestions(
-        self,
-        ingredients: List[str],
-        dietary_restrictions: Optional[List[str]] = None,
-        language: str = "th"
-    ) -> Dict[str, Any]:
-        """
-        Generate recipe suggestions based on available ingredients.
-
-        Args:
-            ingredients: List of available ingredients
-            dietary_restrictions: Optional dietary restrictions
-            language: Response language
-
-        Returns:
-            Dictionary with recipe suggestions
-        """
-        try:
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=self.generation_config
-            )
-
-            prompt = self._create_recipe_suggestion_prompt(
-                ingredients,
-                dietary_restrictions,
-                language
-            )
-
-            response = model.generate_content(prompt)
-
-            # Parse response
-            result = self._parse_recipe_suggestions(response.text)
-
-            logger.info(f"Generated recipe suggestions for {len(ingredients)} ingredients")
-            return result
-
-        except Exception as e:
-            logger.error(f"Error generating recipes: {str(e)}")
-            raise
+    @staticmethod
+    def _format_user_context(language: str, context: Mapping[str, Any]) -> str:
+        """Append user context lines (recent scan, goal, restrictions) to the prompt."""
+        is_thai = language == "th"
+        labels = {
+            "header": "\n\nข้อมูลผู้ใช้:\n" if is_thai else "\n\nUser context:\n",
+            "recent_scan": "- เพิ่งสแกนอาหาร: " if is_thai else "- Recent scan: ",
+            "user_goal": "- เป้าหมาย: " if is_thai else "- Goal: ",
+            "restrictions": "- ข้อจำกัดด้านอาหาร: " if is_thai else "- Dietary restrictions: ",
+        }
+        out = labels["header"]
+        if context.get("recent_scan"):
+            out += f"{labels['recent_scan']}{context['recent_scan']}\n"
+        if context.get("user_goal"):
+            out += f"{labels['user_goal']}{context['user_goal']}\n"
+        if context.get("dietary_restrictions"):
+            out += f"{labels['restrictions']}{', '.join(context['dietary_restrictions'])}\n"
+        return out
 
     def _create_recipe_suggestion_prompt(
         self,
         ingredients: List[str],
         dietary_restrictions: Optional[List[str]],
-        language: str
+        language: str,
     ) -> str:
-        """Create prompt for recipe suggestions."""
-
+        """Build the recipe-suggestion prompt."""
         ingredients_str = ", ".join(ingredients)
-        restrictions_str = ", ".join(dietary_restrictions) if dietary_restrictions else "ไม่มี"
-
         if language == "th":
+            restrictions_str = ", ".join(dietary_restrictions) if dietary_restrictions else "ไม่มี"
             return f"""
 จากวัตถุดิบเหล่านี้: {ingredients_str}
 ข้อจำกัด: {restrictions_str}
@@ -450,10 +393,10 @@ Example Response:
 
 ให้ความสำคัญกับอาหารไทยที่มีประโยชน์ต่อสุขภาพ
 """
-        else:
-            return f"""
+        restrictions_str = ", ".join(dietary_restrictions) if dietary_restrictions else "None"
+        return f"""
 Given these ingredients: {ingredients_str}
-Restrictions: {restrictions_str if dietary_restrictions else "None"}
+Restrictions: {restrictions_str}
 
 Suggest 3-5 recipes in JSON format:
 
@@ -477,26 +420,55 @@ Suggest 3-5 recipes in JSON format:
 Prioritize healthy Thai recipes when possible.
 """
 
-    def _parse_recipe_suggestions(self, response_text: str) -> Dict[str, Any]:
-        """Parse recipe suggestion response."""
+    # ------------------------------------------------------------------
+    # Response parsing
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _extract_json_text(response_text: str) -> Optional[str]:
+        """
+        Extract a JSON payload from a possibly markdown-wrapped LLM response.
+
+        Strategy:
+        1. Try a fenced block ```json ... ``` or ``` ... ```.
+        2. Fall back to the first {...} / [...] in the text.
+        3. Give up (return None) if neither is found.
+        """
+        if not response_text:
+            return None
+
+        fence = _FENCED_JSON_RE.search(response_text)
+        if fence:
+            return fence.group(1).strip()
+
+        bare = _BARE_JSON_RE.search(response_text)
+        if bare:
+            return bare.group(1).strip()
+
+        stripped = response_text.strip()
+        return stripped or None
+
+    @classmethod
+    def _parse_json_response(
+        cls,
+        response_text: str,
+        fallback: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Parse a JSON response, returning `fallback` (+ raw text) on failure."""
+        json_text = cls._extract_json_text(response_text)
+        if json_text is None:
+            logger.error("Empty Gemini response")
+            return {**(fallback or {}), "raw_response": response_text}
+
         try:
-            # Extract JSON
-            json_text = response_text
-            if "```json" in json_text:
-                json_text = json_text.split("```json")[1].split("```")[0]
-            elif "```" in json_text:
-                json_text = json_text.split("```")[1].split("```")[0]
-
-            data = json.loads(json_text.strip())
-            return data
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse recipe suggestions: {str(e)}")
-            return {
-                "recipes": [],
-                "raw_response": response_text
-            }
+            return json.loads(json_text)
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "Failed to parse JSON response: %s | raw (first 500 chars): %s",
+                exc,
+                response_text[:500],
+            )
+            return {**(fallback or {}), "raw_response": response_text}
 
 
-# Global instance
+# Global instance (kept for backward compatibility with existing callers).
 gemini_service = GeminiService()
