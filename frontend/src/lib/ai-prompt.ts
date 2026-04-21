@@ -85,14 +85,74 @@ export const LOCALE_INSTRUCTION: Record<string, string> = {
   da: '\n\nIMPORTANT: Respond with ALL text values in Danish (Dansk). Keep JSON keys in English.',
 };
 
-/** Build the full localized prompt for a given scan mode */
-export function buildLocalizedPrompt(locale: string, scanMode: ScanMode = 'meal'): string {
+/**
+ * Collage-awareness instruction. Prepended to the prompt when the client
+ * stitched N>1 photos into a single image. Without this, the model often
+ * interprets the stitched collage as a single scene and returns only one
+ * dish/item, even though the user uploaded several.
+ */
+function buildCollageInstruction(photoCount: number, scanMode: ScanMode): string {
+  if (photoCount <= 1) return '';
+
+  const shared = `
+IMPORTANT — COLLAGE MODE:
+The image you are analyzing is a COLLAGE of ${photoCount} SEPARATE PHOTOS that the user uploaded. The photos are arranged in a grid on a white background, with white padding between them. Each tile is a DISTINCT item that was photographed independently — they are NOT part of the same scene.
+`.trim();
+
+  if (scanMode === 'meal') {
+    return (
+      shared +
+      `
+You MUST return one entry in the "dishes" array for EACH of the ${photoCount} tiles (even if two tiles look similar). The "dishCount" field MUST equal ${photoCount}. Number the dishes in reading order: left-to-right, top-to-bottom. Do not merge tiles, do not skip tiles.
+` +
+      '\n\n'
+    );
+  }
+
+  if (scanMode === 'menu') {
+    return (
+      shared +
+      `
+Each tile may be a page or section of a menu (the user may have photographed a multi-page menu). Read items from ALL ${photoCount} tiles and include them in a single "menuItems" array. Do not ignore any tile.
+` +
+      '\n\n'
+    );
+  }
+
+  // drink_snack — schema is single-item. Tell the model to pick the most
+  // prominent / center tile so the result is at least deterministic.
+  return (
+    shared +
+    `
+Note: the drink & snack schema supports only ONE item. Choose the most prominent item (the user's primary subject — usually the center or largest tile) and analyze only that one. You may mention the other ${photoCount - 1} tile(s) briefly in the "tip" field.
+` +
+    '\n\n'
+  );
+}
+
+/**
+ * Build the full localized prompt for a given scan mode.
+ *
+ * @param locale      UI locale ('th' | 'en' | 'de' | 'da'); used to pick
+ *                    the response-language instruction.
+ * @param scanMode    Which schema the model should return.
+ * @param photoCount  Number of separate photos the client stitched into
+ *                    the image. When > 1, a collage-awareness preamble is
+ *                    prepended so the model treats each tile as distinct.
+ */
+export function buildLocalizedPrompt(
+  locale: string,
+  scanMode: ScanMode = 'meal',
+  photoCount: number = 1,
+): string {
   const prompts: Record<ScanMode, string> = {
     meal: AI_PROMPT_MEAL,
     menu: AI_PROMPT_MENU,
     drink_snack: AI_PROMPT_DRINK_SNACK,
   };
-  return prompts[scanMode] + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+  const collage = buildCollageInstruction(photoCount, scanMode);
+  const localeInstruction = LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en;
+  return collage + prompts[scanMode] + localeInstruction;
 }
 
 // ─── Shared Types ────────────────────────────────────────────────────────────

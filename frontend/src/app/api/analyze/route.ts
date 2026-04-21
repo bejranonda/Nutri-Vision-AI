@@ -70,6 +70,10 @@ export async function POST(req: NextRequest) {
         let locale: string;
         let forceModel: string | undefined;
         let scanMode: ScanMode = 'meal';
+        // photoCount reflects how many separate photos the client stitched
+        // into `imageBase64`. We pass this into the prompt so the model
+        // knows the image is a collage and must report one dish per tile.
+        let photoCount = 1;
 
         try {
             const body = await req.json();
@@ -78,6 +82,11 @@ export async function POST(req: NextRequest) {
             forceModel = body.forceModel;
             if (body.scanMode && ['meal', 'menu', 'drink_snack'].includes(body.scanMode)) {
                 scanMode = body.scanMode as ScanMode;
+            }
+            const parsedPhotoCount = Number(body.photoCount);
+            if (Number.isFinite(parsedPhotoCount) && parsedPhotoCount >= 1) {
+                // Cap at 12 — matches the stitcher's max grid (4x3).
+                photoCount = Math.min(12, Math.floor(parsedPhotoCount));
             }
         } catch (parseErr: any) {
             logger.scanApiStage('BODY_PARSE_ERROR', { requestId, error: parseErr.message });
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest) {
         }
 
         const payloadSize = imageBase64 ? imageBase64.length : 0;
-        logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, forceModel, scanMode, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
+        logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, forceModel, scanMode, photoCount, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
 
         if (!imageBase64) {
             logger.scanApiStage('VALIDATION_FAILED', { requestId, reason: 'no_image' });
@@ -191,7 +200,7 @@ export async function POST(req: NextRequest) {
         let modelUsed = 'unknown';
 
         const attemptAiInference = async (model: string, timeoutMs: number) => {
-            const localizedPrompt = buildLocalizedPrompt(locale, scanMode);
+            const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
             const aiStartTime = Date.now();
 
             logger.scanApiStage('AI_INFERENCE_START', { 
@@ -242,7 +251,7 @@ export async function POST(req: NextRequest) {
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
             const model = 'gemma-3-27b-it';
             const aiStartTime = Date.now();
-            const localizedPrompt = buildLocalizedPrompt(locale, scanMode);
+            const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
 
             logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
 
