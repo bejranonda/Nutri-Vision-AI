@@ -103,7 +103,12 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             logger.info(`📦 COMPRESS/STITCH TIMING | ${timings.compressMs}ms`);
             setLoadingPhase(1);
 
-            const body = JSON.stringify({ imageBase64: finalImageBase64, locale, scanMode });
+            const body = JSON.stringify({
+                imageBase64: finalImageBase64,
+                locale,
+                scanMode,
+                photoCount: uploadedImages.length,
+            });
             logger.scanApiCall({ payloadSize: body.length, locale });
 
             const API_TIMEOUT_MS = 30_000;
