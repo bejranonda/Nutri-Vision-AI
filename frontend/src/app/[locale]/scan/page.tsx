@@ -206,7 +206,7 @@ export default function ScanPage() {
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 mb-2">{t('not_food_title')}</h3>
                         <p className="text-orange-600 mb-6 font-medium text-lg leading-relaxed bg-orange-50/50 p-4 rounded-xl">
-                            "{analysis.nonFoodReason}"
+                            &ldquo;{analysis.nonFoodReason}&rdquo;
                         </p>
                         <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
                             {t('try_again')}
