@@ -17,6 +17,7 @@ Design notes
 from __future__ import annotations
 
 import logging
+import math
 import time
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
@@ -126,13 +127,21 @@ MICRONUTRIENT_KEYS = (
 # Helpers
 # ---------------------------------------------------------------------------
 def _num(data: Mapping[str, Any], key: str, default: float = 0.0) -> float:
-    """Safely read a non-negative numeric field. Missing / None / bad types → default."""
+    """
+    Safely read a non-negative, finite numeric field.
+
+    Missing / None / bad types / non-finite (NaN, ±inf) → `default`.
+    Rejecting non-finite values here prevents `_clamp(int(inf))` from
+    crashing downstream scorers.
+    """
     value = data.get(key, default)
     if value is None:
         return default
     try:
         as_float = float(value)
     except (TypeError, ValueError):
+        return default
+    if not math.isfinite(as_float):
         return default
     # Negative nutrition values are almost always a data error; treat as zero.
     return max(0.0, as_float)
@@ -144,8 +153,37 @@ def _clamp(score: float, lo: int = 0, hi: int = 100) -> int:
 
 
 def _ingredient_name(ing: Mapping[str, Any]) -> str:
-    """Flatten an ingredient's Thai + English names into one lowercase string."""
-    return f"{ing.get('name_en', '')} {ing.get('name_th', '')}".lower()
+    """
+    Flatten an ingredient's Thai + English names into one lowercase string.
+
+    Defensive against None / non-string values — upstream LLM JSON is not
+    fully typed, so `name_en: None` must not crash with AttributeError.
+    """
+    name_en = ing.get("name_en") or ""
+    name_th = ing.get("name_th") or ""
+    return f"{name_en} {name_th}".lower()
+
+
+def _coerce_nova(value: Any) -> Optional[int]:
+    """
+    Coerce a NOVA classification to a known integer key.
+
+    The upstream JSON may deliver `4`, `"4"`, or `4.0`. Anything that
+    doesn't round-trip to an integer in `NOVA_SCORES` becomes None,
+    meaning "unknown, fall back to heuristic scoring".
+    Booleans are rejected explicitly because `bool` is a subclass of `int`
+    in Python and would otherwise be silently accepted as 0/1.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        as_float = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(as_float) or not as_float.is_integer():
+        return None
+    as_int = int(as_float)
+    return as_int if as_int in NOVA_SCORES else None
 
 
 def _is_truthy(value: Any) -> bool:
@@ -336,31 +374,39 @@ class NutritionScorer:
         return _clamp(score)
 
     def calculate_nutrient_density_score(self, nutrition_data: Mapping[str, Any]) -> int:
-        """Nutrient density score (ANDI-style): nutrients per calorie + micronutrient coverage."""
+        """
+        Nutrient density score (ANDI-style): nutrients per calorie plus
+        micronutrient breadth.
+
+        When calories are missing or zero we skip the density ratios entirely
+        instead of substituting 1 — otherwise any positive gram of protein or
+        fiber would be divided by a fake 1 kcal and report as "excellent"
+        density, silently inflating scores for meals with unreported calories.
+        """
         calories = _num(nutrition_data, "total_calories")
-        if calories <= 0:
-            calories = 1  # avoid divide-by-zero; effectively caps density very high
+        has_valid_calories = calories > 0
 
         protein = _num(nutrition_data, "protein_g")
         fiber = _num(nutrition_data, "fiber_g")
 
         score = 0.0
 
-        protein_density = (protein / calories) * 200
-        if protein_density >= ND_PROTEIN_DENSITY_HIGH:
-            score += 25
-        elif protein_density >= ND_PROTEIN_DENSITY_MED:
-            score += 15
-        elif protein_density >= ND_PROTEIN_DENSITY_LOW:
-            score += 5
+        if has_valid_calories:
+            protein_density = (protein / calories) * 200
+            if protein_density >= ND_PROTEIN_DENSITY_HIGH:
+                score += 25
+            elif protein_density >= ND_PROTEIN_DENSITY_MED:
+                score += 15
+            elif protein_density >= ND_PROTEIN_DENSITY_LOW:
+                score += 5
 
-        fiber_density = (fiber / calories) * 200
-        if fiber_density >= ND_FIBER_DENSITY_HIGH:
-            score += 25
-        elif fiber_density >= ND_FIBER_DENSITY_MED:
-            score += 15
-        elif fiber_density >= ND_FIBER_DENSITY_LOW:
-            score += 5
+            fiber_density = (fiber / calories) * 200
+            if fiber_density >= ND_FIBER_DENSITY_HIGH:
+                score += 25
+            elif fiber_density >= ND_FIBER_DENSITY_MED:
+                score += 15
+            elif fiber_density >= ND_FIBER_DENSITY_LOW:
+                score += 5
 
         avg_coverage = sum(
             _num(nutrition_data, k) for k in MICRONUTRIENT_KEYS[:5]
@@ -372,8 +418,8 @@ class NutritionScorer:
         elif avg_coverage >= 10:
             score += 10
 
-        # Empty calories penalty
-        if calories > 300 and protein < 5 and fiber < 2:
+        # Empty-calories penalty only meaningful when we actually have calories.
+        if has_valid_calories and calories > 300 and protein < 5 and fiber < 2:
             score -= ND_EMPTY_CAL_PENALTY
 
         return _clamp(score)
@@ -384,18 +430,22 @@ class NutritionScorer:
         ingredients: Optional[Iterable[Any]] = None,
     ) -> int:
         """Processing level score (100 = unprocessed whole food, 0 = ultra-processed)."""
-        nova = nutrition_data.get("nova_classification")
+        # Coerce NOVA so "4", 4.0, and 4 are all treated identically. Anything
+        # that isn't a recognised integer key becomes None → heuristic path.
+        nova = _coerce_nova(nutrition_data.get("nova_classification"))
         is_upf = _is_truthy(nutrition_data.get("is_ultra_processed"))
 
-        if isinstance(nova, int) and nova in NOVA_SCORES:
+        if nova is not None:
             base: float = NOVA_SCORES[nova]
         else:
             base = 70.0
 
-            # Per-ingredient penalties for UPF markers, capped
+            # Per-ingredient penalties for UPF markers, capped. Use the
+            # shared _ingredient_name helper to cover both name_en / name_th
+            # and to tolerate None values.
             upf_penalty = 0
             for ing in _iter_ingredient_dicts(ingredients):
-                name = ing.get("name_en", "").lower()
+                name = _ingredient_name(ing)
                 if (
                     any(ind in name for ind in UPF_INGREDIENT_KEYWORDS)
                     or _is_truthy(ing.get("is_upf_indicator"))

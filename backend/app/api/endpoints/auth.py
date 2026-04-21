@@ -10,11 +10,12 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.config import settings
 from app.core.security import (
-    verify_password,
-    get_password_hash,
+    TOKEN_TYPE_REFRESH,
     create_access_token,
     create_refresh_token,
-    decode_token
+    decode_token,
+    get_password_hash,
+    verify_password,
 )
 from app.db.base import get_db
 from app.models.user import User
@@ -174,13 +175,9 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 @router.post("/refresh", response_model=Token)
 async def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
     """Refresh access token using refresh token."""
-    payload = decode_token(refresh_token)
-
-    if payload.get("type") != "refresh":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type"
-        )
+    # decode_token now defaults to expecting access tokens, so we must
+    # explicitly ask for refresh-token validation here.
+    payload = decode_token(refresh_token, expected_type=TOKEN_TYPE_REFRESH)
 
     user_id = payload.get("sub")
     user = db.query(User).filter(User.id == user_id).first()

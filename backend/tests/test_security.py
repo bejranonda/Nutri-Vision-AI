@@ -113,8 +113,15 @@ class TestInvalidTokens:
 
     def test_tampered_signature_rejected(self):
         token = security.create_access_token({"sub": "u"})
-        # Flip a character in the signature
-        tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+        # Flip a non-padding character in the signature. Mutating the FINAL
+        # character is flaky: JWT signatures are base64url-encoded without
+        # padding, and at certain lengths (e.g. 43 chars) two different final
+        # characters can decode to identical bytes because the final sextet's
+        # low bits are discarded. Flipping the first signature char avoids
+        # that ambiguity.
+        header, payload, signature = token.split(".")
+        replacement = "A" if signature[0] != "A" else "B"
+        tampered = ".".join([header, payload, replacement + signature[1:]])
         with pytest.raises(HTTPException):
             security.decode_token(tampered)
 

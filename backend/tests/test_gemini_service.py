@@ -51,6 +51,24 @@ class TestJsonExtraction:
         txt = "prefix [1,2,3]"
         assert "[1,2,3]" in GeminiService._extract_json_text(txt)
 
+    def test_extracts_first_valid_object_when_multiple(self):
+        """
+        Regression: the previous greedy regex would span from the first `{` to
+        the LAST `}`, making `{"a":1} garbage {"b":2}` parse as one invalid
+        blob. The raw_decode scanner should return the first valid object.
+        """
+        txt = 'noise {"a":1} some text {"b":2}'
+        import json as _json
+        extracted = GeminiService._extract_json_text(txt)
+        assert _json.loads(extracted) == {"a": 1}
+
+    def test_greedy_span_bug_fixed_via_parse(self):
+        """End-to-end: the parser should successfully decode the first object."""
+        result = GeminiService._parse_json_response(
+            '{"first": true} followed by garbage {"second": false}'
+        )
+        assert result == {"first": True}
+
     def test_unclosed_fence_does_not_crash(self):
         """Regression: previously, ```json without closing ``` raised IndexError."""
         txt = '```json\n{"foo": 1}'  # note: no closing fence

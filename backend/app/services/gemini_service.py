@@ -19,12 +19,32 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Regex that extracts JSON from an LLM response. Matches ```json fenced blocks,
-# ``` fenced blocks, or the first {...} / [...] in the response. Using regex
-# (instead of naive split) means a missing closing fence or repeated fences
-# don't raise IndexError.
+# Regex that extracts JSON from a fenced code block in an LLM response.
+# For the bare-JSON fallback we use JSONDecoder.raw_decode instead of a
+# regex — regex would greedily span from the first `{` to the last `}`,
+# clobbering valid early JSON when the model emits multiple objects.
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
-_BARE_JSON_RE = re.compile(r"(\{.*\}|\[.*\])", re.DOTALL)
+
+_JSON_DECODER = json.JSONDecoder()
+
+
+def _find_first_valid_json(text: str) -> Optional[str]:
+    """
+    Scan for the first `{` or `[` that begins a valid JSON payload.
+
+    Returns the raw JSON substring if found, else None. Using raw_decode
+    avoids the greedy-regex bug where `{"a":1} xxx {"b":2}` would be
+    matched as one invalid span.
+    """
+    for idx, char in enumerate(text):
+        if char not in "{[":
+            continue
+        try:
+            _, end = _JSON_DECODER.raw_decode(text[idx:])
+        except json.JSONDecodeError:
+            continue
+        return text[idx:idx + end].strip()
+    return None
 
 
 class GeminiService:
@@ -438,11 +458,13 @@ Prioritize healthy Thai recipes when possible.
 
         fence = _FENCED_JSON_RE.search(response_text)
         if fence:
-            return fence.group(1).strip()
+            fenced = fence.group(1).strip()
+            if fenced:
+                return fenced
 
-        bare = _BARE_JSON_RE.search(response_text)
-        if bare:
-            return bare.group(1).strip()
+        bare = _find_first_valid_json(response_text)
+        if bare is not None:
+            return bare
 
         stripped = response_text.strip()
         return stripped or None

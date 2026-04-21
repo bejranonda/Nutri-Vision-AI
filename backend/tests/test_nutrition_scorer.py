@@ -11,7 +11,14 @@ Covers:
 import pytest
 
 from app.services import nutrition_scorer as ns
-from app.services.nutrition_scorer import NutritionScorer, _clamp, _is_truthy, _num
+from app.services.nutrition_scorer import (
+    NutritionScorer,
+    _clamp,
+    _coerce_nova,
+    _ingredient_name,
+    _is_truthy,
+    _num,
+)
 
 
 scorer = NutritionScorer()
@@ -47,6 +54,35 @@ class TestHelpers:
         # Negative values clamped to zero — a defensive choice.
         assert _num(data, "e") == 0
         assert _num(data, "missing", default=7) == 7
+
+    def test_num_rejects_non_finite(self):
+        """Regression: float('inf') / NaN must not reach _clamp(int(...))."""
+        data = {"inf": float("inf"), "ninf": float("-inf"), "nan": float("nan")}
+        assert _num(data, "inf") == 0
+        assert _num(data, "ninf") == 0
+        assert _num(data, "nan") == 0
+
+    def test_num_rejects_string_infinity(self):
+        assert _num({"x": "inf"}, "x") == 0
+        assert _num({"x": "NaN"}, "x") == 0
+
+    @pytest.mark.parametrize("value,expected", [
+        (1, 1), (2, 2), (3, 3), (4, 4),
+        ("1", 1), ("4", 4),
+        (4.0, 4), (1.0, 1),
+        (0, None), (5, None),           # out of NOVA range
+        ("four", None), (None, None),   # junk input
+        (True, None), (False, None),    # bools rejected explicitly
+        (float("nan"), None),
+    ])
+    def test_coerce_nova(self, value, expected):
+        assert _coerce_nova(value) == expected
+
+    def test_ingredient_name_handles_none(self):
+        """Regression: name_en=None previously crashed .lower()."""
+        assert _ingredient_name({"name_en": None, "name_th": None}) == " "
+        assert _ingredient_name({"name_en": "Chicken"}) == "chicken "
+        assert _ingredient_name({}) == " "
 
 
 # ---------------------------------------------------------------------------
@@ -164,10 +200,24 @@ class TestNutrientDensityScore:
         })
         assert score <= 10  # penalty + no density bonuses
 
-    def test_zero_calories_does_not_crash(self):
-        assert scorer.calculate_nutrient_density_score({"total_calories": 0}) >= 0
+    def test_zero_calories_skips_density_inflation(self):
+        """
+        Regression: previously calories=0 was coerced to 1, so any positive
+        gram of protein/fiber reported as "excellent density". Now the
+        density branch is skipped when calories are missing, so protein/fiber
+        alone shouldn't add density points.
+        """
+        with_ratios = scorer.calculate_nutrient_density_score({
+            "total_calories": 200, "protein_g": 20, "fiber_g": 6,
+        })
+        without_calories = scorer.calculate_nutrient_density_score({
+            "total_calories": 0, "protein_g": 20, "fiber_g": 6,
+        })
+        # Missing calories must NOT score as high as a meal with real
+        # calorie data supporting the same density.
+        assert without_calories < with_ratios
 
-    def test_missing_calories_treated_as_one(self):
+    def test_missing_calories_does_not_crash(self):
         assert scorer.calculate_nutrient_density_score({}) >= 0
 
 
@@ -213,6 +263,22 @@ class TestProcessingLevelScore:
         low = scorer.calculate_processing_level_score({"sodium_mg": 100})
         high = scorer.calculate_processing_level_score({"sodium_mg": 1000})
         assert high < low
+
+    @pytest.mark.parametrize("nova_value", [4, "4", 4.0])
+    def test_nova_accepts_mixed_types(self, nova_value):
+        """Regression: '4' and 4.0 used to fall through to the 70 heuristic."""
+        assert scorer.calculate_processing_level_score(
+            {"nova_classification": nova_value}
+        ) == 25
+
+    def test_ingredient_with_none_name_en_does_not_crash(self):
+        """Regression: `name_en=None` previously raised AttributeError on .lower()."""
+        ingredients = [
+            {"name_en": None, "name_th": "ขมิ้น"},
+            {"name_th": None},  # entirely missing name_en
+        ]
+        score = scorer.calculate_processing_level_score({}, ingredients)
+        assert 0 <= score <= 100
 
 
 # ---------------------------------------------------------------------------
