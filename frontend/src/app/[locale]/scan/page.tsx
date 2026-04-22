@@ -275,9 +275,30 @@ export default function ScanPage() {
                                     <>
                                         <h3 className="text-xl font-bold text-gray-800 ml-2 mb-4 mt-8">{t('dishes_found')}</h3>
                                         <div className="space-y-6">
-                                            {analysis.mealResult.dishes.map((dish, i) => (
-                                                <DishCard key={i} dish={dish} index={i} totalDishes={analysis.mealResult!.dishes.length} />
-                                            ))}
+                                            {analysis.mealResult.dishes.map((dish, i) => {
+                                                // Link each dish back to its source photo. Prefer
+                                                // the model-supplied `sourcePhotoIndex`; fall back
+                                                // to the dish's array index (the prompt enforces
+                                                // reading order so they usually agree). Only show
+                                                // the thumbnail for multi-photo scans — a single
+                                                // photo is already displayed on the left.
+                                                const photoIdx = dish.sourcePhotoIndex ?? i;
+                                                const photo =
+                                                    upload.uploadedImages.length > 1 &&
+                                                    photoIdx >= 0 &&
+                                                    photoIdx < upload.uploadedImages.length
+                                                        ? upload.uploadedImages[photoIdx]
+                                                        : undefined;
+                                                return (
+                                                    <DishCard
+                                                        key={i}
+                                                        dish={dish}
+                                                        index={i}
+                                                        totalDishes={analysis.mealResult!.dishes.length}
+                                                        photo={photo}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     </>
                                 )}

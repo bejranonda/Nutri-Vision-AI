@@ -15,9 +15,17 @@ interface DishCardProps {
     dish: AiDishAnalysis;
     index: number;
     totalDishes: number;
+    /**
+     * Thumbnail of the original photo this dish was identified from. When
+     * provided, renders as a small square in the card header so the user
+     * can visually map a dish back to its source photo in a multi-photo
+     * scan. Omit for single-photo scans (the uploaded image already
+     * appears large on the left side of the results layout).
+     */
+    photo?: string;
 }
 
-export default function DishCard({ dish, index, totalDishes }: DishCardProps) {
+export default function DishCard({ dish, index, totalDishes, photo }: DishCardProps) {
     const t = useTranslations('scan');
 
     const overallScore = Math.round(
@@ -31,16 +39,25 @@ export default function DishCard({ dish, index, totalDishes }: DishCardProps) {
     return (
         <div className="backdrop-blur-md bg-white/90 rounded-2xl p-5 shadow-glass border border-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-glass-hover">
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                    {totalDishes > 1 && (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 text-white text-xs font-bold shadow-sm">
-                            {index + 1}
-                        </span>
+            <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {photo && (
+                        <img
+                            src={photo}
+                            alt={dish.name}
+                            className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-white shadow-sm ring-1 ring-black/5"
+                        />
                     )}
-                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{dish.name}</h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                        {totalDishes > 1 && (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 text-white text-xs font-bold shadow-sm flex-shrink-0">
+                                {index + 1}
+                            </span>
+                        )}
+                        <h3 className="text-lg font-bold text-gray-900 leading-tight truncate">{dish.name}</h3>
+                    </div>
                 </div>
-                <div className={`px-3 py-1 rounded-xl text-sm font-black ${scoreColor} ${scoreBg} border`}>
+                <div className={`px-3 py-1 rounded-xl text-sm font-black flex-shrink-0 ${scoreColor} ${scoreBg} border`}>
                     {overallScore}<span className="text-xs text-gray-400 font-medium">/100</span>
                 </div>
             </div>

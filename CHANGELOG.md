@@ -5,6 +5,15 @@ All notable changes to the NutriVision AI project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **No more "karaoke" romanization in Thai output**: the Thai locale instruction now explicitly forbids phonetic transliterations / English translations in parentheses (e.g. `ซุปปลา (Soup Pla)`). Same rule applied for de / da / en so the model no longer volunteers unwanted translations. Native Thai users see clean Thai text.
+- **Dish ↔ source-photo linkage for multi-photo scans**: each `DishCard` now shows a small thumbnail of the specific uploaded photo the dish was identified from, so users can immediately see which tile produced which analysis. Backed by a new optional `sourcePhotoIndex` field on `AiDishAnalysis`; the validator guarantees a deterministic index (model value, clamped to the valid range, with array-index fallback) so the UI never has to branch on undefined.
+
+### Changed
+- Strengthened the meal prompt: the collage-mode preamble and final reminder now both tell the model to emit `sourcePhotoIndex` per dish, in addition to the existing "one entry per tile" constraint. The JSON schema example in `AI_PROMPT_MEAL` includes the field so the model has a concrete target shape.
+
 ## [2.1.9] - 2026-03-17
 
 ### Added
