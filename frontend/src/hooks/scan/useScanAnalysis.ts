@@ -1,10 +1,64 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { logger } from '@/lib/logger';
-import { addScanToHistory, createThumbnail } from '@/lib/scan-history';
+import { addScanToHistory, createThumbnail, type ScanHistoryDish } from '@/lib/scan-history';
 import { stitchImagesToCanvas } from '@/lib/image-stitcher';
 import { useAuthStore } from '@/lib/auth-store';
-import { type ScanMode, type AiMultiDishResponse, type AiMenuResponse, type AiDrinkSnackResponse } from '@/lib/ai-prompt';
+import { type ScanMode, type AiMultiDishResponse, type AiMenuResponse, type AiDrinkSnackResponse, type AiDishAnalysis } from '@/lib/ai-prompt';
+
+const EMPTY_NUTRITION = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+
+/**
+ * Summarize a meal-mode result for the history list.
+ *
+ * - `foodName` is a label; for multi-dish meals we show "First + N more" so
+ *   users can tell their multi-photo scan apart from a single-dish scan.
+ * - `nutrition` is summed across all dishes (total plate calories).
+ * - `spikeReduction` is averaged (matches the `MealOverview` header).
+ * - `dishes` carries the per-dish breakdown so future UI can drill in.
+ */
+function summarizeMealForHistory(dishes: AiDishAnalysis[]): {
+    foodName: string;
+    spikeReduction: number;
+    nutrition: typeof EMPTY_NUTRITION;
+    dishes: ScanHistoryDish[];
+} {
+    if (dishes.length === 0) {
+        return { foodName: 'Meal', spikeReduction: 0, nutrition: EMPTY_NUTRITION, dishes: [] };
+    }
+
+    const nutrition = dishes.reduce(
+        (acc, d) => ({
+            calories: acc.calories + (d.nutritionSummary?.calories || 0),
+            protein: acc.protein + (d.nutritionSummary?.protein || 0),
+            carbs: acc.carbs + (d.nutritionSummary?.carbs || 0),
+            fat: acc.fat + (d.nutritionSummary?.fat || 0),
+            fiber: acc.fiber + (d.nutritionSummary?.fiber || 0),
+        }),
+        { ...EMPTY_NUTRITION }
+    );
+
+    const spikeReduction = Math.round(
+        dishes.reduce((sum, d) => sum + (d.spikeReduction || 0), 0) / dishes.length
+    );
+
+    const first = dishes[0]?.name || 'Meal';
+    const foodName = dishes.length > 1 ? `${first} + ${dishes.length - 1} more` : first;
+
+    const slimDishes: ScanHistoryDish[] = dishes.map(d => ({
+        name: d.name,
+        spikeReduction: d.spikeReduction || 0,
+        nutrition: {
+            calories: d.nutritionSummary?.calories || 0,
+            protein: d.nutritionSummary?.protein || 0,
+            carbs: d.nutritionSummary?.carbs || 0,
+            fat: d.nutritionSummary?.fat || 0,
+            fiber: d.nutritionSummary?.fiber || 0,
+        },
+    }));
+
+    return { foodName, spikeReduction, nutrition, dishes: slimDishes };
+}
 
 const LOADING_PHASES_SINGLE = [
     { key: 'compressing', emoji: '📦', duration: 2000 },
@@ -103,7 +157,12 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             logger.info(`📦 COMPRESS/STITCH TIMING | ${timings.compressMs}ms`);
             setLoadingPhase(1);
 
-            const body = JSON.stringify({ imageBase64: finalImageBase64, locale, scanMode });
+            const body = JSON.stringify({
+                imageBase64: finalImageBase64,
+                locale,
+                scanMode,
+                photoCount: uploadedImages.length,
+            });
             logger.scanApiCall({ payloadSize: body.length, locale });
 
             const API_TIMEOUT_MS = 30_000;
@@ -213,24 +272,47 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             }
 
             try {
-                let thumbnailBase64 = finalImageBase64;
-                if (uploadedImages.length > 0) {
-                     thumbnailBase64 = uploadedImages[0];
-                }
+                // For multi-photo scans use the stitched collage as the
+                // thumbnail so the user can see all photos they uploaded.
+                // For single-photo scans use the one photo directly — no
+                // collage was created and finalImageBase64 just equals it.
+                const thumbnailBase64 =
+                    uploadedImages.length > 1 ? finalImageBase64 : (uploadedImages[0] || finalImageBase64);
                 const thumbnail = thumbnailBase64 ? await createThumbnail(thumbnailBase64) : undefined;
+
+                // Mode-specific summary. For meals we aggregate across all
+                // dishes and carry the per-dish breakdown; for menu / drink
+                // we use the single-item shape the schema already provides.
+                let foodName: string;
+                let spikeReduction: number;
+                let nutrition = { ...EMPTY_NUTRITION };
+                let dishes: ScanHistoryDish[] | undefined;
+
+                if (resultScanMode === 'meal') {
+                    const summary = summarizeMealForHistory(data.result.dishes || []);
+                    foodName = summary.foodName;
+                    spikeReduction = summary.spikeReduction;
+                    nutrition = summary.nutrition;
+                    dishes = summary.dishes;
+                } else if (resultScanMode === 'menu') {
+                    foodName = 'Menu Scan';
+                    spikeReduction = 0;
+                } else {
+                    foodName = data.result.itemName || 'Drink/Snack';
+                    spikeReduction = 0;
+                    nutrition = data.result.nutritionSummary || { ...EMPTY_NUTRITION };
+                }
+
                 addScanToHistory({
-                    foodName: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.name || 'Meal')
-                        : resultScanMode === 'menu' ? 'Menu Scan'
-                        : (data.result.itemName || 'Drink/Snack'),
+                    foodName,
                     confidence: data.confidence || 0,
                     overallScore: data.overallScore,
-                    spikeReduction: resultScanMode === 'meal' ? (data.result.dishes?.[0]?.spikeReduction || 0) : 0,
+                    spikeReduction,
                     modelUsed: data.modelUsed || 'unknown',
                     tip: resultScanMode === 'meal' ? data.result.overallTip : data.result.tip,
                     thumbnail,
-                    nutrition: resultScanMode === 'meal'
-                        ? (data.result.dishes?.[0]?.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 })
-                        : (data.result.nutritionSummary || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }),
+                    nutrition,
+                    dishes,
                     debug: isDebugMode ? { requestId: data.requestId, timings } : undefined,
                 });
                 logger.debug('📝 Scan saved to client history');

@@ -192,7 +192,11 @@
       "health_alerts": "Gesundheitswarnungen",
       "alternatives": "Gesündere Alternativen",
       "timing": "Beste Zeit zum Genießen"
-    }
+    },
+    "dishes_found": "Gefundene Gerichte",
+    "score_label": "Score",
+    "not_food_title": "Hm, ich sehe hier kein Essen",
+    "scan_tip": "Lade ein klares Foto deiner Mahlzeit, eines Getränks oder einer Speisekarte hoch!"
   },
   "demo": {
     "title": "So funktioniert Shinny Guide",

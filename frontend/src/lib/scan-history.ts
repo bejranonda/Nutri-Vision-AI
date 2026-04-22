@@ -12,20 +12,42 @@
 const STORAGE_KEY = 'shinny_scan_history';
 const MAX_HISTORY = 10;
 
+/**
+ * One dish within a meal scan. Only the fields useful for a history list
+ * view — skip heavy per-dish detail (score breakdowns, eating sequence)
+ * to keep localStorage usage small.
+ */
+export interface ScanHistoryDish {
+    name: string;
+    spikeReduction: number;
+    nutrition: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
+}
+
 export interface ScanHistoryEntry {
     id: string;
     timestamp: string;
+    /**
+     * Human-readable label. For multi-dish meals, expected to be a summary
+     * like "Pad Thai + 2 more". See `dishes` for the full per-dish breakdown.
+     */
     foodName: string;
     confidence: number;
     overallScore: number;
+    /** Average spike reduction across all dishes in the scan. */
     spikeReduction: number;
     modelUsed: string;
     tip?: string;
-    /** Thumbnail — small base64 preview (resized to 100px) */
+    /** Thumbnail — small base64 preview (resized to 80px). */
     thumbnail?: string;
-    /** Nutrition summary */
+    /** Aggregated nutrition (sum across all dishes for meal scans). */
     nutrition: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
-    /** Debug info — only stored when ?debug=1 was active */
+    /**
+     * Per-dish breakdown for meal-mode scans with multiple dishes.
+     * Undefined for single-item scans (menu / drink_snack) or legacy entries
+     * written before this field existed.
+     */
+    dishes?: ScanHistoryDish[];
+    /** Debug info — only stored when ?debug=1 was active. */
     debug?: {
         requestId?: string;
         timings?: Record<string, number>;

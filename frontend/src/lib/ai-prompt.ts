@@ -85,14 +85,93 @@ export const LOCALE_INSTRUCTION: Record<string, string> = {
   da: '\n\nIMPORTANT: Respond with ALL text values in Danish (Dansk). Keep JSON keys in English.',
 };
 
-/** Build the full localized prompt for a given scan mode */
-export function buildLocalizedPrompt(locale: string, scanMode: ScanMode = 'meal'): string {
+/**
+ * Collage-awareness instruction. Prepended to the prompt when the client
+ * stitched N>1 photos into a single image. Without this, the model often
+ * interprets the stitched collage as a single scene and returns only one
+ * dish/item, even though the user uploaded several.
+ *
+ * We return { preamble, reinforcement } so the caller can place the
+ * preamble at the TOP of the prompt AND a short reinforcement at the END,
+ * right before the model starts generating JSON. LLMs (especially smaller
+ * open-weight ones like Gemma) often "forget" early instructions once the
+ * JSON schema portion of the prompt dominates their context, so we repeat
+ * the constraint at both ends.
+ */
+function buildCollageInstruction(
+  photoCount: number,
+  scanMode: ScanMode,
+): { preamble: string; reinforcement: string } {
+  if (photoCount <= 1) return { preamble: '', reinforcement: '' };
+
+  const shared = `
+IMPORTANT — COLLAGE MODE:
+The image you are analyzing is a COLLAGE of ${photoCount} SEPARATE PHOTOS that the user uploaded. The photos are arranged in a grid on a white background, with white padding between them. Each tile is a DISTINCT item that was photographed independently — they are NOT part of the same scene.
+`.trim();
+
+  if (scanMode === 'meal') {
+    const preamble =
+      shared +
+      `
+You MUST return one entry in the "dishes" array for EACH of the ${photoCount} tiles (even if two tiles look similar). The "dishCount" field MUST equal ${photoCount}. Number the dishes in reading order: left-to-right, top-to-bottom. Do not merge tiles, do not skip tiles.
+` +
+      '\n\n';
+
+    // Final-reminder line placed after the JSON schema. Short and direct
+    // because it's the LAST thing the model reads before generating.
+    const reinforcement = `\n\nFINAL REMINDER: the image contains ${photoCount} separate photos. Your "dishes" array MUST have exactly ${photoCount} entries and "dishCount" MUST be ${photoCount}. Before you finish, count your dishes array — if it is not ${photoCount}, you have made an error.\n`;
+
+    return { preamble, reinforcement };
+  }
+
+  if (scanMode === 'menu') {
+    const preamble =
+      shared +
+      `
+Each tile may be a page or section of a menu (the user may have photographed a multi-page menu). Read items from ALL ${photoCount} tiles and include them in a single "menuItems" array. Do not ignore any tile.
+` +
+      '\n\n';
+
+    const reinforcement = `\n\nFINAL REMINDER: the image contains ${photoCount} separate menu photos. Your "menuItems" array must include dishes from every tile, not just the first one.\n`;
+
+    return { preamble, reinforcement };
+  }
+
+  // drink_snack — schema is single-item. Tell the model to pick the most
+  // prominent / center tile so the result is at least deterministic.
+  const preamble =
+    shared +
+    `
+Note: the drink & snack schema supports only ONE item. Choose the most prominent item (the user's primary subject — usually the center or largest tile) and analyze only that one. You may mention the other ${photoCount - 1} tile(s) briefly in the "tip" field.
+` +
+    '\n\n';
+
+  return { preamble, reinforcement: '' };
+}
+
+/**
+ * Build the full localized prompt for a given scan mode.
+ *
+ * @param locale      UI locale ('th' | 'en' | 'de' | 'da'); used to pick
+ *                    the response-language instruction.
+ * @param scanMode    Which schema the model should return.
+ * @param photoCount  Number of separate photos the client stitched into
+ *                    the image. When > 1, a collage-awareness preamble is
+ *                    prepended so the model treats each tile as distinct.
+ */
+export function buildLocalizedPrompt(
+  locale: string,
+  scanMode: ScanMode = 'meal',
+  photoCount: number = 1,
+): string {
   const prompts: Record<ScanMode, string> = {
     meal: AI_PROMPT_MEAL,
     menu: AI_PROMPT_MENU,
     drink_snack: AI_PROMPT_DRINK_SNACK,
   };
-  return prompts[scanMode] + (LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en);
+  const { preamble, reinforcement } = buildCollageInstruction(photoCount, scanMode);
+  const localeInstruction = LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en;
+  return preamble + prompts[scanMode] + localeInstruction + reinforcement;
 }
 
 // ─── Shared Types ────────────────────────────────────────────────────────────

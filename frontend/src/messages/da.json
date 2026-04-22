@@ -192,7 +192,11 @@
       "health_alerts": "Sundhedsadvarsler",
       "alternatives": "Sundere alternativer",
       "timing": "Bedste tidspunkt at nyde"
-    }
+    },
+    "dishes_found": "Fundne retter",
+    "score_label": "Score",
+    "not_food_title": "Hmm, jeg kan ikke se mad her",
+    "scan_tip": "Prøv at uploade et klart foto af dit måltid, din drik eller en menu!"
   },
   "demo": {
     "title": "Sådan virker Shinny Guide",
