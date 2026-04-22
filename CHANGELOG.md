@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Fixed: expired sessions accepted on `/api/promo/redeem`** — the redemption endpoint previously looked up sessions by token only, not by `expiresAt`. A user holding an expired-but-uncleaned token could still redeem promo codes. Now matches the check in `/api/auth/me` (`eq(token) AND gt(expiresAt, now)`).
+- **Fixed: timing side-channel in password verification** — `verifyPassword` used `hexA === hexB` to compare the derived hash with the stored hash, which short-circuits on the first differing byte and leaks timing information about the hash prefix. Replaced with a byte-wise XOR-accumulator `constantTimeEqual` helper that walks the full buffer regardless of where the mismatch is. (Node's `timingSafeEqual` isn't available on the Cloudflare Workers edge runtime, so we implement the primitive ourselves.)
+- **Fixed: race + error-leak on `/api/auth/register`** — concurrent registrations with the same email could both pass the pre-check and hit the DB unique constraint, surfacing the raw driver message ("UNIQUE constraint failed: users.email") to the client. The race is now caught around the insert and translated to the same generic 409 as the pre-check, so the response is indistinguishable between the two paths.
+- **Fixed: `error.message` no longer returned in 500 responses** on `/api/auth/login`, `/api/auth/register`, `/api/auth/me`, and `/api/promo/redeem`. The full error is still logged server-side, but clients receive a clean `{ error: "Internal server error" }`.
+
+### Known follow-ups
+- `code_redemptions` needs a unique index on `(user_id, code_id)` at the DB level to fully eliminate the promo double-redemption race. That requires a new Drizzle migration + `wrangler d1 migrations apply`; deferred to a dedicated PR so the ops rollout can be planned.
+- The legacy SHA-256 password-hash fallback in `lib/crypto.ts` should be retired once any pre-PBKDF2 users have re-authenticated (or had their hashes forcibly rotated).
+
 ### Fixed
 - **No more "karaoke" romanization in Thai output**: the Thai locale instruction now explicitly forbids phonetic transliterations / English translations in parentheses (e.g. `ซุปปลา (Soup Pla)`). Same rule applied for de / da / en so the model no longer volunteers unwanted translations. Native Thai users see clean Thai text.
 - **Dish ↔ source-photo linkage for multi-photo scans**: each `DishCard` now shows a small thumbnail of the specific uploaded photo the dish was identified from, so users can immediately see which tile produced which analysis. Backed by a new optional `sourcePhotoIndex` field on `AiDishAnalysis`; the validator guarantees a deterministic index (model value, clamped to the valid range, with array-index fallback) so the UI never has to branch on undefined.

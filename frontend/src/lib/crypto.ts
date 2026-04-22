@@ -23,6 +23,28 @@ function hexToBuf(hex: string): Uint8Array {
 }
 
 /**
+ * Constant-time byte comparison — no early-out on the first mismatch,
+ * so the total runtime does not depend on *where* two buffers differ.
+ *
+ * We can't use Node's `crypto.timingSafeEqual` because this module runs
+ * on the Cloudflare Workers edge runtime, which exposes only the Web
+ * Crypto API. The XOR-accumulator pattern below is the standard
+ * workaround and produces truly constant-time behaviour for equal-length
+ * inputs. Unequal lengths return false but still walk the longer array
+ * so the timing doesn't leak the length boundary either.
+ */
+function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
+    const len = Math.max(a.length, b.length);
+    let diff = a.length ^ b.length; // non-zero if lengths differ
+    for (let i = 0; i < len; i++) {
+        // Reading past the end of the shorter buffer returns undefined;
+        // coerce to 0 so we still do the full loop.
+        diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+    }
+    return diff === 0;
+}
+
+/**
  * Derive a PBKDF2 key from a password + salt.
  */
 async function deriveKey(
@@ -58,6 +80,11 @@ export async function hashPassword(password: string): Promise<string> {
 /**
  * Verify a password against a stored hash string.
  * Supports both new PBKDF2 format and legacy SHA-256 hex strings.
+ *
+ * Uses `constantTimeEqual` on the raw bytes (not hex strings) so the
+ * comparison never short-circuits on the first differing byte — this
+ * closes a timing side-channel that could let an attacker probe the
+ * hash byte-by-byte.
  */
 export async function verifyPassword(
     password: string,
@@ -69,15 +96,17 @@ export async function verifyPassword(
         // New PBKDF2 format: iterations:salt:hash
         const iterations = parseInt(parts[0], 10);
         const salt = hexToBuf(parts[1]);
-        const expectedHash = parts[2];
+        const expected = hexToBuf(parts[2]);
         const derivedBuf = await deriveKey(password, salt, iterations);
-        return bufToHex(derivedBuf) === expectedHash;
+        return constantTimeEqual(new Uint8Array(derivedBuf), expected);
     }
 
-    // Legacy SHA-256 fallback (plain hex string, no colons)
+    // Legacy SHA-256 fallback (plain hex string, no colons).
+    // Kept for backward compatibility with any pre-PBKDF2 users — should
+    // be retired after a migration window; see CHANGELOG.
     const enc = new TextEncoder();
     const legacyBuf = await crypto.subtle.digest('SHA-256', enc.encode(password));
-    return bufToHex(legacyBuf) === storedHash;
+    return constantTimeEqual(new Uint8Array(legacyBuf), hexToBuf(storedHash));
 }
 
 /**
