@@ -192,7 +192,11 @@
       "health_alerts": "Health Alerts",
       "alternatives": "Healthier Alternatives",
       "timing": "Best Time to Enjoy"
-    }
+    },
+    "dishes_found": "Dishes found",
+    "score_label": "Score",
+    "not_food_title": "Hmm, I don't see food here",
+    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!"
   },
   "demo": {
     "title": "How Shinny Guide Works",

@@ -220,8 +220,24 @@ export default function ScanPage() {
                         <>
                             <div className="lg:sticky lg:top-8 w-full lg:w-1/3 space-y-4 mb-8 lg:mb-0 z-10 animate-slide-up">
                                 {upload.uploadedImages.length > 0 && (
-                                    <div className="backdrop-blur-md bg-white/90 rounded-3xl p-2 shadow-glass overflow-hidden border border-white/40">
-                                        <img src={upload.uploadedImages[0]} alt="Scan" className="w-full aspect-video md:aspect-square object-cover rounded-2xl shadow-inner" />
+                                    <div className="relative backdrop-blur-md bg-white/90 rounded-3xl p-2 shadow-glass overflow-hidden border border-white/40">
+                                        {upload.uploadedImages.length === 1 ? (
+                                            <img src={upload.uploadedImages[0]} alt="Scan" className="w-full aspect-video md:aspect-square object-cover rounded-2xl shadow-inner" />
+                                        ) : (
+                                            // Multi-photo scan: show every uploaded photo in a
+                                            // 2-column grid so the user sees what was analyzed,
+                                            // not just photo #1.
+                                            <div className="grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden shadow-inner">
+                                                {upload.uploadedImages.map((src, i) => (
+                                                    <img
+                                                        key={i}
+                                                        src={src}
+                                                        alt={`Scan photo ${i + 1}`}
+                                                        className="w-full aspect-square object-cover rounded-lg"
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
                                         {analysis.overallScore > 0 && (
                                             <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-lg flex flex-col items-center">
                                                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('score_label')}</span>

@@ -272,10 +272,12 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             }
 
             try {
-                // Use the first uploaded photo as the thumbnail — more
-                // recognizable to the user than the (potentially gridded)
-                // stitched image.
-                const thumbnailBase64 = uploadedImages[0] || finalImageBase64;
+                // For multi-photo scans use the stitched collage as the
+                // thumbnail so the user can see all photos they uploaded.
+                // For single-photo scans use the one photo directly — no
+                // collage was created and finalImageBase64 just equals it.
+                const thumbnailBase64 =
+                    uploadedImages.length > 1 ? finalImageBase64 : (uploadedImages[0] || finalImageBase64);
                 const thumbnail = thumbnailBase64 ? await createThumbnail(thumbnailBase64) : undefined;
 
                 // Mode-specific summary. For meals we aggregate across all
