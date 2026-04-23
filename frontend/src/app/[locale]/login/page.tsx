@@ -15,7 +15,7 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { login, register, redeemCode, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+    const { login, register, redeemCode, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +30,16 @@ export default function LoginPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+    // Probe the session cookie on mount. If the user already has a valid
+    // session (e.g. they hit /login directly after logging in in another
+    // tab), initAuth() will flip `isAuthenticated` to true and the effect
+    // below bounces them straight to /dashboard — no redundant login UI.
+    useEffect(() => {
+        initAuth();
+        // intentionally empty deps — run exactly once on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated) {

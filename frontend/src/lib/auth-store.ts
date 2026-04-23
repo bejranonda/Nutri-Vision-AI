@@ -33,7 +33,13 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
-    isLoading: true, // Start loading to check session on mount
+    // `isLoading` is true only while an async action (login, register,
+    // redeem, session-probe) is in flight. We start at FALSE — nothing
+    // calls initAuth() during the module-evaluation phase, so starting
+    // at true would leave the store permanently stuck (login button
+    // disabled forever). Consumers that want an on-mount session probe
+    // must call initAuth() themselves in a useEffect.
+    isLoading: false,
     error: null,
 
     initAuth: async () => {
