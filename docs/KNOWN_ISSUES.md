@@ -38,7 +38,56 @@ This document lists currently identified bugs, limitations, and ongoing technica
 -   **Accuracy of Portions**: AI occasionally overestimates or underestimates portion sizes based on photo angles.
 -   **Language Consistency**: Ensuring the AI's "Shinny" persona remains consistent across all 4 languages.
 
+## 🚧 Ongoing Follow-ups (PR-tracked)
+
+### 1. Retire legacy SHA-256 password-hash fallback
+- **Status**: `lib/crypto.ts` currently accepts two hash formats: the new `iterations:salt:hash` PBKDF2 shape written by `hashPassword()` *and* a legacy bare-hex SHA-256 fallback for pre-PBKDF2 accounts. The fallback is cryptographically weak and should be removed once every active account has been re-hashed.
+- **Plan**: after a 30-day observation window measuring the `legacy_hash_observed` counter, ship a migration that (a) emails any remaining legacy users a forced password reset and (b) deletes the fallback branch. Regression tests in `frontend/tests/crypto.test.ts` currently *verify* the fallback works; those tests should be deleted in the same PR.
+
+### 2. Rate limiting on auth & scan endpoints
+- **Status**: `/api/auth/login`, `/register`, `/analyze`, `/promo/redeem` have **no rate limit**. An attacker can brute-force passwords or abuse the expensive Gemini path without throttling. Cloudflare Pages has built-in Rate Limiting rules but nothing is wired up.
+- **Plan**: edge helper `lib/rate-limit.ts` using `caches.default` as an ephemeral per-IP sliding window (no new deps). Apply per-route policies: login 5/15min, register 3/15min, analyze 20/min, promo/redeem 5/min. Return 429 with a `Retry-After` header.
+
+### 3. Empirical prompt evaluation
+- **Status**: Every prompt change (e.g. `sourcePhotoIndex` addition in PR #8) ships to 100% of traffic without measurement. The only "validation" is manual spot-check by the developer.
+- **Plan**: offline eval harness with ~20 labelled collage fixtures. `npm run eval` scores the current prompt's output (schema compliance + dish count + index range) against the baseline. Runs in CI on any change to `lib/ai-prompt.ts` — fails the PR if regression > 5%.
+
+### 4. DB indexes on foreign-key columns
+- **Status**: `sessions.user_id` and `code_redemptions.user_id` are foreign-key columns but lack explicit secondary indexes, so queries like "all sessions for user X" or "all redemptions for user X" full-scan. Acceptable at today's scale but will bite when the user base grows.
+- **Plan**: add two `CREATE INDEX` statements in a follow-up migration. Non-destructive — can ship anytime.
+
+---
+
 ## ✅ Resolved Issues
+
+### Bug-hunt hardening pass (project-hardening branch)
+- **Problems addressed**:
+  - `/api/promo/redeem` accepted expired sessions (it didn't check `expiresAt`, unlike `/api/auth/me`).
+  - `verifyPassword` short-circuited on the first differing byte — a timing side-channel.
+  - `/api/auth/register` leaked the raw DB unique-constraint message on the concurrent-registration race.
+  - All four auth/promo routes returned `error.message` in 500 responses — schema / stack disclosure.
+  - Promo codes could be double-redeemed via a check-then-insert race.
+- **Fixes**:
+  - `promo/redeem` now does `and(eq(token), gt(expiresAt, now))`. Added a `CREATE UNIQUE INDEX code_redemptions_user_code_unique` (migration 0001) and re-ordered the route so the INSERT (the race-safe claim) runs before the user-tier UPDATE.
+  - `crypto.ts` now uses a byte-wise XOR-accumulator `constantTimeEqual` helper (Node's `timingSafeEqual` isn't available on the Workers edge runtime).
+  - `register` catches the UNIQUE-constraint driver error and returns the same 409 as the pre-check.
+  - All 500 responses now return opaque `{ error: "Internal server error" }`; full errors are logged server-side.
+- **Prevention**: `frontend/tests/crypto.test.ts` locks in the constant-time and round-trip behaviour; `frontend/tests/schemas.test.ts` locks the zod validation; CI runs `npm run check:all` on every PR.
+
+### Missing i18n keys rendering as literal strings in production
+- **Root Cause**: `scan.dishes_found` and `scan.score_label` were referenced in `scan/page.tsx` but absent from `messages/th.json` / `en.json` / `de.json` / `da.json`. No automated check compared `t('…')` call sites against locale JSONs, so the drift wasn't caught pre-merge.
+- **Fix**: added `scripts/check-i18n-keys.mjs` — walks `src/**/*.{ts,tsx}`, builds a per-file map of `useTranslations('ns')` bindings (handles multi-namespace files like `page.tsx` that use `tNav` / `tBrand` / `tGamify`), and verifies every key exists in every locale. Exposed as `npm run check:i18n` and rolled into `npm run check:all`.
+- **Prevention**: CI gate blocks any PR that references a key missing from any locale.
+
+### "Karaoke" romanization in Thai AI output
+- **Root Cause**: Gemma 3 27B volunteered phonetic English transliteration in parens (`ซุปปลา (Soup Pla)`) because the Thai locale instruction never forbade it. Native Thai users read this as noise.
+- **Fix**: `LOCALE_INSTRUCTION.th` now explicitly forbids Latin letters in parentheses with concrete examples the model can pattern-match. Same rule added to `en`, `de`, `da`.
+
+### Multi-photo scan returning one dish for N photos
+- **Root Cause**: PR #6's squash merge silently fell back to a two-parent merge and dropped two commits (the multi-photo client→server `photoCount` plumbing). Re-applied in PR #7. Then: even with `photoCount`, Gemma sometimes returned `dishCount: 1` because the collage instruction was at the start of the prompt and the model "forgot" it once the JSON schema dominated the context.
+- **Fix**: `buildCollageInstruction` now emits `{ preamble, reinforcement }`. Preamble goes at the top, reinforcement goes *after* the JSON schema (the last thing the model reads). Both also require `sourcePhotoIndex` per dish so the UI can link each `DishCard` back to its source photo.
+
+## ✅ Earlier Resolved Issues
 
 ### Scan Page Monolith Refactor (v2.2.0)
 - **Root Cause**: The `scan/page.tsx` file had organically grown to almost 1000 lines, mixing UI state, API polling, compression logic, and local storage side effects, making future feature expansion risky.

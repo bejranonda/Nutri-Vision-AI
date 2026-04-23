@@ -87,6 +87,47 @@ npm run build
 npm run deploy     # → Cloudflare Pages
 ```
 
+## ✅ Quality gate
+
+Before every commit / PR, run the combined check suite. It catches the three
+classes of regression we've historically had:
+
+```bash
+cd frontend
+npm run check:all      # = type-check + check:i18n + test
+```
+
+Individually:
+
+| Script | Purpose |
+|--------|---------|
+| `npm run type-check` | Strict TypeScript (`tsc --noEmit`) across the whole frontend |
+| `npm run check:i18n` | Ensures every `t('…')` key used in code exists in **all 4 locale JSONs** (th/en/de/da) |
+| `npm test` | Vitest unit tests — crypto (PBKDF2 + constant-time compare), ai-prompt validators, zod schemas |
+| `npm run build` | Full Next.js production build, same thing Cloudflare Pages runs |
+
+Backend:
+
+```bash
+cd backend
+pytest -q              # 129 tests: security, scorer, gemini, config
+```
+
+See [`docs/ITERATION_PROCESS.md`](docs/ITERATION_PROCESS.md) for the
+continuous-iteration / zero-error navigation process each change
+follows before landing on `main`.
+
+### Database migrations
+
+Schema changes live in `frontend/src/db/schema.ts` (Drizzle). Migrations
+under `frontend/drizzle/` are hand-reviewable SQL. Apply to Cloudflare D1:
+
+```bash
+cd frontend
+npx wrangler d1 migrations apply eatinorder-db --remote  # prod
+npx wrangler d1 migrations apply eatinorder-db --local   # local dev
+```
+
 ## 📁 Project Structure
 
 ```

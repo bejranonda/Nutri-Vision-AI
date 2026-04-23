@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — project-hardening phases
+- **i18n drift CI gate** (`scripts/check-i18n-keys.mjs`, `npm run check:i18n`). Scans every `useTranslations('ns')` + `t('key')` call and verifies each key exists in `th/en/de/da`. Catches the class of bug that let `scan.dishes_found` ship to production in PR #7.
+- **Frontend Vitest infra** (`vitest.config.ts`, `tests/setup.ts`). 34 tests across `crypto`, `ai-prompt`, and `schemas` — locks the PR #6–#8 security and prompt-logic fixes.
+- **Zod request validation** at every `/api/*` boundary (`lib/schemas.ts`). Login, register, promo/redeem, analyze now `safeParse` their bodies and return a uniform `{ error, fields }` shape on failure. No more ad-hoc `const { x, y } = await req.json()` + null-checks; no more `any`-typed request bodies.
+- **`npm run check:all`** as the single command contributors run before pushing: `type-check + check:i18n + test`.
+- **`docs/ITERATION_PROCESS.md`** — defines the zero-error-navigation process each PR follows (local loop → CI loop → CF preview smoke → merge → post-merge verification → iterate).
+
+### Fixed — promo double-redemption race (previously deferred from PR #8)
+- `code_redemptions(user_id, code_id)` now has a `UNIQUE` index (Drizzle migration `0001_promo_unique_redemption`). The `/api/promo/redeem` route re-orders its steps so the INSERT (the race-safe claim) runs *before* the user-tier UPDATE, and catches the UNIQUE-constraint driver error to return the same 400 as the pre-check — indistinguishable responses, no race-window side-channel.
+
 ### Security
 - **Fixed: expired sessions accepted on `/api/promo/redeem`** — the redemption endpoint previously looked up sessions by token only, not by `expiresAt`. A user holding an expired-but-uncleaned token could still redeem promo codes. Now matches the check in `/api/auth/me` (`eq(token) AND gt(expiresAt, now)`).
 - **Fixed: timing side-channel in password verification** — `verifyPassword` used `hexA === hexB` to compare the derived hash with the stored hash, which short-circuits on the first differing byte and leaks timing information about the hash prefix. Replaced with a byte-wise XOR-accumulator `constantTimeEqual` helper that walks the full buffer regardless of where the mismatch is. (Node's `timingSafeEqual` isn't available on the Cloudflare Workers edge runtime, so we implement the primitive ourselves.)
@@ -14,8 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed: `error.message` no longer returned in 500 responses** on `/api/auth/login`, `/api/auth/register`, `/api/auth/me`, and `/api/promo/redeem`. The full error is still logged server-side, but clients receive a clean `{ error: "Internal server error" }`.
 
 ### Known follow-ups
-- `code_redemptions` needs a unique index on `(user_id, code_id)` at the DB level to fully eliminate the promo double-redemption race. That requires a new Drizzle migration + `wrangler d1 migrations apply`; deferred to a dedicated PR so the ops rollout can be planned.
-- The legacy SHA-256 password-hash fallback in `lib/crypto.ts` should be retired once any pre-PBKDF2 users have re-authenticated (or had their hashes forcibly rotated).
+- ~~`code_redemptions` unique index~~ — shipped in project-hardening phase 4 (migration `0001_promo_unique_redemption`).
+- **Rate limiting** on `/api/auth/login`, `/register`, `/analyze`, `/promo/redeem` — no throttling today. Brute force and abuse of expensive AI calls are possible. Planned: edge-cache-based sliding window per IP. Tracked in `docs/KNOWN_ISSUES.md`.
+- **Legacy SHA-256 fallback** in `lib/crypto.ts` — still present for backward compat. Tracked for retirement after a 30-day observation window.
+- **Empirical prompt evaluation** — no CI harness for prompt quality regressions. Tracked in `docs/KNOWN_ISSUES.md`.
+- **FK indexes** on `sessions.user_id` and `code_redemptions.user_id` — lacking secondary indexes; full-scans acceptable at current scale.
 
 ### Fixed
 - **No more "karaoke" romanization in Thai output**: the Thai locale instruction now explicitly forbids phonetic transliterations / English translations in parentheses (e.g. `ซุปปลา (Soup Pla)`). Same rule applied for de / da / en so the model no longer volunteers unwanted translations. Native Thai users see clean Thai text.
