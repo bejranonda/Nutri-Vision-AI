@@ -1,5 +1,13 @@
 # Admin bootstrap
 
+> ⚠️ **Pick your own email.** Every example in this document uses
+> `you@example.com` as a placeholder. Do NOT deploy with the literal
+> example address — an attacker who reads the public docs can guess
+> the email of your bootstrap admin account, cutting the work needed
+> for a credential-stuffing attack in half. Substitute a real address
+> you control (a mailbox you can receive password-reset mail at once
+> that feature exists) before running any of these commands.
+
 The `users.is_admin` column is `NOT NULL DEFAULT 0`, and the public
 `/api/auth/register` endpoint never sets it. So after a fresh deploy:
 
@@ -51,7 +59,7 @@ import("node:crypto").then(async ({ randomBytes, randomUUID }) => {
   const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
   const hb = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt.buffer, iterations: 100000, hash: "SHA-256" }, km, 32 * 8);
   const hex = b => Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,"0")).join("");
-  console.log("EMAIL=" + (process.env.EMAIL || "admin@shinnyguide.local"));
+  console.log("EMAIL=" + (process.env.EMAIL || "you@example.com"));
   console.log("PASSWORD=" + pw);
   console.log("USER_ID=" + randomUUID());
   console.log("HASH=100000:" + hex(salt.buffer) + ":" + hex(hb));
@@ -107,7 +115,7 @@ hard-coding the email anywhere in git, you can expose it as a Pages
 secret:
 
 ```bash
-echo -n "admin@shinnyguide.local" | \
+echo -n "you@example.com" | \
   npx wrangler pages secret put ADMIN_BOOTSTRAP_EMAIL --project-name=eatinorder
 ```
 
