@@ -9,7 +9,11 @@
     "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
     "deploy": "npm run pages:build && npx wrangler pages deploy ./.open-next/assets --project-name=eatinorder --commit-dirty=true",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:all": "npm run type-check && npm run check:i18n && npm run test"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
