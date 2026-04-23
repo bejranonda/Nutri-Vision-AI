@@ -42,7 +42,8 @@ This document provides guidelines for developers to maintain code quality, consi
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
     - **Dynamic Scaling**: Low-memory devices scaling down canvas size.
   - **Early Compression**: To prevent React state and mobile browser memory bloat, high-volume image features must compress incoming photos (e.g., `1200px` max, `0.85` quality) *before* storing them in frontend memory arrays.
-- **Validation**: Validate all AI outputs (e.g., `validateAiResponse`) using `safeParseJson` strategies to catch markdown prefixes before LLM JSON structures.
+- **AI-output validation**: Validate all AI outputs (e.g., `validateAiResponse`) using `safeParseJson` strategies to catch markdown prefixes before LLM JSON structures.
+- **Request-body validation (mandatory)**: every `/api/*` route that accepts JSON **must** parse its body through a zod schema declared in `frontend/src/lib/schemas.ts`. Use `safeParse` + `zodFailure(result.error)` → `{ status: 400 }`. This is the boundary at which garbage input dies — never destructure `await req.json()` directly. See the existing `LoginRequest` / `RegisterRequest` / `AnalyzeRequest` / `PromoRedeemRequest` for the pattern.
 
 ## 📊 Logging & Debugging
 
@@ -94,9 +95,11 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
     - `feat: add new scan logic`
     - `fix: correct GI calculation for sticky rice`
     - `docs: update knowledge base`
-3.  **Testing**:
-    - Run `npm run type-check` before pushing frontend changes.
-    - Ensure all backend unit tests pass (`pytest`).
+3.  **Testing** (single combined gate — run before every push):
+    - Frontend: `cd frontend && npm run check:all`
+      (= `type-check` + `check:i18n` + Vitest `test`).
+    - Backend: `cd backend && pytest -q` (**129 tests**; <10s).
+    - See [`docs/ITERATION_PROCESS.md`](ITERATION_PROCESS.md) for the full per-PR workflow (local loop → CI gates → CF preview smoke → merge method → post-merge verification → iterate).
 4. **Security**:
     - Never commit `.env` or `.env.local`. Ensure they are always in `.gitignore`.
     - **No Hardcoded Keys**: API keys must never be hardcoded in source files or scripts (even test scripts). Always load from `process.env`.
@@ -106,6 +109,35 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
     - Validate all user-supplied data using Pydantic.
 
 ## 🧪 Testing Strategy
-- **Unit Tests**: For isolated logic like nutrition score calculations.
-- **Integration Tests**: For end-to-end API flows (e.g., Scan -> Analyze -> Score -> Save).
-- **UI Tests**: For verifying multi-language rendering and interactive components.
+
+### Current automated coverage
+
+| Layer | Runner | Location | Count |
+|-------|--------|----------|-------|
+| Frontend unit (edge-safe libs) | Vitest | `frontend/tests/crypto.test.ts`, `ai-prompt.test.ts`, `schemas.test.ts` | **34** |
+| Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
+| TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
+| i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
+
+### What to test when
+
+- **Unit Tests** (`tests/*.test.ts` in Vitest, `tests/*.py` in pytest): isolated logic like nutrition score calculations, password hashing, prompt builders, request-body schemas.
+- **Integration Tests**: end-to-end API flows (Scan → Analyze → Score → Save). Not yet implemented — on the roadmap (see `KNOWN_ISSUES.md → Ongoing Follow-ups`).
+- **UI Tests**: multi-language rendering and interactive components. Also roadmap (Playwright smoke test for `Home → Scan → Results`).
+
+### When a bug makes it to production
+
+Follow `ITERATION_PROCESS.md §6` — the fix PR must add the missing regression test that would have caught the bug, and (if the bug is a class of thing rather than a one-off typo) extend the automated check suite so the whole class is prevented.
+
+### Where to add a new check
+
+| Class of check | Lives in | How to extend |
+|----------------|----------|---------------|
+| Type correctness | `tsconfig.json` | Tighten compiler options. |
+| i18n keys | `scripts/check-i18n-keys.mjs` | Extend the extractor regex or add a post-check validator. |
+| Unit tests (frontend) | `frontend/tests/*.test.ts` | One file per module, Vitest. |
+| Unit tests (backend) | `backend/tests/test_*.py` | pytest. |
+| Request-body validation | `frontend/src/lib/schemas.ts` | Add a `z.object(...)` export + import into the route. |
+| DB invariants | `frontend/src/db/schema.ts` + `frontend/drizzle/*.sql` | Drizzle schema + matching migration file. |
+
+All new gates should be wired into `npm run check:all` so they run on every commit, not just CI.

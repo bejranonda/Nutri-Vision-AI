@@ -64,6 +64,16 @@ The core `/api/analyze` route follows a strict **10-Phase Fault-Tolerant Pipelin
 ### Model Evaluation & Testing
 To ensure the high accuracy of the Dual-Provider architecture, we maintain a standalone testing suite in `scripts/test-models.mjs`. This script evaluates our fallback configurations directly against a control set of images located in `research/test-image/`. This ensures both the Cloudflare and Google AI nodes produce consistent, high-quality JSON schemas before production deployments.
 
+### Automated regression gates (added 2026-04, project-hardening pass)
+
+The static safety net runs on every commit via `npm run check:all`:
+
+1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
+2. **Vitest test suite** — 34 tests under `frontend/tests/` lock the PRs #6–#8 security + prompt logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, and all four zod schemas.
+3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
+
+Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
+
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.
 -   **Pydantic Settings**: Environment-based configuration with strict validation.
