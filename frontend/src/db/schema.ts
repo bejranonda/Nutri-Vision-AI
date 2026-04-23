@@ -14,6 +14,11 @@ export const users = sqliteTable('users', {
     scansThisMonth: integer('scans_this_month').default(0),
     streakDays: integer('streak_days').default(0),
     totalPoints: integer('total_points').default(0),
+    // Admin role flag, separate from subscriptionTier so admin status
+    // doesn't get confused with billing tier. Stored as 0/1 in SQLite.
+    // Gates access to /admin/* routes (added later) — DO NOT expose
+    // this in any public profile API response.
+    isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
