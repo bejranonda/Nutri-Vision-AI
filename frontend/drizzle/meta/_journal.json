@@ -8,6 +8,13 @@
       "when": 1774960060488,
       "tag": "0000_fine_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777788000000,
+      "tag": "0001_promo_unique_redemption",
+      "breakpoints": true
     }
   ]
 }

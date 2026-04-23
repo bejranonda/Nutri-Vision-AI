@@ -91,6 +91,34 @@ export async function POST(req: NextRequest) {
             expiresAt.setDate(expiresAt.getDate() + promoCode.trialDays);
         }
 
+        // 3. Claim the redemption FIRST (before granting any benefits).
+        //    The unique index on (user_id, code_id) is the race-safe lock:
+        //    whichever of two concurrent POSTs inserts first wins; the
+        //    loser hits a UNIQUE-constraint error and bails out with the
+        //    same "already redeemed" 400 the pre-check would return.
+        //    If we updated the user tier first and then failed the insert,
+        //    we'd have granted benefits without a redemption record —
+        //    split-brain. This ordering avoids that.
+        try {
+            await db.insert(codeRedemptions).values({
+                id: generateId(),
+                userId: userId,
+                codeId: promoCode.id,
+                redeemedAt: new Date(),
+                benefitsApplied: { tier: newTier, trialDays: promoCode.trialDays },
+            });
+        } catch (insertErr: any) {
+            const msg = String(insertErr?.message || '');
+            if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
+                return NextResponse.json(
+                    { error: 'You have already redeemed this code' },
+                    { status: 400 },
+                );
+            }
+            throw insertErr;
+        }
+
+        // 4. Redemption claimed — now apply the benefits.
         await db.update(users)
             .set({
                 subscriptionTier: newTier,
@@ -99,16 +127,7 @@ export async function POST(req: NextRequest) {
             })
             .where(eq(users.id, userId));
 
-        // 4. Record Redemption
-        await db.insert(codeRedemptions).values({
-            id: generateId(),
-            userId: userId,
-            codeId: promoCode.id,
-            redeemedAt: new Date(),
-            benefitsApplied: { tier: newTier, trialDays: promoCode.trialDays }
-        });
-
-        // 5. Increment Usage Count
+        // 5. Increment Usage Count (best-effort; not critical if it fails).
         await db.update(promoCodes)
             .set({ usageCount: (promoCode.usageCount || 0) + 1 })
             .where(eq(promoCodes.id, promoCode.id));

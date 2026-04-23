@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(),
@@ -33,13 +33,26 @@ export const promoCodes = sqliteTable('promo_codes', {
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
-export const codeRedemptions = sqliteTable('code_redemptions', {
-    id: text('id').primaryKey(),
-    userId: text('user_id').references(() => users.id),
-    codeId: text('code_id').references(() => promoCodes.id),
-    benefitsApplied: text('benefits_applied', { mode: 'json' }),
-    redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).notNull(),
-});
+export const codeRedemptions = sqliteTable(
+    'code_redemptions',
+    {
+        id: text('id').primaryKey(),
+        userId: text('user_id').references(() => users.id),
+        codeId: text('code_id').references(() => promoCodes.id),
+        benefitsApplied: text('benefits_applied', { mode: 'json' }),
+        redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).notNull(),
+    },
+    // Enforce "one redemption per (user, code)" at the DB level so the
+    // API-level check-then-insert race can't double-grant benefits. The
+    // route handler catches the constraint violation and translates it
+    // to the same "already redeemed" user-facing error.
+    (t) => ({
+        userCodeUnique: uniqueIndex('code_redemptions_user_code_unique').on(
+            t.userId,
+            t.codeId,
+        ),
+    }),
+);
 
 export const sessions = sqliteTable('sessions', {
     id: text('id').primaryKey(),
