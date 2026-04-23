@@ -5,15 +5,19 @@ import { hashPassword, generateId } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
 import { getEnv } from '@/lib/cloudflare';
+import { RegisterRequest, zodFailure } from '@/lib/schemas';
 
 
 export async function POST(req: NextRequest) {
     try {
-        const { displayName, email, password } = await req.json();
-
-        if (!email || !password || !displayName) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        // Shape validation first — enforces min password length, email
+        // format, and display name bounds before we touch the DB.
+        const parsed = RegisterRequest.safeParse(rawBody);
+        if (!parsed.success) {
+            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
         }
+        const { email, password, displayName } = parsed.data;
 
         const env = await getEnv();
         const db = getDb(env);

@@ -205,33 +205,92 @@ export function ScoreCard({ score }: { score: NutritionScore }) {
 
 ## Testing
 
+### Single command you should run before every push
+
+```bash
+cd frontend
+npm run check:all       # = type-check + check:i18n + test
+
+cd ../backend
+pytest -q
+```
+
+If any of those fail, the commit isn't ready. See
+[`docs/ITERATION_PROCESS.md`](docs/ITERATION_PROCESS.md) for the full
+zero-error-navigation workflow.
+
 ### Backend Tests
 
 ```bash
 cd backend
-pytest
-pytest --cov=app tests/  # With coverage
+pytest -q                      # 129 tests; should run in <10s
+pytest --cov=app tests/        # with coverage
 ```
 
 Write tests for:
-- API endpoints
-- Nutrition calculation logic
-- Database operations
-- Authentication flows
+- API endpoints (FastAPI routes under `app/api/endpoints/`)
+- Nutrition calculation logic (`app/services/nutrition_scorer.py`)
+- Database operations (`app/db/`)
+- Authentication flows (`app/core/security.py`)
 
-### Frontend Tests
+### Frontend Tests (Vitest)
 
 ```bash
 cd frontend
-npm test
-npm run test:watch  # Watch mode
+npm test                        # one-shot
+npm run test:watch              # watch mode
 ```
 
-Write tests for:
-- Components
-- API integrations
-- User interactions
-- Utility functions
+Tests live under `frontend/tests/` and are **separate** from Next.js
+components — vitest deliberately doesn't try to evaluate server
+components. Targets:
+
+- `tests/crypto.test.ts` — password hashing, constant-time compare, UUIDs.
+- `tests/ai-prompt.test.ts` — prompt builder + response validator.
+- `tests/schemas.test.ts` — zod request schemas (login, register, analyze, promo).
+
+**When to add a test**: any time a user reports a bug that our static
+checks missed. See `ITERATION_PROCESS.md §6` ("Iterate until zero-error").
+
+### i18n key drift check
+
+```bash
+cd frontend
+npm run check:i18n
+```
+
+Scans every `useTranslations('ns')` + `t('key')` call and verifies each
+key exists in all four locale JSONs (`th`, `en`, `de`, `da`). This is
+the gate that would have caught the `scan.dishes_found` regression from
+PR #7. Runs as part of `npm run check:all`.
+
+### Request-body validation
+
+All `/api/*` routes that accept JSON parse their body through a zod
+schema in `frontend/src/lib/schemas.ts`. **When adding a new route**:
+
+1. Add a `z.object(...)` schema named after the request.
+2. `safeParse` the body in the route; return `zodFailure(result.error)`
+   with status 400 on failure.
+3. Add a unit test in `tests/schemas.test.ts` for the happy path plus
+   at least one boundary rejection.
+
+Routes that touch the DB should also handle unique-constraint errors
+gracefully — see `/api/auth/register` and `/api/promo/redeem` for the
+pattern (catch the driver error, return the same semantic response as
+the pre-check path to avoid side-channels).
+
+### Database migrations
+
+Schema lives in `frontend/src/db/schema.ts` (Drizzle ORM). When you
+change it, also create a matching SQL file under `frontend/drizzle/` and
+register it in `drizzle/meta/_journal.json`. Apply with:
+
+```bash
+cd frontend
+npx wrangler d1 migrations apply eatinorder-db --local   # dev
+npx wrangler d1 migrations apply eatinorder-db --remote  # prod
+```
 
 ## Commit Guidelines
 

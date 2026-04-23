@@ -5,15 +5,20 @@ import { verifyPassword } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
 import { getEnv } from '@/lib/cloudflare';
+import { LoginRequest, zodFailure } from '@/lib/schemas';
 
 
 export async function POST(req: NextRequest) {
     try {
-        const { email, password } = await req.json();
-
-        if (!email || !password) {
-            return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        // Validate the request shape up front. Zod rejects malformed JSON,
+        // wrong types, and empty/oversize strings — everything downstream
+        // can assume `email` and `password` are non-empty sanitised strings.
+        const parsed = LoginRequest.safeParse(rawBody);
+        if (!parsed.success) {
+            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
         }
+        const { email, password } = parsed.data;
 
         const env = await getEnv();
         const db = getDb(env);
