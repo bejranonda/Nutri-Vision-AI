@@ -35,6 +35,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 - **Dashboard** — Member stats, streak tracking, daily challenges, gamification
 - **Pricing** — Tier comparison with monthly/annual toggle and FAQ
 - **Recipes** — Thai recipe collection with dietary filters
+- **Admin** (`/[locale]/admin`, restricted) — operator console: quick-stat overview, user management (toggle admin, flip subscription tier), promo-code CRUD, and a health-check view. Gated server-side by the `isAdmin` column on `users`; non-admins are silently redirected to `/login`. See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to create the first admin via `wrangler` (the schema ships with zero admins — no accidental admin via public sign-up).
 
 ### 🎟️ Promotion Code System
 Built-in codes for Shinny fanclub and launch promotions:

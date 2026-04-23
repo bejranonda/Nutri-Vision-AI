@@ -40,6 +40,14 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## 🚧 Ongoing Follow-ups (PR-tracked)
 
+### 0. Admin console — next-phase additions
+- **Status**: The `/admin` console (shipped with `is_admin` migration + UI) covers users, promo codes, and health. Remaining gaps on the original spec:
+  - **`/admin/scans`** — recent scans across all users, filtered by `errorClass` / `modelUsed`. Useful for spotting AI-pipeline regressions but requires a read-only design decision on PII exposure (photos).
+  - **`/admin/logs`** — tail of Cloudflare logs via the GraphQL API. Needs the Cloudflare Account API token surfaced as a Pages secret.
+  - **Audit table** — right now `[ADMIN_ACTION]` entries live only in the CF log stream. Persisting them to a dedicated `admin_actions` table would give a queryable audit trail. Requires a schema migration + retention policy.
+  - **Rate limit on `/api/admin/*`** — same gap as the public routes (see item 2). Admin routes are gated by auth, so the blast radius is smaller, but brute-forcing a stolen admin cookie would still benefit from throttling.
+- **Plan**: split into one PR per item so each ships with its own risk review.
+
 ### 1. Retire legacy SHA-256 password-hash fallback
 - **Status**: `lib/crypto.ts` currently accepts two hash formats: the new `iterations:salt:hash` PBKDF2 shape written by `hashPassword()` *and* a legacy bare-hex SHA-256 fallback for pre-PBKDF2 accounts. The fallback is cryptographically weak and should be removed once every active account has been re-hashed.
 - **Plan**: after a 30-day observation window measuring the `legacy_hash_observed` counter, ship a migration that (a) emails any remaining legacy users a forced password reset and (b) deletes the fallback branch. Regression tests in `frontend/tests/crypto.test.ts` currently *verify* the fallback works; those tests should be deleted in the same PR.

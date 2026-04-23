@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — admin console
+- **New `/admin` area** gated by `requireAdmin()` / `requireAdminApi()` helpers in `lib/admin-auth.ts`. Non-admins are silently redirected to `/login` (no "admin required" message — intentional, to avoid revealing the admin area's existence).
+- **`/admin`** landing with live stats: registered users, admin count, active sessions, scans & scan-errors in the last 24h, active promo codes.
+- **`/admin/users`** — paginated list (25/page) with per-row `Grant/Revoke admin` and subscription-tier dropdown. Server ensures an admin cannot revoke their own admin bit (would lock everyone out if they're the only admin).
+- **`/admin/promo`** — promo-code list + inline "Create new" form + per-row "Deactivate / Reactivate" toggle. Create endpoint validates the code pattern (`A-Z0-9_-`) and returns 409 on duplicate.
+- **`/admin/health`** — wraps the `/api/health?verbose=1` data (AI / DB / Google-key status, runtime detection) in a readable UI. Secret-pattern env var names still hidden.
+- **DB prerequisite** `users.is_admin` (migration `0002_add_user_is_admin`) shipped in PR #11. `/api/auth/register` does NOT set it, so public sign-up can't create admins.
+- **Vitest coverage** for `admin-auth`: 9 tests covering session-absent, expired-session, non-admin (with WARN log), admin-success paths for both the page helper (`requireAdmin`) and the API helper (`requireAdminApi`).
+- **Audit logging** — every admin action (toggle admin, flip tier, create promo, toggle promo) emits `logger.warn('[ADMIN_ACTION] …')` with actor email, target, and before/after values so the Cloudflare log stream becomes an informal audit trail.
+
 ### Added — project-hardening phases
 - **i18n drift CI gate** (`scripts/check-i18n-keys.mjs`, `npm run check:i18n`). Scans every `useTranslations('ns')` + `t('key')` call and verifies each key exists in `th/en/de/da`. Catches the class of bug that let `scan.dishes_found` ship to production in PR #7.
 - **Frontend Vitest infra** (`vitest.config.ts`, `tests/setup.ts`). 34 tests across `crypto`, `ai-prompt`, and `schemas` — locks the PR #6–#8 security and prompt-logic fixes.
