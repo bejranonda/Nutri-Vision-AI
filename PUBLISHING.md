@@ -52,22 +52,28 @@ Before publishing, ensure:
 - [ ] All code examples in docs are tested and working
 
 ### Code Quality
-- [ ] All tests pass:
-  ```bash
-  npm run test
-  ```
-- [ ] No linting errors:
-  ```bash
-  npm run lint
-  ```
-- [ ] Code is formatted:
-  ```bash
-  npm run format
-  ```
-- [ ] Type checking passes (for TypeScript):
-  ```bash
-  npm run type-check
-  ```
+
+Single combined gate (run from `frontend/`) — see `docs/ITERATION_PROCESS.md`:
+
+- [ ] `npm run check:all` passes. This runs, in order:
+  1. `npm run type-check` — `tsc --noEmit` strict.
+  2. `npm run check:i18n` — every `t('key')` call site exists in all four locale JSONs (`th/en/de/da`). Catches the drift that let `scan.dishes_found` ship in an earlier release.
+  3. `npm test` — Vitest (`tests/crypto.test.ts`, `tests/ai-prompt.test.ts`, `tests/schemas.test.ts`; **34 tests**).
+- [ ] No linting errors: `npm run lint`
+- [ ] Backend tests pass: `cd backend && pytest -q` (**129 tests**).
+
+### Database migrations (if your change touches `frontend/src/db/schema.ts`)
+
+- [ ] Matching SQL file under `frontend/drizzle/` (naming: `NNNN_description.sql`, idempotent with `IF NOT EXISTS`).
+- [ ] Entry added to `frontend/drizzle/meta/_journal.json`.
+- [ ] Verified locally: `npx wrangler d1 migrations apply eatinorder-db --local`.
+- [ ] Plan for prod apply documented in the PR description: `npx wrangler d1 migrations apply eatinorder-db --remote`.
+
+### Request validation (if your change adds a new `/api/*` route)
+
+- [ ] New `z.object(...)` schema in `frontend/src/lib/schemas.ts`.
+- [ ] Route `safeParse`s the body and returns `zodFailure(result.error)` with status 400 on failure.
+- [ ] Unit test added under `frontend/tests/schemas.test.ts` for the happy path plus at least one boundary rejection.
 
 ### Package Configuration
 - [ ] `package.json` has correct metadata:
