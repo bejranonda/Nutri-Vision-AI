@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import { getEnvSafe } from '@/lib/cloudflare';
 import { buildLocalizedPrompt, validateAiResponse, validateMultiDishResponse, validateMenuResponse, validateDrinkSnackResponse, type ScanMode } from '@/lib/ai-prompt';
 import { extractBase64Data, decodeBase64ToBytes } from '@/lib/utils';
+import { AnalyzeRequest, zodFailure } from '@/lib/schemas';
 
 /** Safely parse JSON from AI response — tries direct parse first, then regex extraction */
 function safeParseJson(raw: string): { parsed?: any; error?: Error } {
@@ -66,35 +67,26 @@ export async function POST(req: NextRequest) {
     try {
         // ── Phase 1: Parse request body ───────────────────────────
         currentPhase = 'PARSE_BODY';
-        let imageBase64: string;
-        let locale: string;
-        let forceModel: string | undefined;
-        let scanMode: ScanMode = 'meal';
+
+        const rawBody = await req.json().catch(() => null);
+        // Zod enforces: data-URI image, recognised locale/scanMode/photoCount
+        // bounds, optional forceModel string. The route layer re-validates
+        // the decoded image bytes below (size, base64 format); this is the
+        // fast-fail before we do any expensive work.
+        const parsed = AnalyzeRequest.safeParse(rawBody);
+        if (!parsed.success) {
+            const failure = zodFailure(parsed.error);
+            logger.scanApiStage('BODY_PARSE_ERROR', { requestId, fields: Object.keys(failure.fields) });
+            return NextResponse.json({ ...failure, requestId }, { status: 400 });
+        }
+        const imageBase64 = parsed.data.imageBase64;
+        const locale = parsed.data.locale ?? 'th';
+        const forceModel = parsed.data.forceModel;
+        const scanMode: ScanMode = parsed.data.scanMode ?? 'meal';
         // photoCount reflects how many separate photos the client stitched
         // into `imageBase64`. We pass this into the prompt so the model
         // knows the image is a collage and must report one dish per tile.
-        let photoCount = 1;
-
-        try {
-            const body = await req.json();
-            imageBase64 = body.imageBase64;
-            locale = body.locale || 'th';
-            forceModel = body.forceModel;
-            if (body.scanMode && ['meal', 'menu', 'drink_snack'].includes(body.scanMode)) {
-                scanMode = body.scanMode as ScanMode;
-            }
-            const parsedPhotoCount = Number(body.photoCount);
-            if (Number.isFinite(parsedPhotoCount) && parsedPhotoCount >= 1) {
-                // Cap at 12 — matches the stitcher's max grid (4x3).
-                photoCount = Math.min(12, Math.floor(parsedPhotoCount));
-            }
-        } catch (parseErr: any) {
-            logger.scanApiStage('BODY_PARSE_ERROR', { requestId, error: parseErr.message });
-            return NextResponse.json(
-                { error: 'Invalid request body', message: 'Could not parse request JSON', requestId },
-                { status: 400 }
-            );
-        }
+        const photoCount = parsed.data.photoCount ?? 1;
 
         const payloadSize = imageBase64 ? imageBase64.length : 0;
         logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, forceModel, scanMode, photoCount, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });

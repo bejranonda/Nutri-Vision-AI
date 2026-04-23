@@ -6,15 +6,19 @@ import { eq, and, gt } from 'drizzle-orm';
 import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 import { getEnv } from '@/lib/cloudflare';
+import { PromoRedeemRequest, zodFailure } from '@/lib/schemas';
 
 
 export async function POST(req: NextRequest) {
     try {
-        const { code } = await req.json();
-
-        if (!code) {
-            return NextResponse.json({ error: 'Promo code is required' }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        // Bound the code length up-front so a client can't DoS the DB
+        // with a 1-MB "code" string.
+        const parsed = PromoRedeemRequest.safeParse(rawBody);
+        if (!parsed.success) {
+            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
         }
+        const { code } = parsed.data;
 
         const token = await getSessionToken();
         if (!token) {
