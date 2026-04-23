@@ -28,6 +28,7 @@ MULTI-DISH DETECTION:
 - If the image shows MULTIPLE separate dishes (e.g., several plates/bowls on a table), identify EACH dish separately in the "dishes" array.
 - If there is only ONE dish or a single food item, still use the "dishes" array with one entry.
 - For each dish, provide its own name, detected items, nutrition, scores, and per-dish eating sequence.
+- Set "sourcePhotoIndex" to the 0-based position of the photo the dish came from. For a single-photo scan always use 0. For a collage, number tiles in reading order: top-left=0, then left-to-right, top-to-bottom (e.g. a 2x2 grid is indices 0,1,2,3). Every dish MUST include this field.
 - Provide a "crossDishSequence" that tells the user the optimal order to eat ACROSS all dishes (e.g., "Start with vegetables from the salad, then protein from the grilled chicken, then rice from the curry").
 
 SEQUENCE RULES (per dish):
@@ -36,7 +37,7 @@ SEQUENCE RULES (per dish):
 - Use appropriate food emojis for each step.
 
 Respond ONLY with a valid JSON object (no markdown, no explanation, no code fences) matching this schema:
-{"isFood":true,"nonFoodReason":"","dishCount":1,"dishes":[{"name":"Dish Name","detectedItems":["🍍 Item 1","🥕 Item 2"],"nutritionSummary":{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0},"scores":{"bloodSugar":0,"gutHealth":0,"inflammation":0,"nutrientDensity":0,"processing":0,"proteinQuality":0,"micronutrient":0},"sequence":[{"step":1,"emoji":"🥦","items":"Vegetables listed here","category":"fiber"},{"step":2,"emoji":"🍗","items":"Protein foods here","category":"protein"},{"step":3,"emoji":"🍚","items":"Carb foods here","category":"carb"},{"step":4,"emoji":"🍬","items":"Sweet items here","category":"sugar"}],"spikeReduction":65,"tip":"One short helpful tip about this dish."}],"crossDishSequence":[{"step":1,"emoji":"🥦","dishIndex":0,"items":"Start with vegetables from Dish 1","category":"fiber"},{"step":2,"emoji":"🍗","dishIndex":0,"items":"Then protein from Dish 1","category":"protein"},{"step":3,"emoji":"🍚","dishIndex":0,"items":"Then carbs from Dish 1","category":"carb"},{"step":4,"emoji":"🍬","dishIndex":0,"items":"Sweets last","category":"sugar"}],"overallTip":"One helpful tip about the entire meal.","confidence":0}`;
+{"isFood":true,"nonFoodReason":"","dishCount":1,"dishes":[{"name":"Dish Name","sourcePhotoIndex":0,"detectedItems":["🍍 Item 1","🥕 Item 2"],"nutritionSummary":{"calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0},"scores":{"bloodSugar":0,"gutHealth":0,"inflammation":0,"nutrientDensity":0,"processing":0,"proteinQuality":0,"micronutrient":0},"sequence":[{"step":1,"emoji":"🥦","items":"Vegetables listed here","category":"fiber"},{"step":2,"emoji":"🍗","items":"Protein foods here","category":"protein"},{"step":3,"emoji":"🍚","items":"Carb foods here","category":"carb"},{"step":4,"emoji":"🍬","items":"Sweet items here","category":"sugar"}],"spikeReduction":65,"tip":"One short helpful tip about this dish."}],"crossDishSequence":[{"step":1,"emoji":"🥦","dishIndex":0,"items":"Start with vegetables from Dish 1","category":"fiber"},{"step":2,"emoji":"🍗","dishIndex":0,"items":"Then protein from Dish 1","category":"protein"},{"step":3,"emoji":"🍚","dishIndex":0,"items":"Then carbs from Dish 1","category":"carb"},{"step":4,"emoji":"🍬","dishIndex":0,"items":"Sweets last","category":"sugar"}],"overallTip":"One helpful tip about the entire meal.","confidence":0}`;
 
 // ─── Menu Scan Prompt ────────────────────────────────────────────────────────
 
@@ -79,10 +80,20 @@ Respond ONLY with a valid JSON object (no markdown, no explanation, no code fenc
 // ─── Locale Instructions ─────────────────────────────────────────────────────
 
 export const LOCALE_INSTRUCTION: Record<string, string> = {
-  th: '\n\nIMPORTANT: Respond with ALL text values (names, items, tips, reasons, pros, cons) in Thai language (ภาษาไทย). Use Thai food names when applicable. Keep JSON keys in English.',
-  en: '\n\nIMPORTANT: Respond with ALL text values in English.',
-  de: '\n\nIMPORTANT: Respond with ALL text values in German (Deutsch). Keep JSON keys in English.',
-  da: '\n\nIMPORTANT: Respond with ALL text values in Danish (Dansk). Keep JSON keys in English.',
+  // NOTE on "no transliteration": without an explicit prohibition, smaller
+  // models (Gemma in particular) helpfully append a romanized/English version
+  // in parentheses, e.g. `ซุปปลา (Soup Pla)` — native speakers find this
+  // "karaoke" spelling noisy. Every locale below includes the same rule.
+  th:
+    '\n\nIMPORTANT: Respond with ALL text values (names, items, tips, reasons, pros, cons) in Thai language (ภาษาไทย). Use Thai food names when applicable. Keep JSON keys in English.' +
+    '\nDO NOT add romanized / English / phonetic transliteration after the Thai text. Write "ซุปปลา", never "ซุปปลา (Soup Pla)" or "ซุปปลา (Sup pla)". No Latin letters in parentheses, no pronunciation hints, no translations — the reader already reads Thai.',
+  en: '\n\nIMPORTANT: Respond with ALL text values in English. Do not append transliterations or translations in parentheses.',
+  de:
+    '\n\nIMPORTANT: Respond with ALL text values in German (Deutsch). Keep JSON keys in English.' +
+    '\nDo not append English translations or transliterations in parentheses.',
+  da:
+    '\n\nIMPORTANT: Respond with ALL text values in Danish (Dansk). Keep JSON keys in English.' +
+    '\nDo not append English translations or transliterations in parentheses.',
 };
 
 /**
@@ -114,12 +125,13 @@ The image you are analyzing is a COLLAGE of ${photoCount} SEPARATE PHOTOS that t
       shared +
       `
 You MUST return one entry in the "dishes" array for EACH of the ${photoCount} tiles (even if two tiles look similar). The "dishCount" field MUST equal ${photoCount}. Number the dishes in reading order: left-to-right, top-to-bottom. Do not merge tiles, do not skip tiles.
+Set "sourcePhotoIndex" on each dish to the 0-based tile index it came from (top-left tile = 0, then increasing left-to-right, top-to-bottom). The dish for the top-left tile must have sourcePhotoIndex=0; the dish for the bottom-right tile of a ${photoCount}-tile grid must have sourcePhotoIndex=${photoCount - 1}.
 ` +
       '\n\n';
 
     // Final-reminder line placed after the JSON schema. Short and direct
     // because it's the LAST thing the model reads before generating.
-    const reinforcement = `\n\nFINAL REMINDER: the image contains ${photoCount} separate photos. Your "dishes" array MUST have exactly ${photoCount} entries and "dishCount" MUST be ${photoCount}. Before you finish, count your dishes array — if it is not ${photoCount}, you have made an error.\n`;
+    const reinforcement = `\n\nFINAL REMINDER: the image contains ${photoCount} separate photos. Your "dishes" array MUST have exactly ${photoCount} entries and "dishCount" MUST be ${photoCount}. Each dish MUST include "sourcePhotoIndex" (0..${photoCount - 1}) matching the tile it came from. Before you finish, count your dishes array — if it is not ${photoCount}, you have made an error.\n`;
 
     return { preamble, reinforcement };
   }
@@ -212,6 +224,13 @@ export interface AiDishAnalysis {
   sequence: AiSequenceStep[];
   spikeReduction: number;
   tip: string;
+  /**
+   * 0-based index of the photo (in the collage reading order: left-to-right,
+   * top-to-bottom) that this dish came from. Lets the UI display the source
+   * photo next to each dish card. Optional for backward compatibility; the
+   * validator fills it in with the dish's array index when missing.
+   */
+  sourcePhotoIndex?: number;
 }
 
 /** Multi-dish meal response */
@@ -406,6 +425,18 @@ function validateSequenceArray(raw: any): AiSequenceStep[] {
 
 /** Validate single-dish analysis (used within multi-dish and legacy single) */
 function validateDishAnalysis(raw: any): AiDishAnalysis {
+  // `sourcePhotoIndex` is optional in the raw response. Coerce to a
+  // non-negative integer if present; leave undefined otherwise and let the
+  // caller fall back to the array index.
+  let sourcePhotoIndex: number | undefined;
+  const rawIdx = raw?.sourcePhotoIndex;
+  if (rawIdx !== undefined && rawIdx !== null) {
+    const n = Number(rawIdx);
+    if (Number.isFinite(n) && n >= 0) {
+      sourcePhotoIndex = Math.floor(n);
+    }
+  }
+
   return {
     name: String(raw?.name || raw?.foodName || 'Unknown Food'),
     detectedItems: Array.isArray(raw?.detectedItems) ? raw.detectedItems.map(String) : ['Unknown'],
@@ -420,6 +451,7 @@ function validateDishAnalysis(raw: any): AiDishAnalysis {
     sequence: validateSequenceArray(raw?.sequence),
     spikeReduction: clamp100(raw?.spikeReduction, 60),
     tip: String(raw?.tip || 'Eat vegetables first to reduce blood sugar spikes.'),
+    sourcePhotoIndex,
   };
 }
 
@@ -446,6 +478,22 @@ export function validateMultiDishResponse(raw: any): AiMultiDishResponse {
     // Legacy single-dish — wrap into dishes array
     dishes = [validateDishAnalysis(raw)];
   }
+
+  // Normalize `sourcePhotoIndex` so downstream UI never has to branch on
+  // undefined. The prompt asks the model to set it in reading order, but
+  // we apply a safety net:
+  //   - fall back to the dish's array index when missing,
+  //   - cap out-of-range values (a broken model could return e.g. index 9
+  //     for the 2nd dish in a 3-photo collage) to the dish's array index.
+  // This keeps the dish ↔ photo mapping deterministic even when the model
+  // misbehaves.
+  dishes = dishes.map((d, i) => {
+    const idx =
+      d.sourcePhotoIndex === undefined || d.sourcePhotoIndex >= dishes.length
+        ? i
+        : d.sourcePhotoIndex;
+    return { ...d, sourcePhotoIndex: idx };
+  });
 
   // Parse cross-dish sequence
   let crossDishSequence: AiCrossDishStep[];

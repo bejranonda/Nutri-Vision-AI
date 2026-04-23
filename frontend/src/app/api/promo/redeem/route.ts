@@ -24,10 +24,21 @@ export async function POST(req: NextRequest) {
         const env = await getEnv();
         const db = getDb(env);
 
-        // Get user session
-        const activeSessions = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+        // Get user session — MUST check expiresAt. Without this, an
+        // attacker holding an expired-but-not-yet-cleaned session token
+        // could still redeem codes. `/api/auth/me` already enforces this;
+        // keep the check consistent across every session-gated route.
+        const activeSessions = await db.select()
+            .from(sessions)
+            .where(
+                and(
+                    eq(sessions.token, token),
+                    gt(sessions.expiresAt, new Date()),
+                ),
+            )
+            .limit(1);
         if (activeSessions.length === 0) {
-            return NextResponse.json({ error: 'Session invalid' }, { status: 401 });
+            return NextResponse.json({ error: 'Session invalid or expired' }, { status: 401 });
         }
         const userId = activeSessions[0].userId!;
 
@@ -108,9 +119,12 @@ export async function POST(req: NextRequest) {
         }, { status: 200 });
 
     } catch (error: any) {
+        // Log the full error server-side only. `error.message` can contain
+        // DB driver text / stack hints that help an attacker probe the
+        // schema — never return it to the client.
         console.error('Promo code redemption error:', error);
         return NextResponse.json(
-            { error: 'Internal server error', details: error.message },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }

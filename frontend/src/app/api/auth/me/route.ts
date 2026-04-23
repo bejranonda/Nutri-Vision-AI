@@ -63,9 +63,10 @@ export async function GET(req: NextRequest) {
         }, { status: 200 });
 
     } catch (error: any) {
+        // Server-side only — never return error.message to the client.
         console.error('Session retrieval error:', error);
         return NextResponse.json(
-            { error: 'Internal server error', details: error.message },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }
