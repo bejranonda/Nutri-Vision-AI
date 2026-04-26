@@ -62,6 +62,45 @@ describe('RegisterRequest', () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it('accepts an optional voucherCode', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+      voucherCode: 'PILOT-CHULA-01',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('omitting voucherCode is fine — server enforces feature flag', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects a malformed voucherCode (illegal chars)', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+      voucherCode: 'CONTAINS SPACE',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a too-short voucherCode', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+      voucherCode: 'AB',
+    });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('AnalyzeRequest', () => {

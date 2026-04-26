@@ -37,12 +37,30 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 - **Recipes** — Thai recipe collection with dietary filters
 - **Admin** (`/[locale]/admin`, restricted) — operator console: quick-stat overview, user management (toggle admin, flip subscription tier), promo-code CRUD, and a health-check view. Gated server-side by the `isAdmin` column on `users`; non-admins are silently redirected to `/login`. See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to create the first admin via `wrangler` (the schema ships with zero admins — no accidental admin via public sign-up).
 
-### 🎟️ Promotion Code System
-Built-in codes for Shinny fanclub and launch promotions:
+### 🎟️ Voucher & Promotion System
+
+Two scopes of code, managed from `/admin/promo`:
+
+| Scope | Used at | Purpose |
+|-------|---------|---------|
+| **Registration vouchers** | sign-up form | Pilot-launch invite codes — required to create an account when `VOUCHER_REQUIRED_FOR_REGISTRATION=true` is set on Cloudflare. Flag is off by default; flip via wrangler when ready. |
+| **Upgrade promos** | logged-in user, "Have a promo?" field | Tier-upgrade codes (`SHINNY2024`, `EATWELL`, etc.). Existing flow, unchanged. |
+
+Each code carries:
+- **Kind**: Personal (single-use) or Organization (N-seat cohort).
+- **Time limit**: optional expiry date; un-set means perpetual.
+- **Usage limit**: `usageLimit` cap; `usageCount` shown live as a fill bar in the admin table.
+- **Active toggle**: instant deactivation without affecting already-granted redemptions.
+- **Notes**: free-text admin label (e.g. "Summer pilot — 50 seats for Chula nutrition dept").
+
+Built-in seeded promos (legacy upgrade scope):
 - `SHINNY2024` — 30 days Premium (Shinny Fanclub)
 - `EATWELL` — 7-day Premium trial
 - `LAUNCH50` — 50% off first month
 - `FAMILY2024` — 14-day Family trial
+
+See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to enable
+voucher-only registration during pilot launch.
 
 ## 🧠 AI Methodology & Analysis (v2.2.0)
 

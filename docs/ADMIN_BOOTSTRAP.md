@@ -108,6 +108,34 @@ you have zero other admins:
 2. Sign in as the new admin.
 3. Use `/admin/users` to revoke the compromised account.
 
+## Pilot-mode: turning on voucher-gated registration
+
+Once the admin user exists, the next step for a pilot launch is to **close
+public registration**. Set a Cloudflare Pages environment variable:
+
+```bash
+echo -n "true" | \
+  npx wrangler pages secret put VOUCHER_REQUIRED_FOR_REGISTRATION --project-name=eatinorder
+```
+
+While this flag is on:
+
+- `/api/auth/register` rejects requests without a valid voucher (HTTP 400, `{ reason: 'voucher_required' }`).
+- The registration UI shows the voucher-code field as required.
+- All other paths (login, scan, admin) are unaffected.
+
+The flag is read at request time, so flipping it doesn't require a redeploy.
+
+To distribute pilot codes:
+
+1. Sign in as the admin → `/admin/promo` → "Registration vouchers" tab.
+2. **Personal code** for a single named user: kind = Personal (auto-locks `usageLimit` to 1), notes = the recipient's name.
+3. **Organization code** for a cohort (e.g. 50 employees of a partner): kind = Organization, set `usageLimit` to the seat count, notes = the org name.
+4. Pick an expiry date (or leave blank for no expiry). Click "Random" for a 6-char suffix if you don't want to type one.
+5. Copy the code from the table (clipboard button next to each code) and share it with the recipient.
+
+The recipient pastes the code on the registration form. If the code is valid the form's voucher field shows ✓ and an inline message ("Code unlocks family tier for 30 days · 12 seats left"). On submit, the user's account is created, the voucher's `usageCount` is incremented, and a row is added to `code_redemptions` so the voucher trail is auditable.
+
 ## Optional: register the admin email as a Cloudflare Pages secret
 
 If you want server code to recognise the bootstrap admin without

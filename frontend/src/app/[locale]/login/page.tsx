@@ -29,7 +29,22 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
+    const [voucherCode, setVoucherCode] = useState('');
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+    // Voucher live-check state. `voucherStatus` is one of:
+    //   - 'idle'     : no input yet, or too short to check
+    //   - 'checking' : the debounced fetch is in flight
+    //   - 'valid'    : server said the code is usable
+    //   - 'invalid'  : server said the code is not usable; `voucherReason` holds the enum
+    const [voucherStatus, setVoucherStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+    const [voucherReason, setVoucherReason] = useState<string | null>(null);
+    const [voucherInfo, setVoucherInfo] = useState<{
+        remainingSeats: number | null;
+        expiresAt: string | null;
+        grantTier: string | null;
+        trialDays: number | null;
+    } | null>(null);
 
     // Probe the session cookie on mount. If the user already has a valid
     // session (e.g. they hit /login directly after logging in in another
@@ -50,6 +65,62 @@ export default function LoginPage() {
     useEffect(() => {
         logger.trackFeature('Login Page', 'loading', { locale, mode });
     }, [locale, mode]);
+
+    // Debounced voucher-code live-check. Runs whenever the user types
+    // in register mode. Cancellation via AbortController so a stale
+    // response can't overwrite a newer one.
+    useEffect(() => {
+        if (mode !== 'register') return;
+        const code = voucherCode.trim();
+        if (code.length < 3) {
+            setVoucherStatus('idle');
+            setVoucherReason(null);
+            setVoucherInfo(null);
+            return;
+        }
+        setVoucherStatus('checking');
+        const ctrl = new AbortController();
+        const handle = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/voucher/check?code=${encodeURIComponent(code)}`, {
+                    signal: ctrl.signal,
+                });
+                if (!res.ok) {
+                    // 400 (malformed) / 429 (rate-limited) / 500 — treat as
+                    // invalid but don't block re-tries; user can edit + retry.
+                    setVoucherStatus('invalid');
+                    setVoucherReason(res.status === 429 ? 'rate_limited' : 'check_failed');
+                    setVoucherInfo(null);
+                    return;
+                }
+                const data = await res.json();
+                if (data.valid) {
+                    setVoucherStatus('valid');
+                    setVoucherReason(null);
+                    setVoucherInfo({
+                        remainingSeats: data.remainingSeats ?? null,
+                        expiresAt: data.expiresAt ?? null,
+                        grantTier: data.grantTier ?? null,
+                        trialDays: data.trialDays ?? null,
+                    });
+                } else {
+                    setVoucherStatus('invalid');
+                    setVoucherReason(data.reason ?? 'not_found');
+                    setVoucherInfo(null);
+                }
+            } catch (e) {
+                // AbortError is the expected cancellation path — don't flip state.
+                if ((e as any)?.name === 'AbortError') return;
+                setVoucherStatus('invalid');
+                setVoucherReason('check_failed');
+                setVoucherInfo(null);
+            }
+        }, 350);
+        return () => {
+            ctrl.abort();
+            clearTimeout(handle);
+        };
+    }, [voucherCode, mode]);
 
     function validate(): boolean {
         const errors: Record<string, string> = {};
@@ -75,7 +146,14 @@ export default function LoginPage() {
             success = await login(email, password);
             if (success) setSuccessMsg(t('login_success'));
         } else {
-            success = await register(displayName, email, password);
+            // Block submission while a voucher is still being checked; we
+            // don't want to race a stale "checking" state against the
+            // server's authoritative validation. If the code is empty, let
+            // the server enforce its feature-flag default (voucher required
+            // or not) and surface the error — don't second-guess client-side.
+            if (voucherStatus === 'checking') return;
+            if (voucherCode.trim() && voucherStatus === 'invalid') return;
+            success = await register(displayName, email, password, voucherCode);
             if (success) setSuccessMsg(t('register_success'));
         }
     }
@@ -212,8 +290,75 @@ export default function LoginPage() {
                             </div>
                         )}
 
+                        {mode === 'register' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {t('voucher_label')}
+                                </label>
+                                <div className="relative">
+                                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={voucherCode}
+                                        onChange={(e) => setVoucherCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                                        maxLength={64}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        className={`w-full pl-10 pr-10 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all font-mono text-gray-900 ${
+                                            voucherStatus === 'valid'
+                                                ? 'border-green-300 focus:ring-green-400'
+                                                : voucherStatus === 'invalid'
+                                                    ? 'border-red-300 focus:ring-red-400'
+                                                    : 'border-gray-200 focus:ring-brand-primary-400'
+                                        }`}
+                                        placeholder={t('voucher_placeholder')}
+                                    />
+                                    {voucherStatus === 'checking' && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gray-300 border-t-brand-primary-500 rounded-full animate-spin" aria-label="Checking" />
+                                    )}
+                                    {voucherStatus === 'valid' && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                            <span className="text-white text-xs font-bold">✓</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">{t('voucher_help')}</p>
+                                {voucherStatus === 'valid' && voucherInfo && (
+                                    <p className="text-xs text-green-600 mt-1">
+                                        {t('voucher_valid_banner', {
+                                            tier: voucherInfo.grantTier ?? 'free',
+                                            days: voucherInfo.trialDays ?? 0,
+                                        })}
+                                        {voucherInfo.remainingSeats !== null && (
+                                            <> · {t('voucher_seats_remaining', { n: voucherInfo.remainingSeats })}</>
+                                        )}
+                                    </p>
+                                )}
+                                {voucherStatus === 'invalid' && voucherReason && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {voucherReason === 'inactive' && t('voucher_invalid.inactive')}
+                                        {voucherReason === 'expired' && t('voucher_invalid.expired')}
+                                        {voucherReason === 'exhausted' && t('voucher_invalid.exhausted')}
+                                        {voucherReason === 'wrong_scope' && t('voucher_invalid.wrong_scope')}
+                                        {voucherReason === 'rate_limited' && t('voucher_invalid.rate_limited')}
+                                        {voucherReason === 'check_failed' && t('voucher_invalid.check_failed')}
+                                        {(voucherReason === 'not_found' || !['inactive','expired','exhausted','wrong_scope','rate_limited','check_failed'].includes(voucherReason)) && t('voucher_invalid.not_found')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         <button
-                            type="submit" disabled={isLoading}
+                            type="submit"
+                            disabled={
+                                isLoading ||
+                                // Block submit while the voucher check is pending or
+                                // if the user typed a code that the server rejected.
+                                // Empty code is fine — the server enforces the
+                                // feature-flag default and surfaces the error.
+                                (mode === 'register' && voucherStatus === 'checking') ||
+                                (mode === 'register' && voucherCode.trim().length > 0 && voucherStatus === 'invalid')
+                            }
                             className="w-full py-3.5 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isLoading ? (

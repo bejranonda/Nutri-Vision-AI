@@ -49,6 +49,20 @@ export const RegisterRequest = z.object({
   email: EmailField,
   password: PasswordField,
   displayName: DisplayNameField,
+  /**
+   * Optional at the type level — whether the server enforces its
+   * presence depends on `VOUCHER_REQUIRED_FOR_REGISTRATION`. The route
+   * handler does the conditional check. Shape validation here just
+   * ensures that IF a code is sent, it meets the format rules so we
+   * don't even hit the DB with garbage.
+   */
+  voucherCode: z
+    .string()
+    .trim()
+    .min(3)
+    .max(64)
+    .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, 0-9, - and _')
+    .optional(),
 });
 export type RegisterRequestBody = z.infer<typeof RegisterRequest>;
 
@@ -80,10 +94,33 @@ export type AnalyzeRequestBody = z.infer<typeof AnalyzeRequest>;
 // Promo
 // ---------------------------------------------------------------------------
 
+/**
+ * Voucher codes are ASCII alphanumerics plus `-` and `_`. Enforced
+ * here so a malicious registration payload can't smuggle SQL-shaped
+ * characters into the DB lookup (Drizzle parameterises queries, but
+ * belt-and-suspenders at the boundary is cheap).
+ */
+const VoucherCodeField = z
+  .string()
+  .trim()
+  .min(3)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, 0-9, - and _');
+
 export const PromoRedeemRequest = z.object({
-  code: z.string().trim().min(1).max(64),
+  code: VoucherCodeField,
 });
 export type PromoRedeemRequestBody = z.infer<typeof PromoRedeemRequest>;
+
+/**
+ * Registration voucher check is a plain GET with the code as a query
+ * parameter. Used for inline UI feedback ("this code is valid, N
+ * seats remaining") before the user fills the whole registration form.
+ */
+export const VoucherCheckQuery = z.object({
+  code: VoucherCodeField,
+});
+export type VoucherCheckQueryInput = z.infer<typeof VoucherCheckQuery>;
 
 // ---------------------------------------------------------------------------
 // Standard 400 helper — keeps the error shape identical across routes.

@@ -1,86 +1,200 @@
+/**
+ * POST /api/auth/register
+ *
+ * Account creation. Behaviour depends on the `VOUCHER_REQUIRED_FOR_REGISTRATION`
+ * environment flag:
+ *
+ *   - flag OFF (default historical behaviour): free public sign-up. Any
+ *     zod-valid body creates an account on the `free` tier.
+ *   - flag ON (pilot mode — the current default in production): a valid
+ *     registration-scope voucher is REQUIRED. The voucher determines the
+ *     tier and trial-days granted; the redemption is recorded atomically
+ *     with the user row so a seat is only consumed when a user actually
+ *     exists.
+ *
+ * Rate-limited by IP: 3 registrations / 15 min. Brute-forcing through
+ * voucher codes to find a valid one is already blocked at
+ * /api/voucher/check; this limiter is a second line defending against
+ * rapid-fire account spam once a valid code IS known.
+ */
 import { NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { users } from '@/db/schema';
+import { users, promoCodes, codeRedemptions } from '@/db/schema';
 import { hashPassword, generateId } from '@/lib/crypto';
 import { createSession } from '@/lib/session';
-import { eq } from 'drizzle-orm';
 import { getEnv } from '@/lib/cloudflare';
 import { RegisterRequest, zodFailure } from '@/lib/schemas';
+import { validateVoucherForRegistration } from '@/lib/voucher';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
+function voucherRequired(env: any): boolean {
+  // The flag is a string coming from wrangler / Pages secrets; normalize.
+  const raw = env?.VOUCHER_REQUIRED_FOR_REGISTRATION;
+  if (raw === undefined || raw === null) return false;
+  const v = String(raw).toLowerCase().trim();
+  return v === 'true' || v === '1' || v === 'yes' || v === 'on';
+}
 
 export async function POST(req: NextRequest) {
-    try {
-        const rawBody = await req.json().catch(() => null);
-        // Shape validation first — enforces min password length, email
-        // format, and display name bounds before we touch the DB.
-        const parsed = RegisterRequest.safeParse(rawBody);
-        if (!parsed.success) {
-            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
-        }
-        const { email, password, displayName } = parsed.data;
+  const rl = await rateLimit(req, {
+    routeLabel: 'auth-register',
+    limit: 3,
+    windowMs: 15 * 60_000,
+  });
+  if (!rl.allowed) return tooManyResponse(rl);
 
-        const env = await getEnv();
-        const db = getDb(env);
-
-        // Check if user already exists. Note: this check is a fast-path —
-        // it is NOT the authoritative guard. The `users.email` column has a
-        // UNIQUE constraint, so concurrent registrations with the same email
-        // will produce a DB error on the insert below (caught and
-        // translated to a 409 to keep the response identical to the
-        // pre-check path and avoid leaking any timing/enumeration signal).
-        const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        if (existingUsers.length > 0) {
-            return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
-        }
-
-        // Hash password and create user
-        const hashedPassword = await hashPassword(password);
-        const userId = generateId();
-
-        try {
-            await db.insert(users).values({
-                id: userId,
-                email,
-                displayName,
-                hashedPassword,
-                subscriptionTier: 'free',
-                language: 'th',
-                scansThisMonth: 0,
-                streakDays: 0,
-                totalPoints: 0,
-                createdAt: new Date()
-            });
-        } catch (insertErr: any) {
-            // Unique-constraint violation from the concurrent-registration
-            // race. SQLite/D1 surfaces this as "UNIQUE constraint failed".
-            // Return the same 409 as the pre-check path; never return the
-            // driver message (leaks schema / race signal).
-            const msg = String(insertErr?.message || '');
-            if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
-                return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
-            }
-            throw insertErr;
-        }
-
-        // Create session and set cookie
-        await createSession(env, userId);
-
-        return NextResponse.json({
-            user: {
-                id: userId,
-                email,
-                displayName,
-                subscriptionTier: 'free'
-            },
-            message: 'Registered successfully'
-        }, { status: 201 });
-
-    } catch (error: any) {
-        // Server-side only — never return error.message to the client.
-        console.error('Registration error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+  try {
+    const rawBody = await req.json().catch(() => null);
+    const parsed = RegisterRequest.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(zodFailure(parsed.error), { status: 400 });
     }
+    const { email, password, displayName, voucherCode } = parsed.data;
+
+    const env = await getEnv();
+    const db = getDb(env);
+
+    // ── 1. Voucher gating ────────────────────────────────────────
+    //
+    // Check BEFORE any DB writes so a rejected request leaves no
+    // partial state (and no wasted PBKDF2 hash CPU). We also do the
+    // voucher read before the email-existence check so a missing or
+    // bad voucher doesn't leak "this email is registered" by
+    // returning 409 before it ever gets to the voucher layer.
+    let voucherRow: Awaited<ReturnType<typeof validateVoucherForRegistration>> | null = null;
+    const voucherGateOn = voucherRequired(env);
+    if (voucherGateOn || voucherCode) {
+      if (!voucherCode) {
+        return NextResponse.json(
+          { error: 'A voucher code is required to register during the pilot.', reason: 'voucher_required' },
+          { status: 400 },
+        );
+      }
+      voucherRow = await validateVoucherForRegistration(db, voucherCode);
+      if (!voucherRow.valid) {
+        // Mirror /api/voucher/check shape so the UI can render the
+        // same localised message regardless of which endpoint
+        // surfaced the rejection.
+        return NextResponse.json(
+          { error: 'Invalid voucher', reason: voucherRow.reason },
+          { status: 400 },
+        );
+      }
+    }
+
+    // ── 2. Email uniqueness (fast-path; race handled by UNIQUE index) ─
+    const existingUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    if (existingUsers.length > 0) {
+      return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+    }
+
+    // ── 3. Hash password + derive tier from voucher ───────────────
+    const hashedPassword = await hashPassword(password);
+    const userId = generateId();
+
+    // Default tier is free; a valid registration voucher can promote.
+    let subscriptionTier = 'free';
+    let trialExpiresAt: Date | null = null;
+    let promoSource: string | null = null;
+    if (voucherRow?.valid) {
+      subscriptionTier = voucherRow.row.grantTier ?? 'free';
+      if (voucherRow.row.trialDays && voucherRow.row.trialDays > 0) {
+        trialExpiresAt = new Date();
+        trialExpiresAt.setDate(trialExpiresAt.getDate() + voucherRow.row.trialDays);
+      }
+      promoSource = voucherRow.row.code;
+    }
+
+    // ── 4. Insert user + redemption in sequence with
+    //       safe unwind on conflict ─────────────────────────────────
+    //
+    // D1 doesn't expose a transaction API to the Workers runtime at
+    // the time of writing, so we approximate atomicity: insert the
+    // user first, then insert the redemption. If the redemption
+    // insert hits the UNIQUE (user_id, code_id) index (migration 0001),
+    // the voucher has already been used by this user — but since we
+    // JUST created that user a line above, in practice the only way
+    // to hit this is a user-ID collision, which our UUIDv4 generator
+    // makes astronomically unlikely.
+    try {
+      await db.insert(users).values({
+        id: userId,
+        email,
+        displayName,
+        hashedPassword,
+        subscriptionTier,
+        trialExpiresAt,
+        promoSource,
+        language: 'th',
+        scansThisMonth: 0,
+        streakDays: 0,
+        totalPoints: 0,
+        createdAt: new Date(),
+      });
+    } catch (insertErr: any) {
+      const msg = String(insertErr?.message || '');
+      if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
+        return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+      }
+      throw insertErr;
+    }
+
+    if (voucherRow?.valid) {
+      try {
+        await db.insert(codeRedemptions).values({
+          id: generateId(),
+          userId,
+          codeId: voucherRow.row.id,
+          benefitsApplied: {
+            tier: subscriptionTier,
+            trialDays: voucherRow.row.trialDays,
+            viaRegistration: true,
+          },
+          redeemedAt: new Date(),
+        });
+        await db
+          .update(promoCodes)
+          .set({ usageCount: (voucherRow.row.usageCount ?? 0) + 1 })
+          .where(eq(promoCodes.id, voucherRow.row.id));
+        logger.info('[REGISTER] voucher redeemed at sign-up', {
+          userId: userId.substring(0, 8),
+          code: voucherRow.row.code,
+          tier: subscriptionTier,
+        });
+      } catch (e) {
+        // The user row is already committed. Redemption-record failure
+        // is a logging problem, not a user-facing one — they got the
+        // account, but the seat may not have been accounted for. Log
+        // loudly so an admin can reconcile via /admin/promo.
+        logger.error('[REGISTER] voucher redemption bookkeeping failed', {
+          userId: userId.substring(0, 8),
+          code: voucherRow.row.code,
+          error: String((e as any)?.message ?? e),
+        });
+      }
+    }
+
+    // ── 5. Session cookie, then respond ───────────────────────────
+    await createSession(env, userId);
+
+    return NextResponse.json(
+      {
+        user: { id: userId, email, displayName, subscriptionTier, trialExpiresAt },
+        message: 'Registered successfully',
+      },
+      { status: 201 },
+    );
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
+  }
 }

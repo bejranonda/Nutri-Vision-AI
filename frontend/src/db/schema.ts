@@ -28,6 +28,26 @@ export const promoCodes = sqliteTable('promo_codes', {
     type: text('type').notNull(), // TRIAL, DISCOUNT, FANCLUB, REFERRAL
     description: text('description'),
     descriptionTh: text('description_th'),
+    /**
+     * `scope` distinguishes codes usable at different stages:
+     *   - 'registration' — REQUIRED at sign-up; no existing user account
+     *     can redeem this and you can't create an account without one
+     *     when VOUCHER_REQUIRED_FOR_REGISTRATION is on.
+     *   - 'upgrade' — for an already-logged-in user to upgrade their
+     *     subscription tier via /api/promo/redeem.
+     *
+     * Existing rows default to 'upgrade' so pre-migration promo behaviour
+     * is unchanged. New registration vouchers are created explicitly by
+     * the operator in /admin/promo.
+     */
+    scope: text('scope').notNull().default('upgrade'),
+    /**
+     * Admin-only free-text label, e.g. "Summer pilot cohort — 50 seats
+     * for Chula nutrition dept." Never shown to end users. Shown in
+     * the /admin/promo table to help the operator identify the code's
+     * purpose months after it was created.
+     */
+    notes: text('notes'),
     trialDays: integer('trial_days'),
     discountPercent: real('discount_percent'),
     grantTier: text('grant_tier').default('premium'),

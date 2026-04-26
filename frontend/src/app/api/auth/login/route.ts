@@ -6,9 +6,20 @@ import { createSession } from '@/lib/session';
 import { eq } from 'drizzle-orm';
 import { getEnv } from '@/lib/cloudflare';
 import { LoginRequest, zodFailure } from '@/lib/schemas';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 
 
 export async function POST(req: NextRequest) {
+    // Per-IP rate limit: 10 attempts per 15 minutes. Blocks brute-force
+    // password guessing without being so tight it blocks a real user
+    // fat-fingering their password 2-3 times.
+    const rl = await rateLimit(req, {
+        routeLabel: 'auth-login',
+        limit: 10,
+        windowMs: 15 * 60_000,
+    });
+    if (!rl.allowed) return tooManyResponse(rl);
+
     try {
         const rawBody = await req.json().catch(() => null);
         // Validate the request shape up front. Zod rejects malformed JSON,
