@@ -149,10 +149,25 @@ export async function POST(req: NextRequest) {
         currentPhase = 'AUTH_CHECK';
         if (db && token) {
             try {
-                const activeSessions = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+                const activeSessions = await db
+                    .select({ userId: sessions.userId, expiresAt: sessions.expiresAt })
+                    .from(sessions)
+                    .where(eq(sessions.token, token))
+                    .limit(1);
                 if (activeSessions.length > 0) {
                     userId = activeSessions[0].userId!;
-                    const foundUsers = await db.select().from(users).where(eq(users.id, userId!)).limit(1);
+                    // Explicit columns — scan auth must survive an
+                    // unapplied additive migration (e.g. is_admin from
+                    // migration 0002 not yet wrangler-applied).
+                    const foundUsers = await db
+                        .select({
+                            id: users.id,
+                            subscriptionTier: users.subscriptionTier,
+                            scansThisMonth: users.scansThisMonth,
+                        })
+                        .from(users)
+                        .where(eq(users.id, userId!))
+                        .limit(1);
                     activeUser = foundUsers[0];
                 }
                 logger.scanSessionEvent(requestId, 'AUTH_RESOLVED', {

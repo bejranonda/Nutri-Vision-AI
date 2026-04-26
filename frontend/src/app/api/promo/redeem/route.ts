@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
         // attacker holding an expired-but-not-yet-cleaned session token
         // could still redeem codes. `/api/auth/me` already enforces this;
         // keep the check consistent across every session-gated route.
-        const activeSessions = await db.select()
+        const activeSessions = await db
+            .select({ userId: sessions.userId })
             .from(sessions)
             .where(
                 and(
@@ -46,9 +47,25 @@ export async function POST(req: NextRequest) {
         }
         const userId = activeSessions[0].userId!;
 
-        // 1. Validate Code
+        // 1. Validate Code — explicit columns so the route survives if
+        // schema-declared columns (e.g. `scope`/`notes` from migration
+        // 0003) haven't been applied to the live DB yet. Only fetch
+        // what this handler reads below.
         const upperCode = code.toUpperCase();
-        const foundCodes = await db.select().from(promoCodes).where(eq(promoCodes.code, upperCode)).limit(1);
+        const foundCodes = await db
+            .select({
+                id: promoCodes.id,
+                code: promoCodes.code,
+                isActive: promoCodes.isActive,
+                expiresAt: promoCodes.expiresAt,
+                usageLimit: promoCodes.usageLimit,
+                usageCount: promoCodes.usageCount,
+                grantTier: promoCodes.grantTier,
+                trialDays: promoCodes.trialDays,
+            })
+            .from(promoCodes)
+            .where(eq(promoCodes.code, upperCode))
+            .limit(1);
 
         if (foundCodes.length === 0) {
             return NextResponse.json({ error: 'Invalid promotion code' }, { status: 404 });
@@ -68,8 +85,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'This code has reached its usage limit' }, { status: 400 });
         }
 
-        // 2. Check if user already redeemed this code
-        const previousRedemptions = await db.select()
+        // 2. Check if user already redeemed this code (only need the id).
+        const previousRedemptions = await db
+            .select({ id: codeRedemptions.id })
             .from(codeRedemptions)
             .where(and(eq(codeRedemptions.userId, userId), eq(codeRedemptions.codeId, promoCode.id)))
             .limit(1);

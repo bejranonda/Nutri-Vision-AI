@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
         const env = await getEnv();
         const db = getDb(env);
 
-        // Find session
-        const activeSessions = await db.select()
+        // Find session — only the columns we read below.
+        const activeSessions = await db
+            .select({ userId: sessions.userId, expiresAt: sessions.expiresAt })
             .from(sessions)
             .where(
                 and(
@@ -33,8 +34,24 @@ export async function GET(req: NextRequest) {
 
         const session = activeSessions[0];
 
-        // Find user
-        const foundUsers = await db.select().from(users).where(eq(users.id, session.userId!)).limit(1);
+        // Find user — explicit column list so missing schema-declared
+        // columns in the live DB (e.g. an unapplied additive migration)
+        // don't take down session validation. See login route for the
+        // same pattern + rationale.
+        const foundUsers = await db
+            .select({
+                id: users.id,
+                email: users.email,
+                displayName: users.displayName,
+                subscriptionTier: users.subscriptionTier,
+                scansThisMonth: users.scansThisMonth,
+                totalPoints: users.totalPoints,
+                streakDays: users.streakDays,
+                trialExpiresAt: users.trialExpiresAt,
+            })
+            .from(users)
+            .where(eq(users.id, session.userId!))
+            .limit(1);
         const user = foundUsers[0];
 
         if (!user) {
