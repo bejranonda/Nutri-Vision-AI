@@ -85,8 +85,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Email uniqueness (fast-path; race handled by UNIQUE index) ─
+    // Select only the column we need so missing schema-declared columns
+    // (e.g. an unapplied is_admin migration) don't crash registration.
     const existingUsers = await db
-      .select()
+      .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))
       .limit(1);

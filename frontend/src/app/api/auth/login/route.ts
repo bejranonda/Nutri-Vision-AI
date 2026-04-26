@@ -34,7 +34,28 @@ export async function POST(req: NextRequest) {
         const env = await getEnv();
         const db = getDb(env);
 
-        const foundUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        // Explicit column list — DO NOT switch this to `.select()` (which
+        // selects every schema-declared column). The schema declares
+        // `is_admin` (migration 0002) and other newer columns; if those
+        // haven't been applied to the live D1 yet, `select()` errors with
+        // "no such column" and login becomes a 500 across the board.
+        // Listing the columns the route actually needs makes login
+        // resilient to additive schema changes that haven't been
+        // wrangler-applied yet.
+        const foundUsers = await db
+            .select({
+                id: users.id,
+                email: users.email,
+                displayName: users.displayName,
+                hashedPassword: users.hashedPassword,
+                subscriptionTier: users.subscriptionTier,
+                scansThisMonth: users.scansThisMonth,
+                totalPoints: users.totalPoints,
+                streakDays: users.streakDays,
+            })
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
         const user = foundUsers[0];
 
         if (!user || !(await verifyPassword(password, user.hashedPassword!))) {

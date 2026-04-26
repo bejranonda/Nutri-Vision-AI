@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — auth routes resilient to half-applied migrations
+
+- **`/api/auth/login`, `/me`, `/register`, `/promo/redeem`, `/analyze`** all switched from unqualified `db.select()` (which selects every schema-declared column) to explicit-column `db.select({ ... })`. The schema declares newer columns (`is_admin` from migration 0002, `scope`/`notes` from 0003); if those haven't been applied to the live D1 yet, an unqualified `select()` errors with "no such column" and login becomes a 500 across the board. Reported as "Internal server error" on login attempts in production. The fix makes every read side resilient to additive schema changes that haven't been wrangler-applied yet, and is also a small perf win (smaller wire size, fewer columns to deserialize).
+
 ### Added — voucher-gated registration (pilot launch)
 
 - **`/api/voucher/check?code=…`** — read-only voucher validator the registration UI hits as the user types. Returns a uniform `{ valid, reason, scope, remainingSeats, expiresAt, grantTier, trialDays }` shape (HTTP 200 for both valid and invalid; UI branches on the `valid` field, never on status code, so we don't leak "exists-but-exhausted" vs "doesn't exist" via 404).
