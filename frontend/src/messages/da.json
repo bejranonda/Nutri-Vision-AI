@@ -390,7 +390,21 @@
     "promo_placeholder": "Indtast kode (f.eks. SHINNY2024)",
     "promo_apply": "Indløs kode",
     "promo_success": "Kode indløst!",
-    "promo_error": "Ugyldig eller udløbet kode"
+    "promo_error": "Ugyldig eller udløbet kode",
+    "voucher_label": "Gavekort-kode",
+    "voucher_placeholder": "BETA-CHULA-01",
+    "voucher_help": "Påkrævet i pilotperioden. Spørg den person der inviterede dig.",
+    "voucher_valid_banner": "Koden låser op for {tier}-abonnement i {days} dage.",
+    "voucher_seats_remaining": "{n} pladser tilbage",
+    "voucher_invalid": {
+      "not_found": "Vi kender ikke den kode. Tastefejl?",
+      "inactive": "Denne kode er blevet deaktiveret.",
+      "expired": "Denne kode er udløbet.",
+      "exhausted": "Denne kode er brugt op — der er ingen pladser tilbage.",
+      "wrong_scope": "Denne kode kan ikke bruges til at oprette nye konti.",
+      "rate_limited": "For mange forespørgsler — vent et øjeblik og prøv igen.",
+      "check_failed": "Koden kunne ikke verificeres lige nu. Prøv igen om lidt."
+    }
   },
   "pricing": {
     "title": "Vælg Din Plan",

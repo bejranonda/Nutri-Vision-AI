@@ -390,7 +390,21 @@
     "promo_placeholder": "Enter code (e.g., SHINNY2024)",
     "promo_apply": "Apply Code",
     "promo_success": "Code redeemed successfully!",
-    "promo_error": "Invalid or expired code"
+    "promo_error": "Invalid or expired code",
+    "voucher_label": "Voucher code",
+    "voucher_placeholder": "BETA-CHULA-01",
+    "voucher_help": "Required during the pilot. Ask your invite for a code.",
+    "voucher_valid_banner": "Code unlocks {tier} tier for {days} days.",
+    "voucher_seats_remaining": "{n} seats left",
+    "voucher_invalid": {
+      "not_found": "We don't recognise that code. Check for typos?",
+      "inactive": "This code has been deactivated.",
+      "expired": "This code expired.",
+      "exhausted": "This code has been fully redeemed — no seats left.",
+      "wrong_scope": "This code can't be used to create new accounts.",
+      "rate_limited": "Too many checks — please slow down and try again in a moment.",
+      "check_failed": "Couldn't verify the code right now. Try again in a moment."
+    }
   },
   "pricing": {
     "title": "Choose Your Plan",

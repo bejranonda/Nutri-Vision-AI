@@ -390,7 +390,21 @@
     "promo_placeholder": "Code eingeben (z.B. SHINNY2024)",
     "promo_apply": "Code einlösen",
     "promo_success": "Code erfolgreich eingelöst!",
-    "promo_error": "Ungültiger oder abgelaufener Code"
+    "promo_error": "Ungültiger oder abgelaufener Code",
+    "voucher_label": "Gutscheincode",
+    "voucher_placeholder": "BETA-CHULA-01",
+    "voucher_help": "Während der Pilotphase erforderlich. Frage die Person, die dich eingeladen hat.",
+    "voucher_valid_banner": "Code schaltet Tarif {tier} für {days} Tage frei.",
+    "voucher_seats_remaining": "noch {n} Plätze",
+    "voucher_invalid": {
+      "not_found": "Diesen Code kennen wir nicht. Tippfehler?",
+      "inactive": "Dieser Code wurde deaktiviert.",
+      "expired": "Dieser Code ist abgelaufen.",
+      "exhausted": "Dieser Code wurde vollständig eingelöst — keine Plätze mehr.",
+      "wrong_scope": "Dieser Code kann nicht für neue Konten verwendet werden.",
+      "rate_limited": "Zu viele Prüfungen — bitte kurz warten und neu versuchen.",
+      "check_failed": "Der Code konnte gerade nicht geprüft werden. Bitte später erneut versuchen."
+    }
   },
   "pricing": {
     "title": "Wähle deinen Plan",

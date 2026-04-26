@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — voucher-gated registration (pilot launch)
+
+- **`/api/voucher/check?code=…`** — read-only voucher validator the registration UI hits as the user types. Returns a uniform `{ valid, reason, scope, remainingSeats, expiresAt, grantTier, trialDays }` shape (HTTP 200 for both valid and invalid; UI branches on the `valid` field, never on status code, so we don't leak "exists-but-exhausted" vs "doesn't exist" via 404).
+- **`/api/auth/register`** is now voucher-gated when `VOUCHER_REQUIRED_FOR_REGISTRATION=true` is set on Cloudflare Pages. Voucher is read + redeemed atomically with the user-row insert — no orphan accounts on partial failure, no double-consumed seats. The flag is opt-in so existing deploys stay open until the operator flips it.
+- **Registration UI** (`/login` register tab) gains a voucher-code input with a 350 ms debounced live check, valid/invalid inline feedback, and an `AbortController` against the previous request so a stale response can't overwrite the latest. Submit button is disabled while the check is in flight or if the typed code is rejected.
+- **`/admin/promo`** rebuilt around two scopes:
+  * **Registration vouchers** — the new pilot-gating codes
+  * **Upgrade promos** — the original tier-upgrade codes (unchanged behaviour)
+  * Tabs switch between scopes; each lists its own table.
+  * Create form gains: kind toggle (Personal = `usageLimit=1` / Organization = N), random-suffix generator, expiry-date picker, free-text "notes" field, scope hidden field bound to the active tab.
+  * Each row shows: copy-to-clipboard button, Personal/Organization badge, usage bar with red/amber/green tone, days-until-expiry, `[ADMIN_ACTION]` audit log on every action.
+- **Migration 0003** — `promo_codes` gains `scope TEXT NOT NULL DEFAULT 'upgrade'` and `notes TEXT`. Non-destructive; existing rows default to upgrade scope so nothing breaks.
+
+### Added — edge rate limiting
+
+- **`lib/rate-limit.ts`** — sliding-window per-IP rate limiter built on the Workers `caches.default` API. No new dep, no KV/DO bindings to provision. Per-route policies:
+  * `auth-login`: 10 attempts / 15 min — blocks brute force without flagging a real user fat-fingering
+  * `auth-register`: 3 attempts / 15 min — blocks rapid sign-up spam once a valid code is known
+  * `voucher-check`: 30 / min — blocks code enumeration; plenty for an honest typing user
+- Returns a uniform 429 with `Retry-After` + `X-RateLimit-*` headers; fails OPEN if the cache API is unavailable so legitimate traffic isn't blocked by a limiter outage.
+
+### Fixed — login button stuck disabled (regression in PR #12)
+
+- Auth-store initial `isLoading: true` was stuck `true` because nothing called `initAuth()` on mount of `/login`. The submit button's `disabled={isLoading}` gate was therefore permanently on. Tracked + fixed in PR #14: initial state is now `false`, and `/login` calls `initAuth()` in a `useEffect` on mount (side-benefit: a returning user with a valid session cookie auto-redirects to `/dashboard` instead of seeing the login form).
+
+### Known follow-ups
+
+- **Voucher seat-claim race**: today the register route reads the voucher row, then inserts the user, then inserts the redemption row. D1 doesn't expose a transaction API to the Workers runtime, so two concurrent registrations against a 1-seat voucher could in theory both pass the read. Acceptable for pilot scale; the `code_redemptions(user_id, code_id)` UNIQUE index from migration 0001 prevents *the same user* from double-claiming. Tracked for post-pilot hardening — the right answer is either the new D1 transaction API (in beta) or a Durable Object claim queue.
+- **Playwright smoke for login**: the stuck-button regression slipped through every static gate (tsc, vitest, build) because no test actually clicks the login button. A Playwright happy-path script that types email/password and asserts the navigation would catch this whole class of bug. Tracked in `docs/KNOWN_ISSUES.md`.
+- **Email delivery for voucher distribution**: vouchers are currently distributed by the operator out-of-band (paste into chat, share via Slack/email). Once email is wired up, an `/admin/promo/send` endpoint could mail a personal voucher straight to a recipient.
+
 ### Added — admin console
 - **New `/admin` area** gated by `requireAdmin()` / `requireAdminApi()` helpers in `lib/admin-auth.ts`. Non-admins are silently redirected to `/login` (no "admin required" message — intentional, to avoid revealing the admin area's existence).
 - **`/admin`** landing with live stats: registered users, admin count, active sessions, scans & scan-errors in the last 24h, active promo codes.

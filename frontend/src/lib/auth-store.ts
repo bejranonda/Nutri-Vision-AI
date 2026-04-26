@@ -23,7 +23,7 @@ interface AuthState {
 
     initAuth: () => Promise<void>;
     login: (email: string, password: string) => Promise<boolean>;
-    register: (name: string, email: string, password: string) => Promise<boolean>;
+    register: (name: string, email: string, password: string, voucherCode?: string) => Promise<boolean>;
     logout: () => Promise<void>;
     redeemCode: (code: string) => Promise<{ success: boolean; message: string }>;
     isFeatureAvailable: (featureKey: string) => boolean;
@@ -76,13 +76,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
     },
 
-    register: async (name, email, password) => {
+    register: async (name, email, password, voucherCode) => {
         set({ isLoading: true, error: null });
         try {
+            // Only send `voucherCode` when it's non-empty. Omitting it lets
+            // the server apply the feature-flag default ("voucher required?")
+            // rather than us guessing client-side.
+            const body: Record<string, string> = { displayName: name, email, password };
+            if (voucherCode && voucherCode.trim()) body.voucherCode = voucherCode.trim();
+
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ displayName: name, email, password })
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();

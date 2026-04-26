@@ -40,7 +40,12 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## 🚧 Ongoing Follow-ups (PR-tracked)
 
-### 0. Admin console — next-phase additions
+### 0a. Voucher-registration follow-ups
+- **Status**: Voucher-gated registration ships as part of the pilot launch. Two limitations to track:
+  - **Concurrent seat claim**: D1 doesn't expose a transaction API to the Workers runtime, so two parallel registrations against a 1-seat voucher could in theory both read it as valid. Acceptable at pilot scale; the `code_redemptions(user_id, code_id)` UNIQUE index from migration 0001 prevents the *same user* from double-claiming. Tracked for post-pilot — fix path is either the in-beta D1 transaction API or a Durable Object claim queue.
+  - **No voucher email delivery**: operators currently share codes by hand. A future `/admin/promo/send` endpoint could mail a personal voucher to a recipient once email is wired up.
+
+### 0b. Admin console — next-phase additions
 - **Status**: The `/admin` console (shipped with `is_admin` migration + UI) covers users, promo codes, and health. Remaining gaps on the original spec:
   - **`/admin/scans`** — recent scans across all users, filtered by `errorClass` / `modelUsed`. Useful for spotting AI-pipeline regressions but requires a read-only design decision on PII exposure (photos).
   - **`/admin/logs`** — tail of Cloudflare logs via the GraphQL API. Needs the Cloudflare Account API token surfaced as a Pages secret.
