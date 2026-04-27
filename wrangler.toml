@@ -10,6 +10,11 @@ pages_build_output_dir = "frontend/.open-next/assets"
 binding = "DB"
 database_name = "eatinorder-db"
 database_id = "0fde5517-dda7-47e5-8f49-e33027069c1a"
+# Drizzle places migration SQL under frontend/drizzle/. Tell wrangler
+# to look there instead of its default `migrations/` so that running
+# `wrangler d1 migrations apply --remote` from the repo root picks up
+# every migration. Match `frontend/wrangler.toml` for consistency.
+migrations_dir = "frontend/drizzle"
 
 [ai]
 binding = "AI"
