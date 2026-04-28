@@ -95,6 +95,22 @@ describe('clientKey', () => {
     expect(k).toBe('ratelimit:auth-login:anon');
   });
 
+  it('prefers cf-connecting-ip over x-forwarded-for when both are present', () => {
+    // Behind Cloudflare, `cf-connecting-ip` is the trusted real-client
+    // IP set by CF's edge; `x-forwarded-for` is whatever the upstream
+    // proxy chain sends. If both are present the CF-set value wins —
+    // an attacker who controls the XFF chain otherwise gets to pick
+    // their own per-IP rate-limit bucket.
+    const k = clientKey(
+      mkReq({
+        'cf-connecting-ip': '203.0.113.1',
+        'x-forwarded-for': '198.51.100.1, 10.0.0.1',
+      }),
+      'auth-login',
+    );
+    expect(k).toBe('ratelimit:auth-login:203.0.113.1');
+  });
+
   it('does not throw when req.headers is missing', () => {
     // Force the missing-headers path. The limiter must survive this.
     const fake = { headers: undefined } as unknown as Request;
