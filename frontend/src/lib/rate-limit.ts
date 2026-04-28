@@ -52,9 +52,18 @@ interface Bucket {
  * (single-bucket fallback — still some protection).
  */
 export function clientKey(req: Request, routeLabel: string): string {
-  const cf = req.headers.get('cf-connecting-ip');
-  const xff = req.headers.get('x-forwarded-for');
-  const ip = cf || (xff ? xff.split(',')[0].trim() : 'anon');
+  // Defensive against runtimes where req.headers is null/missing.
+  // Headers should always be present on a Workers/Node Request, but
+  // an undefined here would cascade into a route 500, so we guard.
+  let cf: string | null = null;
+  let xff: string | null = null;
+  try {
+    cf = req.headers?.get?.('cf-connecting-ip') ?? null;
+    xff = req.headers?.get?.('x-forwarded-for') ?? null;
+  } catch {
+    // Headers iteration failed — fall through to 'anon' bucket.
+  }
+  const ip = cf || (xff ? xff.split(',')[0]?.trim() || 'anon' : 'anon');
   return `ratelimit:${routeLabel}:${ip}`;
 }
 
@@ -62,8 +71,31 @@ export function clientKey(req: Request, routeLabel: string): string {
  * Take one token from the per-IP bucket for `routeLabel`. If the
  * limit is exceeded, returns `{ allowed: false, retryAfterSeconds }`
  * without consuming further state.
+ *
+ * Robustness contract: this function MUST NOT throw under any
+ * circumstance — auth/scan/voucher routes call it BEFORE entering
+ * their try/catch and a thrown error here surfaces as the framework's
+ * default 500 ("Internal server error"). Every step is wrapped to
+ * fail open (return allowed:true) on any unexpected condition. This
+ * is safer than failing closed because a broken limiter blocking real
+ * users is much worse than briefly weakening abuse protection.
  */
 export async function rateLimit(
+  req: Request,
+  opts: { routeLabel: string; limit: number; windowMs: number },
+): Promise<RateLimitResult> {
+  // Outer try-catch is the belt: any unforeseen runtime issue
+  // (caches API not available in this runtime, Request constructor
+  // throwing in some OpenNext context, header lookup failure, etc.)
+  // collapses into a fail-open allow rather than crashing the route.
+  try {
+    return await rateLimitInner(req, opts);
+  } catch {
+    return { allowed: true, count: 0, limit: opts.limit, retryAfterSeconds: 0 };
+  }
+}
+
+async function rateLimitInner(
   req: Request,
   opts: { routeLabel: string; limit: number; windowMs: number },
 ): Promise<RateLimitResult> {
@@ -71,7 +103,15 @@ export async function rateLimit(
   const key = clientKey(req, routeLabel);
   // Use a URL for the cache key. `caches.default` keys by Request, so
   // we build a synthetic URL that encodes the bucket identity.
-  const cacheKey = new Request(`https://rate-limiter.internal/${encodeURIComponent(key)}`);
+  let cacheKey: Request;
+  try {
+    cacheKey = new Request(`https://rate-limiter.internal/${encodeURIComponent(key)}`);
+  } catch {
+    // Some constrained runtimes (e.g. certain OpenNext combos) throw
+    // when constructing Requests outside an active fetch context.
+    // Skip rate-limit gracefully.
+    return { allowed: true, count: 0, limit, retryAfterSeconds: 0 };
+  }
 
   // Silent fallback if the Cache API isn't available (e.g. some test
   // runtimes). Fail OPEN — better to let a legitimate request through
