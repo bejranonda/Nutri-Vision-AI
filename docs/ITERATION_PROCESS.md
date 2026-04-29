@@ -162,7 +162,25 @@ Not yet fully met (see `docs/KNOWN_ISSUES.md` → "Ongoing Follow-ups"):
 
 ---
 
-## 7. Appendix — when you need to add a new check
+## 7. Schema migrations as part of the merge
+
+When a PR adds a new migration under `frontend/drizzle/`, the merger must also apply it to the **remote** D1 before declaring the deploy verified:
+
+```bash
+cd frontend
+npx wrangler d1 migrations list  eatinorder-db --remote   # expect "No migrations to apply!" once applied
+npx wrangler d1 migrations apply eatinorder-db --remote
+```
+
+Prerequisites (all in `frontend/.env.local`, never in shell env — see
+`GUIDELINE.md → Cloudflare / wrangler env`):
+
+- `CLOUDFLARE_API_TOKEN` with `D1:Edit`, `Workers Scripts:Edit`, `Pages:Edit`, `User Details:Read`, **`Memberships:Read`**.
+- `CLOUDFLARE_ACCOUNT_ID` pinned to this project's Cloudflare account (mandatory when the token has access to >1 account).
+
+The Cloudflare Pages CI **does not** run D1 migrations as part of `npm run pages:build` — Pages only builds and uploads the bundle. Forgetting the manual `migrations apply` is the most common way a "successful" deploy can ship a schema-broken production. Treat it as part of §3 / §5, not §2.
+
+## 8. Appendix — when you need to add a new check
 
 The project has four layers of static validation:
 

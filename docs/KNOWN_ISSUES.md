@@ -73,6 +73,20 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## ✅ Resolved Issues
 
+### Cloudflare auth (`/memberships` 10000) — D1 migration apply blocked
+- **Symptom**: `npx wrangler d1 migrations apply eatinorder-db --remote` failed with `Authentication error [code: 10000]` against `/memberships`, even though `wrangler whoami` succeeded. Hit on wrangler 4.67 *and* 4.86 — not a version regression.
+- **Root cause (two stacked problems)**:
+  1. The `CLOUDFLARE_API_TOKEN` was created with the obvious scopes (`D1:Edit`, `Workers Scripts:Edit`, `Pages:Edit`, `User Details:Read`) but was missing **`User → Memberships:Read`**. `whoami` only needs `User Details:Read`, so it succeeded — but every other remote command probes `/memberships` first as a token-validation step.
+  2. The token has access to **two Cloudflare accounts**. With no account pin, wrangler errored with *"More than one account available… please set `account_id` … or `CLOUDFLARE_ACCOUNT_ID`"*. We tried `account_id` at the top level of `wrangler.toml`, but for **Pages-style configs** (`pages_build_output_dir = …`) `wrangler d1` ignores top-level `account_id` — the env var is the only path that actually works.
+- **Fix**:
+  - Edited the existing API token to add the **`User → Memberships:Read`** scope.
+  - Set `CLOUDFLARE_ACCOUNT_ID` in `frontend/.env.local` (project-scoped — every contributor / CI runner can pin a different account independently). Wrangler 4.x auto-loads `.env.local` for its own auth, so no shell-level export and no wrapper script is needed.
+  - Removed the dead `account_id = "…"` line from `wrangler.toml` so future readers don't waste time wondering why it's there but ineffective.
+- **Prevention**:
+  - `.env.example` now spells out every required token scope including the easy-to-miss `Memberships:Read`.
+  - `wrangler.toml` carries an inline comment pointing the next person at `.env.local` instead of letting them re-discover the Pages-config quirk.
+  - Recorded as a knowledge-base entry (`docs/KNOWLEDGE_BASE.md` → "Cloudflare wrangler auth") with the exact scope list so future contributors copy-paste the right thing on first try.
+
 ### Bug-hunt hardening pass (project-hardening branch)
 - **Problems addressed**:
   - `/api/promo/redeem` accepted expired sessions (it didn't check `expiresAt`, unlike `/api/auth/me`).

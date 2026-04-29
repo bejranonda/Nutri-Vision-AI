@@ -79,6 +79,36 @@ Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full ga
 -   **Pydantic Settings**: Environment-based configuration with strict validation.
 -   **Structured Logging**: Every request, response, and internal service step is logged for transparency.
 
+## 🔐 Cloudflare wrangler auth (project-scoped)
+
+Wrangler — for `d1 migrations apply`, Pages deploys, KV/R2 ops, etc. — needs **two pieces** of identity, both project-scoped to the repo via `frontend/.env.local` (gitignored):
+
+| Variable | What it does | Source |
+|----------|--------------|--------|
+| `CLOUDFLARE_API_TOKEN` | Authenticates the request. Must have the scopes listed below. | https://dash.cloudflare.com/profile/api-tokens |
+| `CLOUDFLARE_ACCOUNT_ID` | Pins the repo to one account when the token has access to multiple (very common — personal + org). | `wrangler whoami` output, or the dashboard URL bar. |
+
+### Required token scopes (least-privilege)
+
+```
+Account → D1:Edit
+Account → Workers Scripts:Edit
+Account → Cloudflare Pages:Edit
+User    → User Details:Read
+User    → Memberships:Read       ← easy to miss
+```
+
+The `Memberships:Read` scope is non-obvious. `wrangler whoami` works without it, so a partially-scoped token *looks* fine — but every remote-resource command (including `d1 migrations apply`) first probes `/memberships` as a token-validation step. Without the scope you get `Authentication error [code: 10000]` and never reach the actual operation. Fully documented under `KNOWN_ISSUES.md → Resolved → Cloudflare auth (/memberships 10000)`.
+
+### Why `.env.local` and not `wrangler.toml` / shell env?
+
+- **Project scope**: a developer with multiple Cloudflare accounts (personal + org) doesn't want one global `CLOUDFLARE_ACCOUNT_ID` polluting every project they touch. `.env.local` is per-repo.
+- **Wrangler auto-loads `.env.local`**: confirmed empirically — both vars resolve in a fresh shell with no inline exports. No wrapper script or `dotenv-cli` needed.
+- **`wrangler.toml` doesn't work for this**: top-level `account_id` is *ignored* by `wrangler d1 …` when the config is a Pages-style config (i.e. has `pages_build_output_dir`). We tried it; it silently doesn't take effect.
+- **CI**: pipelines inject the same two variables as repo / org secrets — same code path, no special handling.
+
+`.gitignore` already excludes `.env`, `.env.local`, `.env.*.local`. **Never** check the token into git.
+
 ## 🛠️ Logging & Monitoring
 
 We use a unified logging system (`src/lib/logger.ts`) across the stack that bridges Client and Server (Edge) logs:

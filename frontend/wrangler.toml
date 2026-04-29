@@ -1,3 +1,12 @@
+# Cloudflare auth is project-scoped via `frontend/.env.local`:
+#   CLOUDFLARE_API_TOKEN        (token with the scopes listed in .env.example)
+#   CLOUDFLARE_ACCOUNT_ID       (pins this repo to one account when the
+#                                token has access to multiple)
+# We deliberately do NOT set `account_id` here — for Pages configs the
+# `wrangler d1` family ignores top-level `account_id`, so the env var
+# is the single source of truth. See docs/KNOWLEDGE_BASE.md →
+# "Cloudflare wrangler auth" for the full story.
+
 name = "eatinorder"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]

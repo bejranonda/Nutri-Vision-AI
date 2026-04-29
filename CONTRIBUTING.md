@@ -59,21 +59,35 @@ This project adheres to a code of conduct that all contributors are expected to 
    GOOGLE_AI_API_KEY=your_key_here
    SECRET_KEY=generate_with_openssl_rand_hex_32
    JWT_SECRET_KEY=another_secret_key
-   CLOUDFLARE_API_TOKEN=your_token_here
    ```
 
-3. **Start the development environment**:
+3. **Cloudflare credentials** for the frontend / D1 / Pages live in
+   `frontend/.env.local` (separate file, also gitignored):
+   ```env
+   # Token scopes: D1:Edit, Workers Scripts:Edit, Pages:Edit,
+   # User Details:Read, AND User Memberships:Read.
+   # The "Edit Cloudflare Workers" token template covers all of these.
+   CLOUDFLARE_API_TOKEN=your_token_here
+   # Required when your token has access to >1 Cloudflare account.
+   CLOUDFLARE_ACCOUNT_ID=your_account_id_here
+   ```
+   Wrangler auto-reads `frontend/.env.local`. Don't export these in your
+   shell profile — keeping them per-project lets one machine work
+   against multiple Cloudflare accounts cleanly. See
+   [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *Cloudflare / wrangler env*.
+
+4. **Start the development environment**:
    ```bash
    docker-compose up
    ```
 
-4. **In another terminal, run migrations**:
+5. **In another terminal, run migrations**:
    ```bash
    docker-compose exec backend alembic upgrade head
    docker-compose exec backend python app/db/seed_data.py
    ```
 
-5. **Access the application**:
+6. **Access the application**:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs

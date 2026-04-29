@@ -147,6 +147,26 @@ npx wrangler d1 migrations apply eatinorder-db --remote  # prod
 npx wrangler d1 migrations apply eatinorder-db --local   # local dev
 ```
 
+**Prerequisite — Cloudflare auth in `frontend/.env.local`** (gitignored):
+
+```env
+# Token must include scopes: D1:Edit, Workers Scripts:Edit, Pages:Edit,
+# User Details:Read, AND User Memberships:Read (the last is non-obvious —
+# `wrangler whoami` works without it but `migrations apply` 401s on
+# /memberships). Pick the "Edit Cloudflare Workers" template for the
+# full set.
+CLOUDFLARE_API_TOKEN=...
+# Pin which account this repo deploys to. Required when your token has
+# access to multiple accounts (e.g. personal + org).
+CLOUDFLARE_ACCOUNT_ID=...
+```
+
+Wrangler 4.x auto-reads `.env.local` — no shell exports, no `dotenv-cli`,
+no `account_id` in `wrangler.toml` (it's ignored for Pages configs).
+Full debugging story: [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) →
+*Resolved → Cloudflare auth (/memberships 10000)*. Setup guide:
+[`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *Cloudflare / wrangler env*.
+
 ## 📁 Project Structure
 
 ```

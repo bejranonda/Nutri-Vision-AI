@@ -45,6 +45,38 @@ This document provides guidelines for developers to maintain code quality, consi
 - **AI-output validation**: Validate all AI outputs (e.g., `validateAiResponse`) using `safeParseJson` strategies to catch markdown prefixes before LLM JSON structures.
 - **Request-body validation (mandatory)**: every `/api/*` route that accepts JSON **must** parse its body through a zod schema declared in `frontend/src/lib/schemas.ts`. Use `safeParse` + `zodFailure(result.error)` → `{ status: 400 }`. This is the boundary at which garbage input dies — never destructure `await req.json()` directly. See the existing `LoginRequest` / `RegisterRequest` / `AnalyzeRequest` / `PromoRedeemRequest` for the pattern.
 
+## ☁️ Cloudflare / wrangler env (project-scoped, never global)
+
+Wrangler picks up auth from `frontend/.env.local` automatically. Keep it that way:
+
+- **Do** put `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in `frontend/.env.local`. The file is gitignored. Each developer / CI runner sets their own values — works cleanly when the same machine has multiple Cloudflare accounts.
+- **Don't** export them in your Windows / shell user profile. That pins every project on the machine to the same account ID and makes account isolation impossible.
+- **Don't** put `account_id` in `wrangler.toml`. For Pages configs, `wrangler d1` ignores it. The repo carries an inline comment in `wrangler.toml` to keep the next reader from re-discovering this.
+
+### Token scopes (the full set that actually works)
+
+```
+Account → D1:Edit
+Account → Workers Scripts:Edit
+Account → Cloudflare Pages:Edit
+User    → User Details:Read
+User    → Memberships:Read     ← without this, every remote wrangler
+                                  command 401s on /memberships before
+                                  reaching your actual resource.
+```
+
+When creating a token, picking the **"Edit Cloudflare Workers"** template includes all of these by default. If you hand-pick scopes, double-check `Memberships:Read` is on the list.
+
+### Verifying after rotation
+
+```bash
+cd frontend
+npx wrangler whoami                            # only needs User Details:Read
+npx wrangler d1 migrations list eatinorder-db --remote   # needs the full set
+```
+
+If `whoami` works but `migrations list` returns 10000 → token is missing `Memberships:Read`. If it errors with *"More than one account available…"* → `CLOUDFLARE_ACCOUNT_ID` isn't set in `.env.local`. See `docs/KNOWN_ISSUES.md → Resolved → Cloudflare auth (/memberships 10000)` for the full debug trail.
+
 ## 📊 Logging & Debugging
 
 ### How to use the Unified Logger
