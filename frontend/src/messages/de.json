@@ -268,15 +268,30 @@
     "quiz": "Quiz starten"
   },
   "chat": {
-    "title": "Frag Shinny",
-    "subtitle": "Dein KI-Ernährungsberater",
-    "placeholder": "Frag zu Essen, Ernährung oder Essreihenfolge...",
+    "title": "Coach Shinny",
+    "back": "Zurück zum Dashboard",
+    "clear": "Chat löschen",
     "send": "Senden",
-    "examples": {
-      "title": "Probier zu fragen:",
-      "1": "Wie beeinflusst Pad Thai meinen Blutzucker?",
-      "2": "Was ist die beste Reihenfolge für Som Tam?",
-      "3": "Kann ich noch Süßes essen? Wie?"
+    "thinking": "Shinny denkt nach…",
+    "input_placeholder": "Frag zu deiner Mahlzeit, Zutaten, Reihenfolge…",
+    "welcome_title": "Hi! Ich bin Shinny, dein Ernährungscoach 🍜",
+    "welcome_subtitle": "Frag mich zu thailändischem Essen, Blutzucker oder wie du klug isst, ohne Lieblingsessen aufzugeben.",
+    "starter": {
+      "q1": "In welcher Reihenfolge esse ich Pad Thai mit thailändischem Eistee?",
+      "q2": "Ich esse gleich Sushi — was trinken?",
+      "q3": "Bester Snack gegen das 15-Uhr-Tief?"
+    },
+    "quota_remaining": "Noch {n} Fragen heute",
+    "retry": "Erneut versuchen",
+    "not_sent": "Nicht gesendet — unten erneut versuchen",
+    "error_generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "error_network": "Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.",
+    "error_rate_limited": "Zu viele Anfragen — bitte kurz warten und erneut versuchen.",
+    "limit": {
+      "title": "Tageslimit erreicht",
+      "body": "Der Gratis-Tarif erlaubt 3 Fragen pro Tag. Upgrade auf Premium für unbegrenztes Coaching.",
+      "cta": "Tarife ansehen",
+      "placeholder": "Tageslimit erreicht — Upgrade für mehr"
     }
   },
   "recipes": {
@@ -490,7 +505,9 @@
     "challenge_reward": "+50 Punkte",
     "upgrade_cta": "Alle Funktionen mit Premium freischalten",
     "trial_expires": "Testversion läuft in {days} Tagen ab",
-    "scan_now": "Jetzt Essen scannen"
+    "scan_now": "Jetzt Essen scannen",
+    "chat_card_title": "Coach Shinny",
+    "chat_card_subtitle": "Frag alles über Essen"
   },
   "common": {
     "loading": "Laden...",

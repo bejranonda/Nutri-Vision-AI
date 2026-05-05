@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — AI Coach Shinny (chat)
+
+- **`/[locale]/chat` page** — conversational coach UI. Persisted history in localStorage, last 10 turns sent as context, retry-on-failure, daily-quota nudge that links to `/pricing`.
+- **`POST /api/chat` endpoint** — auth-gated, tier-quota-gated (`aiQuestionsPerDay`: free=3, premium/family=∞), zod-validated, rate-limited (20/min/IP), persists both turns to `chat_messages`. Locale-aware system prompt builds Shinny's persona per `th`/`en`/`de`/`da`.
+- **`lib/ai-providers.ts`** — three-stage chat-completion fallback:
+  1. **Groq** (`llama-3.3-70b-versatile`, free 30 req/min, sub-300ms) — primary when `GROQ_API_KEY` is set.
+  2. **Google Gemini** (`gemini-1.5-flash-latest`, free 1500 req/day) — fallback, reuses the existing Gemini key.
+  3. **Cloudflare Workers AI** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) — safety net using the `env.AI` binding the scan path already uses.
+  Each step is independently timed-out; the function never throws.
+- **`lib/chat-prompts.ts`** — Shinny's system prompt, locale-keyed. Bakes the three brand rules in concrete language: never forbid food, warm older-sister tone, stay-in-scope. Thai prompt explicitly forbids parenthetical romanization (the karaoke-spelling regression from PR #15).
+- **Dashboard nav card** — links to `/chat` from the dashboard so users discover it after their first scan.
+- **`GROQ_API_KEY` env var** documented in `.env.example`. When unset, the route gracefully degrades to Gemini → CF cascade.
+- **28 new vitest cases** locking the persona, fallback chain, schema, and "never throws" contracts. Suite total: **95 tests** (was 67).
+
 ### Fixed — auth routes resilient to half-applied migrations
 
 - **`/api/auth/login`, `/me`, `/register`, `/promo/redeem`, `/analyze`** all switched from unqualified `db.select()` (which selects every schema-declared column) to explicit-column `db.select({ ... })`. The schema declares newer columns (`is_admin` from migration 0002, `scope`/`notes` from 0003); if those haven't been applied to the live D1 yet, an unqualified `select()` errors with "no such column" and login becomes a 500 across the board. Reported as "Internal server error" on login attempts in production. The fix makes every read side resilient to additive schema changes that haven't been wrangler-applied yet, and is also a small perf win (smaller wire size, fewer columns to deserialize).

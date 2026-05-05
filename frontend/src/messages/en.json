@@ -268,15 +268,30 @@
     "quiz": "Take Quiz"
   },
   "chat": {
-    "title": "Ask Shinny",
-    "subtitle": "Your AI Nutrition Companion",
-    "placeholder": "Ask about food, nutrition, or eating order...",
+    "title": "Coach Shinny",
+    "back": "Back to dashboard",
+    "clear": "Clear chat",
     "send": "Send",
-    "examples": {
-      "title": "Try asking:",
-      "1": "How does Pad Thai affect my blood sugar?",
-      "2": "What's the best order to eat Som Tam?",
-      "3": "Can I still eat sweets? How?"
+    "thinking": "Shinny is thinking…",
+    "input_placeholder": "Ask about your meal, ingredients, sequencing…",
+    "welcome_title": "Hi! I'm Shinny, your food coach 🍜",
+    "welcome_subtitle": "Ask me anything about Thai food, blood sugar, or how to eat smart without giving up the foods you love.",
+    "starter": {
+      "q1": "How should I sequence pad thai with a Thai iced tea?",
+      "q2": "I'm about to eat sushi — what should I drink?",
+      "q3": "Best snack to flatten a 3 PM glucose dip?"
+    },
+    "quota_remaining": "{n} questions left today",
+    "retry": "Retry",
+    "not_sent": "Not sent — tap retry below",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_network": "Network error. Check your connection and retry.",
+    "error_rate_limited": "You're sending too fast — wait a moment and retry.",
+    "limit": {
+      "title": "Daily limit reached",
+      "body": "Free plan includes 3 questions per day. Upgrade to Premium for unlimited coaching.",
+      "cta": "See plans",
+      "placeholder": "Daily limit reached — upgrade for more"
     }
   },
   "recipes": {
@@ -490,7 +505,9 @@
     "challenge_reward": "+50 points",
     "upgrade_cta": "Unlock all features with Premium",
     "trial_expires": "Trial expires in {days} days",
-    "scan_now": "Scan Food Now"
+    "scan_now": "Scan Food Now",
+    "chat_card_title": "Coach Shinny",
+    "chat_card_subtitle": "Ask anything about food"
   },
   "common": {
     "loading": "Loading...",
