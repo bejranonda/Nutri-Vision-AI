@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scan, Flame, Award, Sparkles, Star, ChevronRight, LogOut, Utensils, LayoutDashboard } from 'lucide-react';
+import { Scan, Flame, Award, Sparkles, Star, ChevronRight, LogOut, Utensils, LayoutDashboard, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_LIMITS } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
@@ -149,6 +149,26 @@ export default function DashboardPage() {
                         <ChevronRight className="w-6 h-6 ml-auto group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </div>
+
+                {/* AI Coach card — sits between the scan CTA and recent-scans
+                    so users discover it after their first scan. Goes to
+                    /[locale]/chat which is auth-gated server-side and
+                    quota-gated per tier. */}
+                <Link
+                    href={`/${locale}/chat`}
+                    className="group block backdrop-blur-md bg-white/80 rounded-3xl p-5 shadow-glass mb-8 hover:shadow-brand transition-all"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-accent-400 to-brand-accent-500 flex items-center justify-center text-white shadow-warning">
+                            <MessageCircle className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900">{t('chat_card_title')}</h3>
+                            <p className="text-sm text-gray-600 truncate">{t('chat_card_subtitle')}</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-brand-primary-500 group-hover:translate-x-1 transition-all" />
+                    </div>
+                </Link>
 
                 {/* Recent Scans (empty state) */}
                 <div className="backdrop-blur-md bg-white/80 rounded-3xl p-6 shadow-glass mb-8">

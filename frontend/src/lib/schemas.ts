@@ -91,6 +91,34 @@ export const AnalyzeRequest = z.object({
 export type AnalyzeRequestBody = z.infer<typeof AnalyzeRequest>;
 
 // ---------------------------------------------------------------------------
+// Chat (AI Coach Shinny)
+// ---------------------------------------------------------------------------
+
+/**
+ * One turn in the chat conversation history sent up by the client.
+ * `role` is restricted to user/assistant — the system prompt is
+ * server-controlled and never accepted from the client (otherwise a
+ * caller could overwrite Shinny's persona).
+ */
+const ChatTurnField = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().trim().min(1).max(2000),
+});
+
+export const ChatRequest = z.object({
+  /** The new user message about to be sent. */
+  message: z.string().trim().min(1).max(2000),
+  /**
+   * Recent conversation context so the model can stay coherent. We cap
+   * at 20 turns (= roughly 10 user/assistant pairs) to bound the
+   * upstream token cost; the client should already be trimming.
+   */
+  history: z.array(ChatTurnField).max(20).optional(),
+  locale: LocaleField.optional(),
+});
+export type ChatRequestBody = z.infer<typeof ChatRequest>;
+
+// ---------------------------------------------------------------------------
 // Promo
 // ---------------------------------------------------------------------------
 

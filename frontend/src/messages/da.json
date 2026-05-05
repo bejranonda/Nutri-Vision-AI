@@ -268,15 +268,30 @@
     "quiz": "Tag Quiz"
   },
   "chat": {
-    "title": "Spørg Shinny",
-    "subtitle": "Din AI-Ernæringsrådgiver",
-    "placeholder": "Spørg om mad, ernæring eller spiserækkefølge...",
+    "title": "Coach Shinny",
+    "back": "Tilbage til dashboard",
+    "clear": "Ryd chat",
     "send": "Send",
-    "examples": {
-      "title": "Prøv at spørge:",
-      "1": "Hvordan påvirker Pad Thai mit blodsukker?",
-      "2": "Hvad er den bedste rækkefølge for Som Tam?",
-      "3": "Kan jeg stadig spise sødt? Hvordan?"
+    "thinking": "Shinny tænker…",
+    "input_placeholder": "Spørg om dit måltid, ingredienser, rækkefølge…",
+    "welcome_title": "Hej! Jeg er Shinny, din mad-coach 🍜",
+    "welcome_subtitle": "Spørg mig om thaimad, blodsukker, eller hvordan du spiser smart uden at opgive yndlingsmaden.",
+    "starter": {
+      "q1": "I hvilken rækkefølge spiser jeg pad thai med thai-isthe?",
+      "q2": "Jeg skal spise sushi — hvad skal jeg drikke?",
+      "q3": "Bedste snack mod blodsukker-dyk klokken 15?"
+    },
+    "quota_remaining": "{n} spørgsmål tilbage i dag",
+    "retry": "Prøv igen",
+    "not_sent": "Ikke sendt — tryk prøv igen nedenfor",
+    "error_generic": "Noget gik galt. Prøv igen.",
+    "error_network": "Netværksfejl. Tjek forbindelsen og prøv igen.",
+    "error_rate_limited": "For mange forespørgsler — vent et øjeblik og prøv igen.",
+    "limit": {
+      "title": "Daglig grænse nået",
+      "body": "Gratis abonnement giver 3 spørgsmål om dagen. Opgrader til Premium for ubegrænset coaching.",
+      "cta": "Se abonnementer",
+      "placeholder": "Daglig grænse nået — opgrader for flere"
     }
   },
   "recipes": {
@@ -490,7 +505,9 @@
     "challenge_reward": "+50 point",
     "upgrade_cta": "Lås alle funktioner op med Premium",
     "trial_expires": "Prøveperiode udløber om {days} dage",
-    "scan_now": "Scan Mad Nu"
+    "scan_now": "Scan Mad Nu",
+    "chat_card_title": "Coach Shinny",
+    "chat_card_subtitle": "Spørg om alt om mad"
   },
   "common": {
     "loading": "Indlæser...",

@@ -35,6 +35,7 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 - **Dashboard** — Member stats, streak tracking, daily challenges, gamification
 - **Pricing** — Tier comparison with monthly/annual toggle and FAQ
 - **Recipes** — Thai recipe collection with dietary filters
+- **Chat** (`/[locale]/chat`, login-required) — AI Coach Shinny. Conversational nutrition coaching backed by a free-tier provider cascade: Groq Llama 3.3 70B (primary, sub-300ms) → Gemini 1.5 Flash → Cloudflare Workers AI safety net. Tier-quota gated (`aiQuestionsPerDay`: free=3, premium=∞). Locale-aware persona that bakes the brand's three rules: never forbid food, warm older-sister tone, stay in food/nutrition scope. See [Tech Stack](#-tech-stack) for the provider chain.
 - **Admin** (`/[locale]/admin`, restricted) — operator console: quick-stat overview, user management (toggle admin, flip subscription tier), promo-code CRUD, and a health-check view. Gated server-side by the `isAdmin` column on `users`; non-admins are silently redirected to `/login`. See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to create the first admin via `wrangler` (the schema ships with zero admins — no accidental admin via public sign-up).
 
 ### 🎟️ Voucher & Promotion System
@@ -88,7 +89,8 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (Llama 3.2 11B) + Google AI (Gemma 3 27B) + Locale-Aware Prompting
+- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B) + Google AI (Gemma 3 27B) — locale-aware prompting.
+- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI (Gemini 1.5 Flash, free 1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
 - **Performance**: Client-side image compression (HTML5 Canvas)
 
 
