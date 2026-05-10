@@ -256,19 +256,21 @@ export async function POST(req: NextRequest) {
         };
 
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
-            // Vision-capable Google model. Earlier we used `gemma-3-27b-it`;
-            // free-tier availability of Gemma multimodal turned out to be
-            // inconsistent in production, and a CF-primary outage left the
-            // route with no working vision fallback — surfacing as 503
-            // "Food analysis is temporarily unavailable" even though the
-            // user's Gemini key was set. Gemini 1.5 Flash:
-            //   - Free tier 1500 req/day (more than CF Workers AI's 10k
-            //     neuron budget converts to in scan calls).
-            //   - Multimodal (text + image inline_data, same payload shape).
-            //   - Same `gemini-1.5-flash-latest` model the chat endpoint
-            //     uses; one source of truth for "what's our reliable free
-            //     Gemini model".
-            const model = 'gemini-1.5-flash-latest';
+            // Vision-capable Google model. History:
+            //   1. `gemma-3-27b-it` — text-only on the free tier, no vision,
+            //      caused the April 2026 503 incident (Request ID 7063ch9g).
+            //   2. `gemini-1.5-flash-latest` — was correct, but Google
+            //      retired the `-latest` alias from `v1beta` in May 2026
+            //      (`models/gemini-1.5-flash-latest is not found … or is
+            //      not supported for generateContent`, 404). That broke
+            //      the fallback again (Request ID brxqf5nr / 2s24bp5i).
+            //   3. `gemini-2.0-flash` — current canonical free-tier vision
+            //      model. GA since Feb 2025, multimodal (text + image
+            //      inline_data, same payload shape we already send), free
+            //      quota 1500 req/day. Use the explicit ID, not a
+            //      `-latest` alias — aliases get rotated/retired without
+            //      notice.
+            const model = 'gemini-2.0-flash';
             const aiStartTime = Date.now();
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
 
@@ -356,7 +358,7 @@ export async function POST(req: NextRequest) {
                     if (googleKey) {
                         logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google...`);
                         aiResult = await attemptGoogleInference(googleKey, 20000);
-                        usedModel = 'google-gemini-1.5-flash';
+                        usedModel = 'google-gemini-2.0-flash';
                     } else {
                         throw cfErr;
                     }
@@ -401,7 +403,7 @@ export async function POST(req: NextRequest) {
                         if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
                         else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
                         else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
-                        res2 = { data: validatedData, model: 'google-gemini-1.5-flash' };
+                        res2 = { data: validatedData, model: 'google-gemini-2.0-flash' };
                     } else {
                         res2 = await runInferenceWithValidation();
                     }

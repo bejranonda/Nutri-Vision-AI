@@ -7,13 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed — `/api/analyze` had no real vision fallback
+### Fixed — Google retired the `gemini-1.5-flash-latest` alias; scan + chat fallback broken
+
+User report: scan upload still returns `503 "Food analysis is temporarily unavailable"` after the previous Gemma → Gemini swap (Request IDs `brxqf5nr`, `2s24bp5i`). Probing `/api/analyze` directly surfaced the upstream error in the response body's `details` field:
+
+```
+Google API error: 404 — models/gemini-1.5-flash-latest is not found for
+API version v1beta, or is not supported for generateContent.
+```
+
+Root cause: Google retired the `-latest` alias from the `v1beta` Generative Language API in May 2026 without notice. The chat path uses the same model but Groq is first in its cascade, so the Gemini fallback there had also been silently broken without ever being exercised.
+
+**Fix:** swap to `gemini-2.0-flash` — current canonical free-tier vision model, GA since Feb 2025, multimodal (same `inline_data` payload shape), free quota 1500 req/day. Pin to the explicit version id, **never** a `-latest` alias.
+
+Touched:
+- `app/api/analyze/route.ts` — `gemini-1.5-flash-latest` → `gemini-2.0-flash`; identifier `'google-gemini-1.5-flash'` → `'google-gemini-2.0-flash'`. Inline comment now records both incidents (Gemma text-only April 2026, alias-retirement May 2026) so the next person doesn't reach for a `-latest` alias.
+- `app/[locale]/scan/page.tsx` — "analyzed by" footer reads "Gemini 2.0 Flash".
+- `lib/ai-providers.ts` — chat cascade Gemini step also swapped to `gemini-2.0-flash` (single source of truth across scan + chat).
+- `tests/analyze-fallback.test.ts` — added 4th invariant: model id must NOT match `/-latest$/`. Added 4th case that checks `lib/ai-providers.ts` stays on the same explicit non-alias id. Suite passes 4/4.
+
+### Fixed — `/api/analyze` had no real vision fallback (April 2026)
 
 User report: scan upload returns `503 "Food analysis is temporarily unavailable"` (Request ID `7063ch9g`). Root cause: `attemptGoogleInference` in `/api/analyze` used `gemma-3-27b-it` as the fallback model. Free-tier availability of Gemma 3 multimodal on Google's Generative Language API is inconsistent in practice, so a Cloudflare Workers AI primary failure left the route with **no working vision fallback** — the second provider couldn't process the image either. Both attempts failed, route returned the catch-all 503, and the user-facing copy ("AI under high load") implied a transient issue when the fallback was structurally broken.
 
-**Fix:** swap the Google fallback to `gemini-1.5-flash-latest` (the same vision-capable model `lib/ai-providers.ts` already uses for chat). Free tier 1500 req/day, multimodal text+image inline_data shape unchanged. Single Google model used across scan and chat is now the source of truth.
-
-Touched: `app/api/analyze/route.ts` (model id + identifier strings), `app/[locale]/scan/page.tsx` ("analyzed by" footer label updated to "Gemini 1.5 Flash"). Added `tests/analyze-fallback.test.ts` (3 regression cases) that reads the route source and asserts the model is in the Gemini family — guards against a future contributor silently reverting to text-only Gemma.
+**Fix:** swap the Google fallback to a vision-capable Gemini model (the same one `lib/ai-providers.ts` uses for chat) and add `tests/analyze-fallback.test.ts` regression cases that read the route source and assert the model is in the Gemini family — guards against a future contributor silently reverting to text-only Gemma.
 
 ### Added — AI Coach Shinny (chat)
 
@@ -21,7 +38,7 @@ Touched: `app/api/analyze/route.ts` (model id + identifier strings), `app/[local
 - **`POST /api/chat` endpoint** — auth-gated, tier-quota-gated (`aiQuestionsPerDay`: free=3, premium/family=∞), zod-validated, rate-limited (20/min/IP), persists both turns to `chat_messages`. Locale-aware system prompt builds Shinny's persona per `th`/`en`/`de`/`da`.
 - **`lib/ai-providers.ts`** — three-stage chat-completion fallback:
   1. **Groq** (`llama-3.3-70b-versatile`, free 30 req/min, sub-300ms) — primary when `GROQ_API_KEY` is set.
-  2. **Google Gemini** (`gemini-1.5-flash-latest`, free 1500 req/day) — fallback, reuses the existing Gemini key.
+  2. **Google Gemini** (`gemini-2.0-flash`, free 1500 req/day) — fallback, reuses the existing Gemini key.
   3. **Cloudflare Workers AI** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) — safety net using the `env.AI` binding the scan path already uses.
   Each step is independently timed-out; the function never throws.
 - **`lib/chat-prompts.ts`** — Shinny's system prompt, locale-keyed. Bakes the three brand rules in concrete language: never forbid food, warm older-sister tone, stay-in-scope. Thai prompt explicitly forbids parenthetical romanization (the karaoke-spelling regression from PR #15).

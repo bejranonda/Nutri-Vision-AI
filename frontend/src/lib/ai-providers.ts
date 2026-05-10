@@ -9,11 +9,14 @@
  *      - Activated when `env.GROQ_API_KEY` is present.
  *      - Best UX (large model + fast).
  *
- *   2. Google AI (`gemini-1.5-flash-latest`)
+ *   2. Google AI (`gemini-2.0-flash`)
  *      - Free tier 1500 req/day, ~1 s latency.
  *      - Activated when `env.GOOGLE_AI_API_KEY` (or `GEMINI_API_KEY`)
  *        is present.
  *      - Already integrated for vision; we reuse the same key for chat.
+ *      - Use the explicit ID, not a `-latest` alias — Google retired
+ *        `gemini-1.5-flash-latest` from `v1beta` in May 2026 without
+ *        notice, breaking both this cascade and the scan fallback.
  *
  *   3. Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
  *      - Same free tier neuron budget the scan flow uses.
@@ -120,7 +123,7 @@ export async function chatComplete(
         ok: true,
         reply,
         provider: 'google',
-        modelUsed: 'gemini-1.5-flash-latest',
+        modelUsed: 'gemini-2.0-flash',
         latencyMs: Date.now() - t0,
       };
     } catch (err: any) {
@@ -221,7 +224,7 @@ async function callGemini(
   const systemMsg = messages.find((m) => m.role === 'system');
   const turns = messages.filter((m) => m.role !== 'system');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   const payload: any = {
     contents: turns.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
