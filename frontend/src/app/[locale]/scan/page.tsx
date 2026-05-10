@@ -26,6 +26,25 @@ import { useScanUpload } from '@/hooks/scan/useScanUpload';
 import { useScanAnalysis } from '@/hooks/scan/useScanAnalysis';
 import { useScanDebug } from '@/hooks/scan/useScanDebug';
 
+/**
+ * Map a `modelUsed` identifier from `/api/analyze` to a short, human-
+ * readable label for the "Analyzed by" footer. Identifiers can be:
+ *   - `cloudflare-llama-3.2-11b` (primary)
+ *   - `google-gemini-2.5-flash`, `google-gemini-2.0-flash`, … (fallback
+ *     cascade — see `GEMINI_VISION_MODELS` in `lib/ai-providers.ts`).
+ *
+ * Fallback to "Llama 3.2 11B" preserves prior behaviour when the
+ * identifier doesn't match a known prefix (e.g. the CF primary, or a
+ * future renamed id we haven't updated this map for yet).
+ */
+function modelDisplayName(modelUsed: string): string {
+    if (modelUsed.startsWith('google-gemini-')) {
+        const id = modelUsed.slice('google-gemini-'.length); // e.g. "2.5-flash"
+        return `Gemini ${id.replace(/-/g, ' ').replace(/\bflash\b/i, 'Flash').replace(/\blite\b/i, 'Lite')}`;
+    }
+    return 'Llama 3.2 11B';
+}
+
 export default function ScanPage() {
     const t = useTranslations('scan');
     const tCommon = useTranslations('common');
@@ -262,7 +281,7 @@ export default function ScanPage() {
                                         {analysis.modelUsed && (
                                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-brand-primary-300">
                                                 <Cpu className="w-3 h-3" />
-                                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemini-2.0-flash' ? 'Gemini 2.0 Flash' : 'Llama 3.2 11B'}</span>
+                                                <span>{t('analyzed_by')} {modelDisplayName(analysis.modelUsed)}</span>
                                             </div>
                                         )}
                                     </div>
@@ -367,7 +386,7 @@ export default function ScanPage() {
                         {analysis.modelUsed && (
                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
                                 <Cpu className="w-3 h-3" />
-                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemini-2.0-flash' ? 'Gemini 2.0 Flash' : 'Llama 3.2 11B'}</span>
+                                <span>{t('analyzed_by')} {modelDisplayName(analysis.modelUsed)}</span>
                             </div>
                         )}
                     </div>

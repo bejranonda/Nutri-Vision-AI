@@ -69,8 +69,9 @@ Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly
 
 ### Smart Inference Pipeline:
 1.  **Primary**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High Quality multimodal model).
-2.  **Super Fallback**: Google `gemini-2.0-flash` (multimodal, free tier 1500 req/day).
-    *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with Gemini 2.0 Flash. Same vision-capable model the chat endpoint uses, so one Google key covers both surfaces. We pin to the explicit model id (no `-latest` alias) — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice, breaking the fallback path silently.
+2.  **Super Fallback**: Google Gemini Flash cascade — `gemini-2.5-flash` → `gemini-2.0-flash` (multimodal, free tier ~1500 req/day per model per project).
+    *   If the primary Cloudflare 11B model fails or times out (25s), the system walks `GEMINI_VISION_MODELS` in `lib/ai-providers.ts`, returning the first model that responds 200. Skips on 404 (model retired) or 429 (per-model quota exhausted) and falls through to the next id. Same Google key covers scan + chat; chat uses `GEMINI_VISION_MODELS[0]` for single-source-of-truth alignment.
+    *   We pin to explicit model ids (no `-latest` aliases) — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice. We also cascade rather than hardcode a single id — Google later silently dropped this project's `gemini-2.0-flash` free quota to `limit: 0` while `gemini-2.5-flash` on the same key still had quota.
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB), now with skipping double-compression for single photos.
@@ -89,8 +90,8 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI (Gemini 2.0 Flash) — multimodal fallback chain, locale-aware prompting.
-- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI (Gemini 2.0 Flash, free 1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
+- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash`, fall-through on 404/429) — multimodal fallback chain, locale-aware prompting.
+- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI Gemini (`GEMINI_VISION_MODELS[0]`, ~1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
 - **Performance**: Client-side image compression (HTML5 Canvas)
 
 
