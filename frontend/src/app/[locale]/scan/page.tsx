@@ -262,7 +262,7 @@ export default function ScanPage() {
                                         {analysis.modelUsed && (
                                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-brand-primary-300">
                                                 <Cpu className="w-3 h-3" />
-                                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemini-1.5-flash' ? 'Gemini 1.5 Flash' : 'Llama 3.2 11B'}</span>
                                             </div>
                                         )}
                                     </div>
@@ -367,7 +367,7 @@ export default function ScanPage() {
                         {analysis.modelUsed && (
                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
                                 <Cpu className="w-3 h-3" />
-                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemini-1.5-flash' ? 'Gemini 1.5 Flash' : 'Llama 3.2 11B'}</span>
                             </div>
                         )}
                     </div>

@@ -89,7 +89,7 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B) + Google AI (Gemma 3 27B) — locale-aware prompting.
+- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI (Gemini 1.5 Flash) — multimodal fallback chain, locale-aware prompting.
 - **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI (Gemini 1.5 Flash, free 1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
 - **Performance**: Client-side image compression (HTML5 Canvas)
 

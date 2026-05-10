@@ -256,7 +256,19 @@ export async function POST(req: NextRequest) {
         };
 
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
-            const model = 'gemma-3-27b-it';
+            // Vision-capable Google model. Earlier we used `gemma-3-27b-it`;
+            // free-tier availability of Gemma multimodal turned out to be
+            // inconsistent in production, and a CF-primary outage left the
+            // route with no working vision fallback — surfacing as 503
+            // "Food analysis is temporarily unavailable" even though the
+            // user's Gemini key was set. Gemini 1.5 Flash:
+            //   - Free tier 1500 req/day (more than CF Workers AI's 10k
+            //     neuron budget converts to in scan calls).
+            //   - Multimodal (text + image inline_data, same payload shape).
+            //   - Same `gemini-1.5-flash-latest` model the chat endpoint
+            //     uses; one source of truth for "what's our reliable free
+            //     Gemini model".
+            const model = 'gemini-1.5-flash-latest';
             const aiStartTime = Date.now();
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
 
@@ -344,7 +356,7 @@ export async function POST(req: NextRequest) {
                     if (googleKey) {
                         logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google...`);
                         aiResult = await attemptGoogleInference(googleKey, 20000);
-                        usedModel = 'google-gemma-3-27b';
+                        usedModel = 'google-gemini-1.5-flash';
                     } else {
                         throw cfErr;
                     }
@@ -389,7 +401,7 @@ export async function POST(req: NextRequest) {
                         if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
                         else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
                         else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
-                        res2 = { data: validatedData, model: 'google-gemma-3-27b' };
+                        res2 = { data: validatedData, model: 'google-gemini-1.5-flash' };
                     } else {
                         res2 = await runInferenceWithValidation();
                     }
