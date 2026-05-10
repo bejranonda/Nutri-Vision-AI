@@ -69,8 +69,8 @@ Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly
 
 ### Smart Inference Pipeline:
 1.  **Primary**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High Quality multimodal model).
-2.  **Super Fallback**: Google `gemini-1.5-flash-latest` (multimodal, free tier 1500 req/day).
-    *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with Gemini 1.5 Flash. Same vision-capable model the chat endpoint uses, so one Google key covers both surfaces.
+2.  **Super Fallback**: Google `gemini-2.0-flash` (multimodal, free tier 1500 req/day).
+    *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with Gemini 2.0 Flash. Same vision-capable model the chat endpoint uses, so one Google key covers both surfaces. We pin to the explicit model id (no `-latest` alias) — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice, breaking the fallback path silently.
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB), now with skipping double-compression for single photos.
@@ -89,8 +89,8 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI (Gemini 1.5 Flash) — multimodal fallback chain, locale-aware prompting.
-- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI (Gemini 1.5 Flash, free 1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
+- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI (Gemini 2.0 Flash) — multimodal fallback chain, locale-aware prompting.
+- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI (Gemini 2.0 Flash, free 1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
 - **Performance**: Client-side image compression (HTML5 Canvas)
 
 
