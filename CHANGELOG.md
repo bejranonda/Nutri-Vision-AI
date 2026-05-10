@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/api/analyze` had no real vision fallback
+
+User report: scan upload returns `503 "Food analysis is temporarily unavailable"` (Request ID `7063ch9g`). Root cause: `attemptGoogleInference` in `/api/analyze` used `gemma-3-27b-it` as the fallback model. Free-tier availability of Gemma 3 multimodal on Google's Generative Language API is inconsistent in practice, so a Cloudflare Workers AI primary failure left the route with **no working vision fallback** — the second provider couldn't process the image either. Both attempts failed, route returned the catch-all 503, and the user-facing copy ("AI under high load") implied a transient issue when the fallback was structurally broken.
+
+**Fix:** swap the Google fallback to `gemini-1.5-flash-latest` (the same vision-capable model `lib/ai-providers.ts` already uses for chat). Free tier 1500 req/day, multimodal text+image inline_data shape unchanged. Single Google model used across scan and chat is now the source of truth.
+
+Touched: `app/api/analyze/route.ts` (model id + identifier strings), `app/[locale]/scan/page.tsx` ("analyzed by" footer label updated to "Gemini 1.5 Flash"). Added `tests/analyze-fallback.test.ts` (3 regression cases) that reads the route source and asserts the model is in the Gemini family — guards against a future contributor silently reverting to text-only Gemma.
+
 ### Added — AI Coach Shinny (chat)
 
 - **`/[locale]/chat` page** — conversational coach UI. Persisted history in localStorage, last 10 turns sent as context, retry-on-failure, daily-quota nudge that links to `/pricing`.
