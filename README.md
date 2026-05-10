@@ -69,8 +69,8 @@ Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly
 
 ### Smart Inference Pipeline:
 1.  **Primary**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High Quality multimodal model).
-2.  **Super Fallback**: Google `@gemma-3-27b-it` (High Reliability).
-    *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with the Gemma 3 27B model to ensure a successful response even under high load.
+2.  **Super Fallback**: Google `gemini-1.5-flash-latest` (multimodal, free tier 1500 req/day).
+    *   If the primary Cloudflare 11B model fails or times out (25s), the system automatically retries using the Google AI API with Gemini 1.5 Flash. Same vision-capable model the chat endpoint uses, so one Google key covers both surfaces.
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB), now with skipping double-compression for single photos.
