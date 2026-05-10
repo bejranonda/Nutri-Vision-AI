@@ -11,6 +11,7 @@ import { getEnvSafe } from '@/lib/cloudflare';
 import { buildLocalizedPrompt, validateAiResponse, validateMultiDishResponse, validateMenuResponse, validateDrinkSnackResponse, type ScanMode } from '@/lib/ai-prompt';
 import { extractBase64Data, decodeBase64ToBytes } from '@/lib/utils';
 import { AnalyzeRequest, zodFailure } from '@/lib/schemas';
+import { GEMINI_VISION_MODELS } from '@/lib/ai-providers';
 
 /** Safely parse JSON from AI response — tries direct parse first, then regex extraction */
 function safeParseJson(raw: string): { parsed?: any; error?: Error } {
@@ -256,29 +257,20 @@ export async function POST(req: NextRequest) {
         };
 
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
-            // Vision-capable Google model. History:
-            //   1. `gemma-3-27b-it` — text-only on the free tier, no vision,
-            //      caused the April 2026 503 incident (Request ID 7063ch9g).
-            //   2. `gemini-1.5-flash-latest` — was correct, but Google
-            //      retired the `-latest` alias from `v1beta` in May 2026
-            //      (`models/gemini-1.5-flash-latest is not found … or is
-            //      not supported for generateContent`, 404). That broke
-            //      the fallback again (Request ID brxqf5nr / 2s24bp5i).
-            //   3. `gemini-2.0-flash` — current canonical free-tier vision
-            //      model. GA since Feb 2025, multimodal (text + image
-            //      inline_data, same payload shape we already send), free
-            //      quota 1500 req/day. Use the explicit ID, not a
-            //      `-latest` alias — aliases get rotated/retired without
-            //      notice.
-            const model = 'gemini-2.0-flash';
-            const aiStartTime = Date.now();
+            // Walks `GEMINI_VISION_MODELS` in order, returning the first
+            // model that responds 200. Skips on the two known per-model
+            // failure modes:
+            //   - 404 → model retired / alias gone (May 2026 incident,
+            //     `gemini-1.5-flash-latest` retired from v1beta)
+            //   - 429 → quota exhausted on this project for this model
+            //     (May 2026 incident, Request IDs `tqunrejp` / `fz64f4uh`:
+            //     `limit: 0` on `gemini-2.0-flash` free tier while
+            //     `gemini-2.5-flash` on the same key still had quota)
+            // Any other status (5xx, malformed JSON, network) throws
+            // immediately — no point trying the next model when it's an
+            // upstream-wide problem.
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
-
-            logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
-
             const base64Data = extractBase64Data(imageBase64);
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
             const payload = {
                 contents: [{
                     parts: [
@@ -292,37 +284,68 @@ export async function POST(req: NextRequest) {
                 }
             };
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            const skippedModels: { model: string; status: number }[] = [];
+            // Per-model deadline so the cascade as a whole still fits
+            // inside the caller's timeout budget. Round up so single-model
+            // attempts don't get squeezed when there are few models.
+            const perModelTimeoutMs = Math.max(
+                Math.floor(timeoutMs / GEMINI_VISION_MODELS.length),
+                8_000,
+            );
 
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
+            for (const model of GEMINI_VISION_MODELS) {
+                const aiStartTime = Date.now();
+                logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
 
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), perModelTimeoutMs);
+
+                let response: Response;
+                try {
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+                } catch (err: any) {
+                    clearTimeout(timeoutId);
+                    // Network / abort error — surface immediately, retrying
+                    // a sibling model won't help with connectivity issues.
+                    throw err;
+                }
                 clearTimeout(timeoutId);
+
+                if (response.status === 404 || response.status === 429) {
+                    const errorText = await response.text().catch(() => '');
+                    logger.warn(`⚠️ AI GOOGLE SKIP [${requestId}] | ${model} returned ${response.status}, trying next in cascade`, {
+                        statusPreview: errorText.substring(0, 200),
+                    });
+                    skippedModels.push({ model, status: response.status });
+                    continue;
+                }
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Google API error: ${response.status} ${errorText}`);
+                    throw new Error(`Google API error (${model}): ${response.status} ${errorText}`);
                 }
 
                 const data = await response.json() as any;
                 const rawResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-                
+
                 logger.scanApiStage('AI_GOOGLE_COMPLETE', {
                     requestId,
+                    model,
                     durationMs: Date.now() - aiStartTime,
-                    rawResponseLength: rawResponse.length
+                    rawResponseLength: rawResponse.length,
+                    skippedBeforeWin: skippedModels.length,
                 });
 
                 try {
                     const { parsed, error } = safeParseJson(rawResponse);
                     if (error) throw error;
-                    return { parsedJson: parsed, rawResponse };
+                    return { parsedJson: parsed, rawResponse, model };
                 } catch (parseErr: any) {
                     logger.error(`❌ AI PARSE FAIL [google] [${requestId}]`, {
                         error: parseErr.message,
@@ -330,35 +353,45 @@ export async function POST(req: NextRequest) {
                         rawLength: rawResponse.length,
                         model,
                     });
-                    return { error: parseErr, rawResponse };
+                    return { error: parseErr, rawResponse, model };
                 }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                throw err;
             }
+
+            // Cascade exhausted — every model returned 404/429. Encode the
+            // per-model status list so the outer catch's `details` field
+            // tells operators which models had quota and which didn't.
+            const summary = skippedModels.map((s) => `${s.model}=${s.status}`).join(', ');
+            throw new Error(`Google API error: all ${GEMINI_VISION_MODELS.length} fallback models exhausted (${summary})`);
         };
 
         let failedJsonText = '';
+        // Captured so the outer catch's response can surface the original
+        // Cloudflare-primary failure alongside Google's. Without this, an
+        // operator looking at a 503 response only sees the LAST error in
+        // the chain (Google's 429), and the actual root cause (CF model
+        // retired, AI binding missing, etc.) is silently dropped.
+        let primaryProviderError: string | null = null;
 
         try {
             const googleKey = env.GOOGLE_AI_API_KEY;
             let lastError: any = null;
 
             // Helper to run inference + validation with an optional correction prompt
-            const runInferenceWithValidation = async (correctionPrompt?: string) => {
+            const runInferenceWithValidation = async () => {
                 let aiResult: any;
                 let usedModel = '';
-                
+
                 // Attempt Cloudflare first, fallback to Google
                 try {
                     if (!env.AI) throw new Error('AI_BINDING_MISSING');
                     aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                     usedModel = 'cloudflare-llama-3.2-11b';
                 } catch (cfErr: any) {
+                    primaryProviderError = cfErr.message;
                     if (googleKey) {
-                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google...`);
+                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google cascade...`);
                         aiResult = await attemptGoogleInference(googleKey, 20000);
-                        usedModel = 'google-gemini-2.0-flash';
+                        usedModel = `google-${aiResult.model}`;
                     } else {
                         throw cfErr;
                     }
@@ -391,7 +424,7 @@ export async function POST(req: NextRequest) {
             } catch (err: any) {
                 lastError = err;
                 logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with fallback provider...`);
-                
+
                 // Attempt 2: Prefer Google fallback on retry for provider diversity
                 try {
                     let res2;
@@ -403,7 +436,7 @@ export async function POST(req: NextRequest) {
                         if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
                         else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
                         else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
-                        res2 = { data: validatedData, model: 'google-gemini-2.0-flash' };
+                        res2 = { data: validatedData, model: `google-${aiResult.model}` };
                     } else {
                         res2 = await runInferenceWithValidation();
                     }
@@ -439,6 +472,11 @@ export async function POST(req: NextRequest) {
                 error: 'AI analysis failed',
                 message: 'Food analysis is temporarily unavailable. Our AI models are currently under high load. Please try again in a moment.',
                 details: aiError.message,
+                // Echo the Cloudflare-primary error if it's what kicked us
+                // into the Google cascade. Without this, an outer 503 only
+                // shows the LAST error (Google), and operators have no way
+                // to see whether the primary provider needs attention.
+                primaryProviderError,
                 failedJson: failedJsonText, // Send broken JSON to client debug panel
                 requestId,
                 durationMs: aiDurationMs

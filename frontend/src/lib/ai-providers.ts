@@ -9,7 +9,7 @@
  *      - Activated when `env.GROQ_API_KEY` is present.
  *      - Best UX (large model + fast).
  *
- *   2. Google AI (`gemini-2.0-flash`)
+ *   2. Google AI (Gemini Flash family — see `GEMINI_VISION_MODELS`)
  *      - Free tier 1500 req/day, ~1 s latency.
  *      - Activated when `env.GOOGLE_AI_API_KEY` (or `GEMINI_API_KEY`)
  *        is present.
@@ -17,6 +17,9 @@
  *      - Use the explicit ID, not a `-latest` alias — Google retired
  *        `gemini-1.5-flash-latest` from `v1beta` in May 2026 without
  *        notice, breaking both this cascade and the scan fallback.
+ *      - The chat call uses `GEMINI_VISION_MODELS[0]` so the chat and
+ *        scan paths share a single source of truth for the canonical
+ *        Gemini id.
  *
  *   3. Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
  *      - Same free tier neuron budget the scan flow uses.
@@ -38,6 +41,35 @@
  * choose their own user-facing 5xx response.
  */
 import { logger } from '@/lib/logger';
+
+/**
+ * Cascading list of Gemini Flash model ids the scan vision fallback (and
+ * the chat fallback) walk in order. The first id that returns 200 wins.
+ *
+ * Why a cascade and not a single id:
+ *   The free tier on `generativelanguage.googleapis.com` is per-project
+ *   AND per-model. In May 2026 (Request IDs `tqunrejp` / `fz64f4uh`)
+ *   our project's `gemini-2.0-flash` quota silently dropped to
+ *   `limit: 0` while `gemini-2.5-flash` on the same key still had
+ *   the standard 1500 req/day allowance. A single hardcoded id is one
+ *   Google policy change away from outage; a cascade survives it.
+ *
+ * Order rationale:
+ *   - `gemini-2.5-flash` first — current canonical free-tier vision
+ *     model in 2026, generous quota, multimodal.
+ *   - `gemini-2.0-flash` second — GA Feb 2025 fallback for projects
+ *     where the 2.5 quota is exhausted.
+ *
+ * Invariants enforced by `tests/analyze-fallback.test.ts`:
+ *   - Every id starts with `gemini-` (rules out text-only `gemma-`)
+ *   - No id matches `-latest$` (aliases get retired without notice)
+ */
+export const GEMINI_VISION_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+] as const;
+
+export type GeminiVisionModel = (typeof GEMINI_VISION_MODELS)[number];
 
 export interface ChatTurn {
   role: 'system' | 'user' | 'assistant';
@@ -123,7 +155,7 @@ export async function chatComplete(
         ok: true,
         reply,
         provider: 'google',
-        modelUsed: 'gemini-2.0-flash',
+        modelUsed: GEMINI_VISION_MODELS[0],
         latencyMs: Date.now() - t0,
       };
     } catch (err: any) {
@@ -224,7 +256,7 @@ async function callGemini(
   const systemMsg = messages.find((m) => m.role === 'system');
   const turns = messages.filter((m) => m.role !== 'system');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODELS[0]}:generateContent?key=${apiKey}`;
   const payload: any = {
     contents: turns.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',

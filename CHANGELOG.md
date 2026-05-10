@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Google free-tier `gemini-2.0-flash` quota silently dropped to `limit: 0`; scan fallback broken (again)
+
+User report: scan upload **still** returns `503 "Food analysis is temporarily unavailable"` after the previous Gemini-alias swap (Request IDs `tqunrejp` shown in the UI, `fz64f4uh` from a direct probe). PR #22 was deployed correctly — the fix shipped — but the route's catch path only echoed the LAST error in the chain, hiding the actual cause.
+
+Root cause, surfaced by directly probing `/api/analyze` with the user's image:
+
+```
+Google API error: 429 — Quota exceeded for metric:
+generativelanguage.googleapis.com/generate_content_free_tier_requests,
+limit: 0, model: gemini-2.0-flash
+```
+
+`limit: 0` means this project's API key has zero free-tier allowance for `gemini-2.0-flash` specifically — even though `gemini-2.5-flash` on the same key still has the standard 1500 req/day. Google can quietly retune per-project per-model free-tier policy, and a single hardcoded model id is one such policy change away from outage.
+
+Separate but related: the Cloudflare primary is also failing on this image (we see `failedJson:""` and a fast `durationMs:548`, meaning `env.AI.run` threw rather than returning bad JSON). The route was discarding `cfErr.message` after falling through to Google, so operators looking at the 503 response could only see Google's 429 and had no signal about the primary failure.
+
+**Fix** — two-part:
+
+1. **Cascade, don't hardcode.** Introduced `GEMINI_VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']` exported from `lib/ai-providers.ts`. `attemptGoogleInference` walks the list in order, returning the first model that responds 200, skipping on 404 (model retired) or 429 (per-model quota gone), and throwing immediately on any other status (5xx / network — retrying a sibling won't help). Per-model timeout = `floor(totalTimeout / cascade.length)` so the cascade fits inside the caller's budget.
+2. **Stop swallowing the primary error.** Captured `cfErr.message` into a route-scoped `primaryProviderError` and added it as a top-level field on the 503 response body, so future failures surface BOTH the primary and fallback errors. No more "Google 429 only" responses hiding a CF binding outage.
+
+Touched:
+- `lib/ai-providers.ts` — added exported `GEMINI_VISION_MODELS` cascade + `GeminiVisionModel` type. Chat fallback (`callGemini`) now references `GEMINI_VISION_MODELS[0]` instead of a literal id; same single-source-of-truth contract as scan.
+- `app/api/analyze/route.ts` — `attemptGoogleInference` rewritten as a `for…of GEMINI_VISION_MODELS` loop with 404/429 fall-through. Returns `{parsedJson, rawResponse, model}` so `usedModel` reflects the model that actually answered (e.g. `google-gemini-2.5-flash`). Outer 503 catch now includes `primaryProviderError`.
+- `app/[locale]/scan/page.tsx` — replaced the hardcoded `=== 'google-gemini-2.0-flash'` ternary with a `modelDisplayName(modelUsed)` helper that handles any `google-gemini-*` id. Future cascade additions render correctly without touching the page.
+- `tests/analyze-fallback.test.ts` — rewritten to assert (a) `GEMINI_VISION_MODELS` is non-empty and every entry passes the gemini/non-gemma/non-`-latest` invariants, (b) the route imports the constant and iterates it (no hardcoded `const model = 'gemini-…'`), (c) the route surfaces `primaryProviderError`, (d) the scan page uses `startsWith('google-gemini-')`, (e) the chat call references `GEMINI_VISION_MODELS[0]`. Suite passes 5/5; project total 100/100.
+- `README.md` — Smart Inference Pipeline + Tech Stack sections updated to describe the cascade.
+
+Validation: probed live `https://shinnyguide.autobahn.bot/api/analyze` with the user's actual image after deploy — see PR description for the curl probe and `200` response.
+
 ### Fixed — Google retired the `gemini-1.5-flash-latest` alias; scan + chat fallback broken
 
 User report: scan upload still returns `503 "Food analysis is temporarily unavailable"` after the previous Gemma → Gemini swap (Request IDs `brxqf5nr`, `2s24bp5i`). Probing `/api/analyze` directly surfaced the upstream error in the response body's `details` field:
