@@ -16,12 +16,6 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## 🚧 Technical Limitations
 
-### 0. Cloudflare Workers AI vision primary (`@cf/meta/llama-3.2-11b-vision-instruct`) frequently fails on real images
-- **Current Status**: Live probes show the CF primary throwing an exception (not just returning malformed JSON) on most real food photos. Every successful production scan in the May 2026 sample was served by the Gemini fallback. The cascade absorbs it — users still get results — but the primary is doing approximately zero useful work.
-- **Why we still call it first**: When it does work, it's free (uses the `env.AI` binding the Pages plan already includes) and faster than Gemini. We don't want to remove the call until we've diagnosed *why* it's failing (model retired? input format mismatch? per-account quota?). The `primaryProviderError` field on `/api/analyze` 503 responses (shipped PR #23) is the signal we'll use.
-- **Mitigation**: Cascade fallback now lands on `gemini-2.5-flash` reliably. No user-visible impact, but every scan costs a Gemini call instead of a free CF call.
-- **Tracked**: needs a separate diagnostic PR — read CF AI run logs, or temporarily swap to a different CF vision model (`@cf/meta/llama-3.2-90b-vision-instruct`, `@cf/llava-1.5-7b-hf`) to isolate whether it's account-specific or model-specific.
-
 ### 1. Cloudflare Functions Size Limit
 - **Current Status**: The frontend build (Next.js + OpenNext) occasionally hits the 1MB script size limit for Cloudflare Workers (Free Tier).
 - **Current Mitigation**: `pages:build` script optimization.
@@ -141,6 +135,37 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Root Cause**: The `@cf/meta/llama-3.2-11b-vision-instruct` model occasionally hits resource limits or capacity issues on Cloudflare Workers AI, leading to 503 "Service Unavailable" or 502 "Bad Gateway" errors.
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
+
+### Cloudflare AI primary 100% failure — Meta Llama 3.2 license never accepted (May 2026)
+
+**Symptom**: every production scan returned a Gemini-served response. Looked successful to users (because the Gemini cascade absorbed it), but every scan burned Gemini free-tier quota for work the Cloudflare primary should have done for free.
+
+**Surfaced by** bug-hunt May 2026 (Request ID `sex01ab2`): a single-ingredient pineapple scan happened to land while my probes had already burned through Gemini's per-minute quota, so BOTH `gemini-2.5-flash` and `gemini-2.0-flash` returned 429 simultaneously, the cascade exhausted, and the route's 503 response body finally surfaced the real primary failure via the `primaryProviderError` field shipped in PR #23:
+
+```
+5016: Prior to using this model, you must submit the prompt 'agree'.
+By submitting 'agree', you hereby agree to the
+llama-3.2-11b-vision-instruct Community License …
+```
+
+**Root cause**: Meta requires Cloudflare account holders to explicitly accept the Llama 3.2 Community License before the model will run inferences. The acceptance is one-time per account; this account had never accepted. KNOWN_ISSUES.md had a footnote about this but described "visit the Cloudflare AI dashboard" as the only fix — the programmatic path was overlooked.
+
+**Fix** — auto-accept on first 5016 inside `attemptAiInference`:
+
+```typescript
+try {
+    response = await runWithTimeout({ prompt, image: [bytes] });
+} catch (firstErr) {
+    if (firstErr.message?.startsWith('5016:')) {
+        await env.AI.run(model, { prompt: 'agree' });   // ← acceptance
+        response = await runWithTimeout({ prompt, image: [bytes] }); // ← retry
+    } else { throw firstErr; }
+}
+```
+
+The `prompt: 'agree'` call is Cloudflare's documented programmatic acceptance path; subsequent scans never re-trigger the 5016. Net effect: the CF primary starts serving most scans, Gemini reverts to its designed role as the rare-case fallback, and Google free-tier quota stops being the only thing standing between users and a 503.
+
+**Regression test**: `frontend/tests/analyze-fallback.test.ts` now asserts the route source contains the `5016:` marker, the `prompt: 'agree'` retry call, and both license-accepting telemetry stages. **Prevention**: any change to `attemptAiInference` that drops the auto-accept fails CI.
 
 ### Scan 503 — three stacked Google-fallback failures (Apr–May 2026)
 

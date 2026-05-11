@@ -211,28 +211,67 @@ export async function POST(req: NextRequest) {
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
             const aiStartTime = Date.now();
 
-            logger.scanApiStage('AI_INFERENCE_START', { 
-                requestId, 
-                model, 
+            logger.scanApiStage('AI_INFERENCE_START', {
+                requestId,
+                model,
                 locale,
-                promptLength: localizedPrompt.length 
+                promptLength: localizedPrompt.length
             });
 
             // Decode base64 to byte array — Edge-safe using shared utility
             const base64Data = extractBase64Data(imageBase64);
             const bytes = decodeBase64ToBytes(base64Data);
 
-            const aiPromise = env.AI.run(model, {
-                prompt: localizedPrompt,
-                image: [bytes]
-            });
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
-            );
-            
+            // Run the model. On the first 5016 (Llama Community License
+            // not accepted on this Cloudflare account), auto-submit the
+            // 'agree' prompt — Cloudflare's documented programmatic
+            // acceptance path — and retry the actual inference once.
+            // Without this, every scan slammed straight through to the
+            // Gemini fallback (May 2026 bug-hunt: Request ID `sex01ab2`
+            // surfaced the 5016 error via `primaryProviderError`).
+            //   Error shape:
+            //     "5016: Prior to using this model, you must submit the
+            //      prompt 'agree'. By submitting 'agree', you hereby
+            //      agree to the llama-3.2-11b-vision-instruct Community
+            //      License …"
+            // The acceptance is account-level and one-shot; subsequent
+            // scans never re-trigger it.
+            const runWithTimeout = (payload: any) =>
+                Promise.race([
+                    env.AI.run(model, payload),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
+                    ),
+                ]);
+
             logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, model, timeoutMs });
-            const response = await Promise.race([aiPromise, timeoutPromise]) as any;
-            
+            let response: any;
+            try {
+                response = await runWithTimeout({ prompt: localizedPrompt, image: [bytes] });
+            } catch (firstErr: any) {
+                const msg = String(firstErr?.message ?? firstErr);
+                // Code-prefix `5016:` is the stable marker; the human
+                // text after it can drift across Cloudflare AI versions.
+                if (msg.startsWith('5016:') || msg.includes("submit the prompt 'agree'")) {
+                    logger.scanApiStage('CF_LLAMA_LICENSE_ACCEPTING', { requestId, model });
+                    // Cheap text-only acceptance call — no image, minimal
+                    // prompt. Errors here are non-fatal; if acceptance
+                    // itself fails we fall through to the original 5016
+                    // throw and the Gemini cascade picks up.
+                    try {
+                        await env.AI.run(model, { prompt: 'agree' });
+                        logger.scanApiStage('CF_LLAMA_LICENSE_ACCEPTED', { requestId, model });
+                    } catch (acceptErr: any) {
+                        logger.warn(`⚠️ CF_LLAMA_LICENSE_ACCEPT_FAILED [${requestId}]`, { error: String(acceptErr?.message ?? acceptErr) });
+                        throw firstErr; // propagate original — cascade will handle
+                    }
+                    // Retry the real inference now that license is on file
+                    response = await runWithTimeout({ prompt: localizedPrompt, image: [bytes] });
+                } else {
+                    throw firstErr;
+                }
+            }
+
             const rawResponse = response?.response || '{}';
             logger.scanApiStage('AI_INFERENCE_COMPLETE', {
                 requestId,

@@ -89,6 +89,29 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(source).toContain('primaryProviderError');
   });
 
+  it('attemptAiInference auto-accepts the Llama Community License on error 5016', () => {
+    // Bug-hunt May 2026 (Request ID `sex01ab2`): every production scan
+    // was failing the CF primary with error `5016: … you must submit
+    // the prompt 'agree'` because the Llama 3.2 Community License had
+    // never been accepted on the Cloudflare account. The cascade
+    // absorbed it (Gemini served all traffic) but every scan paid
+    // Gemini free-tier quota for work CF should have done for free.
+    //
+    // Fix: on first 5016 error, submit `prompt: 'agree'` (Cloudflare's
+    // documented programmatic acceptance path) and retry the actual
+    // inference once. Subsequent scans never re-trigger it.
+    const source = readFileSync(ANALYZE_ROUTE, 'utf8');
+    // Must detect the stable error code marker …
+    expect(source).toContain("'5016:'");
+    // … must submit `agree` as a separate, image-free call …
+    expect(source).toMatch(/env\.AI\.run\([^)]*model[^)]*\{\s*prompt:\s*'agree'\s*\}/);
+    // … and must NOT propagate the 5016 error before attempting to
+    // accept (i.e. the throw on 5016 only fires if acceptance itself
+    // failed — checked by the inline `acceptErr` block).
+    expect(source).toContain('CF_LLAMA_LICENSE_ACCEPTING');
+    expect(source).toContain('CF_LLAMA_LICENSE_ACCEPTED');
+  });
+
   it('scan page renders any google-gemini-* model id, not just one hardcoded', () => {
     const source = readFileSync(SCAN_PAGE, 'utf8');
 
