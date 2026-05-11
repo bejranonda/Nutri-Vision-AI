@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Reversed scan cascade: Gemini is now primary, Cloudflare is the safety-net fallback
+
+Post-bug-hunt May 2026 (PRs #25 + #26) discovery: with the 5016 license and image-format bugs both fixed, CF's vision model could finally serve responses — but it served **inaccurate** ones. The smaller Llama 3.2 11B model called Shrimp Fried Rice "Pineapple" with 100% confidence on multiple probes, and its JSON compliance was non-deterministic (sometimes parseable, sometimes free-form text that failed validation).
+
+The original CF-primary order was chosen for cost — CF is free with the Pages plan, Gemini burns a paid free-tier quota. But because CF's invalid-JSON responses were already triggering fallthrough to Gemini on most scans, **the CF-primary order wasn't actually saving meaningful Gemini quota** — it was just trading "accurate-when-Gemini-works" for "fast-and-cheap-but-sometimes-wrong" on the subset of scans where CF returned parseable garbage.
+
+**Decision**: reverse the cascade so accuracy wins the happy path.
+
+- **Primary**: Gemini cascade — `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`. The third entry (1.5-flash explicit version) is new RPM headroom for burst loads; if a project has EOL'd 1.5, the cascade skips on 404 just like the other entries.
+- **Safety-net fallback**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct`. Runs only when the entire Gemini cascade exhausts (or returns garbage). Users get *some* response when Gemini quota is fully out, accepting accuracy degradation as the cost of "not 503'ing the user."
+- **`primaryProviderError`** field semantics shift: now carries the **Gemini** error message when CF is the one ultimately serving (previously carried the CF error). The route comment is updated to reflect this.
+
+Touched:
+- `app/api/analyze/route.ts` — `runInferenceWithValidation` rewritten so Gemini runs first, CF is the catch path. Inline comment records why (the post-PR #26 accuracy regression). Attempt-2 auto-correction inverts to force CF for diversity (was forcing Google).
+- `lib/ai-providers.ts` — `GEMINI_VISION_MODELS` extended with `'gemini-1.5-flash'` as a third entry. Doc comment updated with the RPM-headroom rationale.
+- `tests/analyze-fallback.test.ts` — new test pins the Gemini-before-CF source order so a future contributor can't quietly swap it back. **103/103 project tests passing** (was 102/102).
+- `README.md`, `README-TH.md`, `docs/KNOWLEDGE_BASE.md`, `docs/gemini.md`, `docs/claude.md` — all updated to describe the reversed cascade and the rationale.
+
 ### Fixed — Cloudflare AI vision was never seeing the image (`image: [bytes]` was a Uint8Array wrapped in an array)
 
 Surfaced once PR #25 unblocked the 5016 license error that had been masking it on every prior scan. Post-PR #25, CF responses came back parseable but **hallucinated** — fried-rice images were being analysed as "Mixed Greens Salad", and responses included `Here is your image: ![image](https://i.imgur.com/…)`. That last detail is the smoking gun: the vision model was generating training-data-style markdown about a hypothetical image because it had zero pixels to look at.

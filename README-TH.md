@@ -48,13 +48,15 @@ Shinny Guide คือแอป AI ที่ช่วยจัดลำดับ
 Nutri-Vision AI ใช้หลักการวิเคราะห์แบบ **Identify-First** ขับเคลื่อนโดยระบบ **Primary + Gemini Cascade Fallback** (สลับผู้ให้บริการ AI อัตโนมัติ และวนผ่านโมเดล Gemini หลายตัวจนกว่าจะพบตัวที่ใช้งานได้)
 
 ### ระบบประมวลผลอัจฉริยะ (Inference Pipeline):
-1.  **ตัวหลัก (Primary)**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (โมเดล multimodal คุณภาพสูง)
-2.  **ตัวสำรองแบบ Cascade**: Google Gemini Flash — `gemini-2.5-flash` → `gemini-2.0-flash` (โมเดล multimodal, ฟรีเทียร์ ~1500 ครั้ง/วัน ต่อโมเดล ต่อโปรเจกต์)
-    *   หากโมเดล 11B ของ Cloudflare ทำงานล้มเหลวหรือค้างเกิน 25 วินาที ระบบจะวนผ่านรายชื่อโมเดลใน `GEMINI_VISION_MODELS` (`frontend/src/lib/ai-providers.ts`) ตามลำดับ ส่งผลลัพธ์จากโมเดลแรกที่ตอบ 200 OK กลับไป **ข้ามต่อ** เมื่อเจอ 404 (โมเดลถูกปลดระวาง) หรือ 429 (โควต้าโมเดลนั้นหมด) และ throw ทันทีเมื่อเจอ error อื่น (เช่น 5xx / network — โมเดลพี่น้องช่วยไม่ได้)
+1.  **ตัวหลัก (Primary)**: Google Gemini Flash cascade — `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash` (โมเดล multimodal, ฟรีเทียร์ ~1500 ครั้ง/วัน ต่อโมเดล ต่อโปรเจกต์)
+    *   ระบบวนผ่านรายชื่อโมเดลใน `GEMINI_VISION_MODELS` (`frontend/src/lib/ai-providers.ts`) ตามลำดับ ส่งผลลัพธ์จากโมเดลแรกที่ตอบ 200 OK กลับไป **ข้ามต่อ** เมื่อเจอ 404 (โมเดลถูกปลดระวาง) หรือ 429 (โควต้าโมเดลนั้นหมด) และ throw ทันทีเมื่อเจอ error อื่น (เช่น 5xx / network — โมเดลพี่น้องช่วยไม่ได้)
     *   **ทำไมต้องเป็น Cascade ไม่ใช่ id เดียว**: นโยบายฟรีเทียร์ของ Google เป็นแบบ *per-project AND per-model* — พฤษภาคม 2026 พบว่า `gemini-2.0-flash` ถูกตั้ง `limit: 0` บนคีย์เรา ขณะที่ `gemini-2.5-flash` บนคีย์เดียวกันยังมีโควต้า 1500 ครั้ง/วัน การ hardcode id เดียวคือ "บั๊กแฝง" ที่รอนโยบายผู้ให้บริการเปลี่ยน
     *   **ห้ามใช้ alias `-latest`**: Google ปลดระวาง `gemini-1.5-flash-latest` จาก `v1beta` ในเดือนพฤษภาคม 2026 โดยไม่แจ้งล่วงหน้า — pin id แบบเจาะจงเวอร์ชันเสมอ
     *   **Single source of truth**: chat path (`callGemini`) อ้างอิง `GEMINI_VISION_MODELS[0]` เพื่อให้ scan + chat ไม่หลุดจากกันแบบเงียบ ๆ
-    *   **`primaryProviderError`**: เมื่อ /api/analyze ตอบ 503 จะมี field นี้ใน response body เก็บข้อผิดพลาดของ Cloudflare primary ไว้ด้วย ไม่ให้ความผิดพลาดของ provider แรกถูกซ่อนเมื่อ fallback ล้มเหลวด้วย
+2.  **ตัวสำรองสุดท้าย (Safety-net Fallback)**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (multimodal, ฟรีพร้อมกับ Pages plan)
+    *   ทำงานเฉพาะเมื่อ cascade ของ Gemini หมดทุกตัว (ทุกตัว 429/404) หรือคืน JSON ที่ผ่าน validation ไม่ได้ พฤษภาคม 2026 ค้นพบว่าโมเดล CF Llama 3.2 11B vision อ่อนกว่า Gemini มากในงานนี้ — ระบุ "Pineapple" ทั้งที่ภาพคือข้าวผัดกุ้ง ด้วยความมั่นใจ 100% และ JSON output ก็ไม่สม่ำเสมอ การเก็บไว้เป็น last-resort ทำให้ผู้ใช้ได้ *บางอย่าง* แทน 503 เมื่อ Gemini หมด แต่สำหรับเส้นทาง happy-path ปกติ ความแม่นยำของ Gemini ชนะ
+    *   ระบบจะ auto-accept Meta Llama Community License ในการเรียกครั้งแรกที่เจอ 5016 (ผ่าน `prompt: 'agree'`) ดังนั้นเส้นทาง fallback ไม่ต้องการ operator มากด accept ใน CF dashboard ด้วยตนเอง
+    *   **`primaryProviderError`**: เมื่อ /api/analyze ตอบ 503 จะมี field นี้ใน response body เก็บข้อผิดพลาดของ Gemini primary ไว้ด้วย ไม่ให้ความผิดพลาดของ provider แรกถูกซ่อนเมื่อ fallback ล้มเหลวด้วย
 
 ระบบถูกออกแบบมาเพื่อความเสถียรระดับ Edge:
 1. บีบอัดรูปภาพฝั่งไคลเอนต์ (ลดขนาดจาก 10MB เหลือ ~150KB)
@@ -73,7 +75,7 @@ Nutri-Vision AI ใช้หลักการวิเคราะห์แบ�
 - **State**: Zustand + persist middleware
 - **ฐานข้อมูล**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI vision** (สแกนอาหาร): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash`, ข้ามเมื่อ 404/429) — Multimodal fallback chain พร้อม locale-aware prompting
+- **AI vision** (สแกนอาหาร): Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`, ข้ามเมื่อ 404/429) → Cloudflare Workers AI (Llama 3.2 11B Vision) — Cascade เน้นความแม่นยำเป็นหลัก พร้อม fallback แบบ multimodal และ locale-aware prompting
 - **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, ฟรี 30 ครั้ง/นาที) → Google AI Gemini (`GEMINI_VISION_MODELS[0]`, ~1500 ครั้ง/วัน) → Cloudflare Workers AI — three-stage cascade, ฟรีเทียร์เป็นหลัก
 - **Performance**: บีบอัดรูปภาพฝั่งไคลเอนต์ (HTML5 Canvas) ก่อนส่ง AI
 

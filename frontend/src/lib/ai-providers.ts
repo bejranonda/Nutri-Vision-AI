@@ -59,6 +59,10 @@ import { logger } from '@/lib/logger';
  *     model in 2026, generous quota, multimodal.
  *   - `gemini-2.0-flash` second — GA Feb 2025 fallback for projects
  *     where the 2.5 quota is exhausted.
+ *   - `gemini-1.5-flash` third — legacy but still callable on most
+ *     projects. Added as RPM headroom after bug-hunt May 2026 showed
+ *     burst loads could 429 both 2.x entries simultaneously. If 1.5
+ *     has been EOL'd on a given project, the cascade just skips on 404.
  *
  * Invariants enforced by `tests/analyze-fallback.test.ts`:
  *   - Every id starts with `gemini-` (rules out text-only `gemma-`)
@@ -67,6 +71,7 @@ import { logger } from '@/lib/logger';
 export const GEMINI_VISION_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ] as const;
 
 export type GeminiVisionModel = (typeof GEMINI_VISION_MODELS)[number];
