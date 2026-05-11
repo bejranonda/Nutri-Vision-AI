@@ -218,9 +218,23 @@ export async function POST(req: NextRequest) {
                 promptLength: localizedPrompt.length
             });
 
-            // Decode base64 to byte array — Edge-safe using shared utility
+            // Decode base64 to byte array — Edge-safe using shared utility.
+            // CF Workers AI vision models (`@cf/meta/llama-3.2-*-vision-instruct`,
+            // `@cf/llava-…`) expect `image: number[]` — an array of unsigned
+            // byte values, NOT a wrapper around a Uint8Array.
+            //
+            // Earlier shapes (`image: bytes` with `bytes: Uint8Array`) appear
+            // to deserialise on the runtime as a 1-element list whose only
+            // entry is the typed array itself; the model then sees zero pixels
+            // and hallucinates a text-only "Here is your image: ![image](url)"
+            // response. Bug-hunt May 2026 surfaced this once PR #25 unblocked
+            // the 5016 license error that had been masking it on every prior
+            // scan.
+            //
+            // `Array.from(Uint8Array)` is the cleanest cross-runtime way to
+            // get a plain `number[]` of byte values.
             const base64Data = extractBase64Data(imageBase64);
-            const bytes = decodeBase64ToBytes(base64Data);
+            const bytes = Array.from(decodeBase64ToBytes(base64Data));
 
             // Run the model. On the first 5016 (Llama Community License
             // not accepted on this Cloudflare account), auto-submit the
@@ -247,7 +261,7 @@ export async function POST(req: NextRequest) {
             logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, model, timeoutMs });
             let response: any;
             try {
-                response = await runWithTimeout({ prompt: localizedPrompt, image: [bytes] });
+                response = await runWithTimeout({ prompt: localizedPrompt, image: bytes });
             } catch (firstErr: any) {
                 const msg = String(firstErr?.message ?? firstErr);
                 // Code-prefix `5016:` is the stable marker; the human
@@ -266,7 +280,7 @@ export async function POST(req: NextRequest) {
                         throw firstErr; // propagate original — cascade will handle
                     }
                     // Retry the real inference now that license is on file
-                    response = await runWithTimeout({ prompt: localizedPrompt, image: [bytes] });
+                    response = await runWithTimeout({ prompt: localizedPrompt, image: bytes });
                 } else {
                     throw firstErr;
                 }
