@@ -68,10 +68,12 @@ voucher-only registration during pilot launch.
 Nutri-Vision AI uses a strict **Identify-First** methodology powered by a highly resilient **Dual-Provider Fallback Strategy**.
 
 ### Smart Inference Pipeline:
-1.  **Primary**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High Quality multimodal model).
-2.  **Super Fallback**: Google Gemini Flash cascade — `gemini-2.5-flash` → `gemini-2.0-flash` (multimodal, free tier ~1500 req/day per model per project).
-    *   If the primary Cloudflare 11B model fails or times out (25s), the system walks `GEMINI_VISION_MODELS` in `lib/ai-providers.ts`, returning the first model that responds 200. Skips on 404 (model retired) or 429 (per-model quota exhausted) and falls through to the next id. Same Google key covers scan + chat; chat uses `GEMINI_VISION_MODELS[0]` for single-source-of-truth alignment.
+1.  **Primary**: Google Gemini Flash cascade — `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash` (multimodal, free tier ~1500 req/day per model per project).
+    *   `attemptGoogleInference` walks `GEMINI_VISION_MODELS` in `lib/ai-providers.ts`, returning the first model that responds 200. Skips on 404 (model retired) or 429 (per-model quota exhausted) and falls through to the next id. Same Google key covers scan + chat; chat uses `GEMINI_VISION_MODELS[0]` for single-source-of-truth alignment.
     *   We pin to explicit model ids (no `-latest` aliases) — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice. We also cascade rather than hardcode a single id — Google later silently dropped this project's `gemini-2.0-flash` free quota to `limit: 0` while `gemini-2.5-flash` on the same key still had quota.
+2.  **Safety-net fallback**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (multimodal, free with the Pages plan).
+    *   Runs only when the Gemini cascade exhausts (all three models 429/404'd) or returns garbage. Bug-hunt May 2026 surfaced that CF Llama 3.2 11B vision is much weaker than Gemini on this task — it misidentifies common dishes ("Pineapple" for Shrimp Fried Rice with 100% confidence) and its JSON output is non-deterministic. Keeping it as the last-resort fallback gives users *some* result when Gemini is fully exhausted rather than a 503; for the routine happy path, Gemini's accuracy wins.
+    *   The route auto-accepts the Meta Llama Community License on first 5016 (via `prompt: 'agree'`) so the fallback path doesn't require manual operator action in the CF dashboard.
 
 The analysis pipeline is built for **Edge Reliability**:
 1. Client-side canvas compression (reduces 10MB photos to ~150KB), now with skipping double-compression for single photos.
@@ -90,7 +92,7 @@ The analysis pipeline is built for **Edge Reliability**:
 - **State**: Zustand with persist middleware
 - **Database**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI vision** (food scan): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash`, fall-through on 404/429) — multimodal fallback chain, locale-aware prompting.
+- **AI vision** (food scan): Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`, fall-through on 404/429) → Cloudflare Workers AI (Llama 3.2 11B Vision) — accuracy-first cascade with multimodal fallback, locale-aware prompting.
 - **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, free 30 req/min) → Google AI Gemini (`GEMINI_VISION_MODELS[0]`, ~1500 req/day) → Cloudflare Workers AI — three-stage cascade, free-tier-first.
 - **Performance**: Client-side image compression (HTML5 Canvas)
 

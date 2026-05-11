@@ -81,12 +81,41 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(code).not.toMatch(/gemini-[\w.-]*-latest/);
   });
 
-  it('route surfaces the Cloudflare-primary error as `primaryProviderError`', () => {
-    // Without this, a 503 only carries the LAST error in the chain
-    // (Google's), so when the actual root cause is the CF primary
-    // (binding missing, model retired, …) operators are blind.
+  it('route surfaces the primary-provider failure as `primaryProviderError`', () => {
+    // Without this, a 503 only carries the LAST error in the chain, so
+    // operators are blind to which provider actually broke first.
+    // Originally the primary was CF and we surfaced CF errors here;
+    // post-PR #27 the primary is Gemini and we surface Gemini cascade
+    // errors here. Either way the field name is the same — only the
+    // semantics shifted.
     const source = readFileSync(ANALYZE_ROUTE, 'utf8');
     expect(source).toContain('primaryProviderError');
+  });
+
+  it('cascade order: Gemini is primary, Cloudflare Workers AI is fallback', () => {
+    // Bug-hunt May 2026: CF Llama 3.2 11B vision is unreliable (returns
+    // wrong dish names with 100% confidence — "Pineapple" for Shrimp
+    // Fried Rice). Originally CF was primary for cost reasons, but
+    // because CF's invalid output triggered fallthrough on most scans
+    // anyway, Gemini-primary doesn't cost meaningfully more quota — it
+    // just trades the "fast, free, sometimes-wrong" UX for "accurate
+    // when Gemini has quota, falls back to CF when it doesn't".
+    //
+    // This test pins the order so a future contributor can't quietly
+    // swap it back without a corresponding update to the comment
+    // explaining why.
+    const source = readFileSync(ANALYZE_ROUTE, 'utf8');
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    // The first attempt inside `runInferenceWithValidation` must be
+    // Gemini, not CF.
+    const geminiIdx = code.indexOf('attemptGoogleInference(googleKey');
+    const cfIdx = code.indexOf("attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct'");
+    expect(geminiIdx).toBeGreaterThan(-1);
+    expect(cfIdx).toBeGreaterThan(-1);
+    expect(geminiIdx).toBeLessThan(cfIdx);
   });
 
   it('image is passed to CF AI as a flat number[], not wrapped in another array', () => {

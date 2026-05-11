@@ -434,20 +434,43 @@ export async function POST(req: NextRequest) {
                 let aiResult: any;
                 let usedModel = '';
 
-                // Attempt Cloudflare first, fallback to Google
-                try {
-                    if (!env.AI) throw new Error('AI_BINDING_MISSING');
+                // CASCADE ORDER (May 2026, post-PR #26):
+                //   1. Google Gemini cascade — primary
+                //   2. Cloudflare Workers AI (Llama 3.2 11B vision) — fallback
+                //
+                // Originally CF was primary (free + fast). Bug-hunt May 2026
+                // surfaced that CF returns hallucinated / inaccurate JSON
+                // even with the image-format fix from PR #26 — calling
+                // Shrimp Fried Rice "Pineapple" with 100% confidence, etc.
+                // CF-primary turned the user-visible answer into "fast +
+                // free + sometimes wrong"; reversing puts accuracy first
+                // and keeps CF as the genuine safety net for the case
+                // where the Gemini cascade is exhausted.
+                //
+                // Net Gemini-quota usage is roughly unchanged: CF's
+                // unreliable JSON output meant most CF-primary requests
+                // were already falling through to Gemini anyway.
+                if (googleKey) {
+                    try {
+                        aiResult = await attemptGoogleInference(googleKey, 25000);
+                        usedModel = `google-${aiResult.model}`;
+                    } catch (gErr: any) {
+                        primaryProviderError = gErr.message;
+                        if (env.AI) {
+                            logger.info(`🔄 SCAN FALLBACK [${requestId}] | Gemini cascade failed (${gErr.message?.substring(0, 120)}), trying Cloudflare Workers AI...`);
+                            aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 20000);
+                            usedModel = 'cloudflare-llama-3.2-11b';
+                        } else {
+                            throw gErr;
+                        }
+                    }
+                } else if (env.AI) {
+                    // No Google key configured at all — CF is the only choice.
+                    logger.warn(`⚠️ SCAN [${requestId}] | No GOOGLE_AI_API_KEY; CF is the sole provider`);
                     aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                     usedModel = 'cloudflare-llama-3.2-11b';
-                } catch (cfErr: any) {
-                    primaryProviderError = cfErr.message;
-                    if (googleKey) {
-                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google cascade...`);
-                        aiResult = await attemptGoogleInference(googleKey, 20000);
-                        usedModel = `google-${aiResult.model}`;
-                    } else {
-                        throw cfErr;
-                    }
+                } else {
+                    throw new Error('AI_BINDING_MISSING');
                 }
 
                 if (aiResult.error) {
@@ -470,26 +493,31 @@ export async function POST(req: NextRequest) {
 
             // AUTO-CORRECTION LOOP (Max 1 retry)
             try {
-                // Attempt 1
+                // Attempt 1 — Gemini → CF
                 const res = await runInferenceWithValidation();
                 resultJson = res.data;
                 modelUsed = res.model;
             } catch (err: any) {
                 lastError = err;
-                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with fallback provider...`);
+                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with diverse provider...`);
 
-                // Attempt 2: Prefer Google fallback on retry for provider diversity
+                // Attempt 2: for provider diversity, prefer the OPPOSITE
+                // path from what attempt 1 just exercised. If the primary
+                // is Gemini and it (or its CF fallback) failed, jumping
+                // straight to CF on attempt 2 gives a fresh inference
+                // surface — same logic the previous CF-primary version
+                // used, just mirrored.
                 try {
                     let res2;
-                    if (googleKey) {
-                        // On retry, try Google directly for provider diversity
-                        const aiResult = await attemptGoogleInference(googleKey, 25000);
+                    if (env.AI) {
+                        // Force CF directly — Gemini just failed.
+                        const aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                         if (aiResult.error) throw new Error(`JSON Parse Error: ${aiResult.error.message}`);
                         let validatedData;
                         if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
                         else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
                         else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
-                        res2 = { data: validatedData, model: `google-${aiResult.model}` };
+                        res2 = { data: validatedData, model: 'cloudflare-llama-3.2-11b' };
                     } else {
                         res2 = await runInferenceWithValidation();
                     }
