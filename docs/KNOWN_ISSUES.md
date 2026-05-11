@@ -16,6 +16,12 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ## 🚧 Technical Limitations
 
+### 0. Cloudflare Workers AI vision primary (`@cf/meta/llama-3.2-11b-vision-instruct`) frequently fails on real images
+- **Current Status**: Live probes show the CF primary throwing an exception (not just returning malformed JSON) on most real food photos. Every successful production scan in the May 2026 sample was served by the Gemini fallback. The cascade absorbs it — users still get results — but the primary is doing approximately zero useful work.
+- **Why we still call it first**: When it does work, it's free (uses the `env.AI` binding the Pages plan already includes) and faster than Gemini. We don't want to remove the call until we've diagnosed *why* it's failing (model retired? input format mismatch? per-account quota?). The `primaryProviderError` field on `/api/analyze` 503 responses (shipped PR #23) is the signal we'll use.
+- **Mitigation**: Cascade fallback now lands on `gemini-2.5-flash` reliably. No user-visible impact, but every scan costs a Gemini call instead of a free CF call.
+- **Tracked**: needs a separate diagnostic PR — read CF AI run logs, or temporarily swap to a different CF vision model (`@cf/meta/llama-3.2-90b-vision-instruct`, `@cf/llava-1.5-7b-hf`) to isolate whether it's account-specific or model-specific.
+
 ### 1. Cloudflare Functions Size Limit
 - **Current Status**: The frontend build (Next.js + OpenNext) occasionally hits the 1MB script size limit for Cloudflare Workers (Free Tier).
 - **Current Mitigation**: `pages:build` script optimization.
@@ -135,6 +141,24 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Root Cause**: The `@cf/meta/llama-3.2-11b-vision-instruct` model occasionally hits resource limits or capacity issues on Cloudflare Workers AI, leading to 503 "Service Unavailable" or 502 "Bad Gateway" errors.
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
+
+### Scan 503 — three stacked Google-fallback failures (Apr–May 2026)
+
+Three back-to-back incidents on `/api/analyze` produced the same user-visible symptom (`503 "Food analysis is temporarily unavailable. Our AI models are currently under high load."`) from three structurally different root causes. The mitigation that ended the cycle is the **Gemini cascade** in `lib/ai-providers.ts → GEMINI_VISION_MODELS`.
+
+| # | Date | Request IDs | Root cause | Why "dual-provider fallback" didn't save us |
+|---|------|-------------|------------|---------------------------------------------|
+| 1 | Apr 2026 | `7063ch9g` | Google fallback was `gemma-3-27b-it`, **text-only** on free tier. | The "vision fallback" couldn't actually see images, so a CF primary failure left us with two providers and no working vision path. |
+| 2 | May 2026 | `brxqf5nr`, `2s24bp5i` | Google fallback was `gemini-1.5-flash-latest`. Google retired the `-latest` alias from `v1beta` without notice. | A 404 from the alias surfaced as `models/… is not found … or is not supported for generateContent`. The fix in PR #21 (alias swap) shipped to a now-retired endpoint. |
+| 3 | May 2026 | `tqunrejp`, `fz64f4uh`, `bfmb11hq` | Google fallback was a hardcoded `gemini-2.0-flash`. Google silently dropped this project's free-tier quota for that exact model to `limit: 0`, while `gemini-2.5-flash` on the same key still had the standard 1500 req/day. | A single hardcoded model id is one Google policy change away from outage. The 429 carried `RESOURCE_EXHAUSTED` for that one model id only. |
+
+**Resolved by PR #23**:
+- **Cascade, don't hardcode**. `GEMINI_VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']` is exported from `lib/ai-providers.ts` and consumed by both `/api/analyze` (vision) and `lib/ai-providers.ts → callGemini` (chat). The route's `attemptGoogleInference` walks the list, returning on the first 200, **skipping on 404 (model retired) or 429 (per-model quota gone)**, throwing on any other status (5xx / network — sibling models won't help). Per-model timeout = `floor(totalTimeout / cascade.length)`.
+- **Stop swallowing the primary error**. The route now captures `cfErr.message` into `primaryProviderError` and includes it in the 503 response body. Future 503s carry both the primary and fallback errors so operators aren't blind to "which provider failed first."
+- **Regression test** (`frontend/tests/analyze-fallback.test.ts`) locks the cascade invariants: non-empty, every entry `^gemini-`, no `gemma`, no `-latest$`, route imports and iterates the constant, route surfaces `primaryProviderError`, scan page uses `startsWith('google-gemini-')` not a single-id ternary. 100/100 project tests pass.
+- **Process gate** added to `ITERATION_PROCESS.md §3`: post-deploy verification must round-trip a real food photo to a populated `dishes` array — a 200 with `isFood:false` (non-food image) is not sufficient evidence the cascade works. Three "fixed" PRs went out in this incident because earlier validation only proved the route returned 200 for a non-food image.
+
+**Lesson**: free-tier policy on any external provider is a moving target. Hardcoding a single model id is a latent bug; cascade across explicit (never `-latest`) ids and skip on the two known per-model failure modes (404 / 429).
 
 ### Environment Variable Parsing Failures (v2.1.8)
 - **Root Cause**: When appending API keys to `.env` using PowerShell (e.g., `echo "KEY=VAL" >> .env`), PowerShell defaults to **UTF-16LE** encoding. Node.js `fs` reads and most `.env` parsers expect **UTF-8**, resulting in `undefined` variables even if the file looks correct in some editors.

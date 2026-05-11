@@ -27,12 +27,15 @@ Our proprietary scoring algorithm (found in `backend/app/services/nutrition_scor
 
 ## 🤖 AI Service (Workers AI & Google AI)
 
-We use a **Dual-Provider Fallback Strategy** for maximum reliability:
+We use a **Primary + Gemini Cascade Fallback Strategy** for maximum reliability:
 -   **Primary Model**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (High-fidelity multimodal model for accurate identification).
--   **Fallback Model**: Google `@gemma-3-27b-it` (Highly reliable and fast vision model used if the primary fails or times out).
--   **Robustness**: 
+-   **Fallback Cascade**: `GEMINI_VISION_MODELS` in `frontend/src/lib/ai-providers.ts` — currently `['gemini-2.5-flash', 'gemini-2.0-flash']`. `attemptGoogleInference` in `/api/analyze` walks the list, returning the **first model that responds 200**, skipping on **404 (model retired)** or **429 (per-model quota exhausted)**, throwing on any other status (5xx / network — retrying a sibling model can't help with upstream-wide problems).
+-   **Why a cascade, not a single id**: Google's free tier is *per-project AND per-model*. May 2026 (Request IDs `tqunrejp` / `fz64f4uh`) caught us with `gemini-2.0-flash` at `limit: 0` while `gemini-2.5-flash` on the same key still had 1500 req/day. A single hardcoded model id is one policy change away from outage; the cascade survives it. **Never use a `-latest` alias** — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice (PR #21 → #22).
+-   **Single source of truth across surfaces**: `lib/ai-providers.ts → callGemini` (the chat path's Gemini step) references `GEMINI_VISION_MODELS[0]` instead of a literal id. Scan + chat can never silently drift apart.
+-   **Diagnostic surface**: on 503, the route response body includes `primaryProviderError` (the Cloudflare-primary error message that kicked the request into the Gemini cascade). Without this, operators only see the LAST error in the chain (Google's) and are blind to which provider actually broke. Shipped PR #23.
+-   **Robustness**:
     -   25s timeout for the 11B model.
-    -   20s timeout for the Gemma 3 fallback.
+    -   Per-Gemini-model timeout = `floor(totalTimeout / GEMINI_VISION_MODELS.length)` so the cascade as a whole still fits the caller's budget.
     -   **Auto-Correction Loop**: Validations trap malformed JSON (`safeParseJson` tries direct, then regex extraction). On failure, it triggers a secondary inference pass preferring Google for provider diversity instead of looping the same model.
     -   Combined 45s total budget for a successful scan.
     -   Granular phase tracking and specific error details.
@@ -69,10 +72,16 @@ To ensure the high accuracy of the Dual-Provider architecture, we maintain a sta
 The static safety net runs on every commit via `npm run check:all`:
 
 1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
-2. **Vitest test suite** — 34 tests under `frontend/tests/` lock the PRs #6–#8 security + prompt logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, and all four zod schemas.
+2. **Vitest test suite** — 100 tests under `frontend/tests/` lock the PRs #6–#23 security, prompt, and AI-fallback logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, and the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`).
 3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
 
 Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
+
+### End-to-end-with-real-food validation gate (added 2026-05, Gemini cascade pass)
+
+`npm run check:all` is necessary but **not sufficient** before declaring an AI-pipeline fix "shipped". The static suite cannot detect provider-side issues like a retired model alias, a `limit: 0` free-tier quota, or a primary that fails on real images but works on test fixtures. The process gate in `ITERATION_PROCESS.md §3 / §5` requires a **post-deploy probe with a real food photo** that returns a populated `dishes` array — a 200 with `isFood:false` (i.e. a non-food image like a screenshot of the error UI) is not evidence the cascade works.
+
+Three "fixed" PRs (#21, #22, #23) went out for the same underlying class of bug before this gate was added. Each round, the static suite passed and a non-food image returned 200 — so the cycle felt complete — but the user got 503 on their actual food photo because the validation hadn't actually exercised the success branch.
 
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.

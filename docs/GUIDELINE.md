@@ -28,17 +28,39 @@ This document provides guidelines for developers to maintain code quality, consi
   ```
 - **Fault Tolerance**: Wrap all external service dependencies (DB, Session, AI) in isolated `try/catch` blocks so a single failure (e.g., missing db binding) doesn't tear down the whole route.
   - **Auto-Correction Loop**: Validations (`safeParseJson`) should catch malformed JSON and illegal states, triggering a secondary inference pass using a provider fallback (e.g. Google) rather than looping the same deterministic error.
-- **Timeouts & Fallbacks**: 
+- **Timeouts & Fallbacks**:
   - Wrap AI or long-running bindings in `Promise.race()` to abort gracefully before hitting Cloudflare's strict CPU/wall-time execution limits.
-  - **Dual-Provider Fallback Pattern**: Always implement a cross-provider fallback for high-capacity models. If the primary Cloudflare model fails or times out, immediately retry with a highly reliable external model (like Google Gemma 3).
+  - **Primary + Fallback Cascade Pattern**: Always implement a cross-provider fallback for high-capacity models, and **the fallback itself must be a cascade across explicit model ids** — never a single hardcoded id, never a `-latest` alias.
   ```typescript
-  // v2.1.9 Pattern
+  // v2.3 Pattern — see lib/ai-providers.ts → GEMINI_VISION_MODELS
+  //
+  // Why a cascade not a single id: external-provider free-tier policy
+  // is per-project AND per-model. Three back-to-back outages in
+  // Apr–May 2026 (see KNOWN_ISSUES.md → "Scan 503 — three stacked
+  // Google-fallback failures") all looked identical to the user but
+  // had three different root causes (text-only model, retired alias,
+  // limit:0 quota). The cascade survives all three classes.
   try {
-      result = await attemptPrimaryInference(CLOUDFLARE_MODEL, 25000);
-  } catch {
-      result = await attemptGoogleInference(GOOGLE_MODEL, 20000);
+      result = await attemptPrimaryInference(CLOUDFLARE_MODEL, 25_000);
+  } catch (primaryErr) {
+      // Capture so the 503 response carries BOTH errors. Without this
+      // the user-facing response only shows the LAST error in the chain,
+      // hiding which provider actually broke.
+      primaryProviderError = primaryErr.message;
+      for (const model of GEMINI_VISION_MODELS) {
+          const res = await fetch(buildGeminiUrl(model), { ... });
+          if (res.status === 404 || res.status === 429) continue; // sibling may have quota
+          if (!res.ok) throw new Error(...); // 5xx / network — siblings won't help
+          return await res.json();
+      }
+      throw new Error(`all ${GEMINI_VISION_MODELS.length} fallback models exhausted`);
   }
   ```
+  Rules of thumb:
+  - **Skip on 404** (model retired) and **429** (per-model quota gone). Throw on anything else — sibling models can't help with upstream-wide failures.
+  - **Per-model timeout = `floor(totalTimeout / cascade.length)`** so the cascade fits inside the caller's budget.
+  - **Surface every error in the chain**, not just the last one. The 503 body must include a `primaryProviderError` field (or equivalent) so operators aren't blind.
+  - **Single source of truth across surfaces**: scan + chat both use `GEMINI_VISION_MODELS[0]` so they can never silently drift apart.
 - **Type Hints**: Mandatory for all request bodies and database interactions. Use Drizzle ORM schemas.
     - **Dynamic Scaling**: Low-memory devices scaling down canvas size.
   - **Early Compression**: To prevent React state and mobile browser memory bloat, high-volume image features must compress incoming photos (e.g., `1200px` max, `0.85` quality) *before* storing them in frontend memory arrays.
@@ -160,6 +182,24 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 ### When a bug makes it to production
 
 Follow `ITERATION_PROCESS.md §6` — the fix PR must add the missing regression test that would have caught the bug, and (if the bug is a class of thing rather than a one-off typo) extend the automated check suite so the whole class is prevented.
+
+### Before declaring an AI-pipeline fix "shipped" — real-food validation
+
+Static checks (`npm run check:all`) verify the *shape* of the route — types, schemas, the strings in source files. They cannot verify that a Google model id still has free-tier quota, or that a Cloudflare AI model still accepts your image format. **Provider-side breakage looks identical to a code bug from the user's seat.**
+
+Mandatory before merging any change to `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code:
+
+1. **End-to-end probe with a real food image**, post-deploy, against the live production URL. A sample image is committed under `research/test-image/` for this purpose.
+   ```bash
+   B64=$(base64 -w0 research/test-image/buymeacoffee-food-6940159_640.jpg)
+   printf '{"imageBase64":"data:image/jpeg;base64,%s","locale":"en","scanMode":"meal","photoCount":1}' "$B64" > /tmp/body.json
+   curl -sS -X POST https://shinnyguide.autobahn.bot/api/analyze \
+        -H 'Content-Type: application/json' --data-binary @/tmp/body.json
+   ```
+2. **The response must have `isFood: true` and a populated `dishes` array** with scores and an eating sequence. A 200 with `isFood: false` (e.g. the image is a screenshot of the error UI) only exercises the non-food branch and is **not** evidence the success branch works.
+3. **Record the `modelUsed` value** in the PR description so the audit trail captures which cascade step served the response.
+
+Three PRs (#21, #22, #23) shipped in Apr–May 2026 for the same underlying class of bug because each round's "validation" only proved the route returned 200 on a non-food image. The rule above exists to break that cycle.
 
 ### Where to add a new check
 
