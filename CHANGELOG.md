@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Cloudflare AI primary 100% failure (Llama 3.2 license never accepted); now auto-accepts on first 5016
+
+Surfaced by bug-hunt May 2026 (Request ID `sex01ab2`). The `primaryProviderError` field shipped in PR #23 had been quietly hiding the same error on every production scan since launch:
+
+```
+5016: Prior to using this model, you must submit the prompt 'agree'.
+By submitting 'agree', you hereby agree to the
+llama-3.2-11b-vision-instruct Community License …
+```
+
+Meta requires Cloudflare account holders to explicitly accept the Llama 3.2 Community License once before the model will run any inference. This account had never accepted, so **every scan since launch was being served by the Gemini fallback** — costing Google free-tier quota for work the CF primary should have done for free. The cascade absorbed it (users saw successful results), so the failure was silent until both Gemini cascade entries 429'd in the same window during a burst probe.
+
+**Fix**: `attemptAiInference` in `/api/analyze` now catches the first `5016:` error, sends `prompt: 'agree'` (Cloudflare's documented programmatic acceptance path — text-only, no image), and retries the actual food inference once. Acceptance is account-level and one-shot; subsequent scans never re-trigger it. If acceptance itself fails, the original 5016 propagates and the Gemini cascade picks up as before — net behaviour can only improve, never regress.
+
+Touched:
+- `app/api/analyze/route.ts` — wrapped the `env.AI.run` call in a try/catch that detects `5016:` prefix, submits the agree-prompt acceptance, then retries the real inference. Added `CF_LLAMA_LICENSE_ACCEPTING` / `CF_LLAMA_LICENSE_ACCEPTED` telemetry stages.
+- `tests/analyze-fallback.test.ts` — new regression case asserts the route contains the `5016:` marker, the `prompt: 'agree'` retry call, and both telemetry stages. Project total: **101/101 tests passing** (was 100/100).
+- `docs/KNOWN_ISSUES.md` — removed stale §0 "CF primary frequently fails" (now resolved); added "Cloudflare AI primary 100% failure — Meta Llama 3.2 license never accepted" under Resolved with the diagnostic trail.
+
+Validation: re-probe against production after deploy. Expected: scans now report `modelUsed: cloudflare-llama-3.2-11b` for the bulk of traffic; Gemini falls back only when CF actually times out / errors out.
+
 ### Fixed — Google free-tier `gemini-2.0-flash` quota silently dropped to `limit: 0`; scan fallback broken (again)
 
 User report: scan upload **still** returns `503 "Food analysis is temporarily unavailable"` after the previous Gemini-alias swap (Request IDs `tqunrejp` shown in the UI, `fz64f4uh` from a direct probe). PR #22 was deployed correctly — the fix shipped — but the route's catch path only echoed the LAST error in the chain, hiding the actual cause.
