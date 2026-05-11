@@ -136,6 +136,34 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### CF AI vision wasn't seeing the image (`image: [Uint8Array]` instead of `number[]`) — May 2026
+
+**Symptom** (only observable after PR #25 unblocked the 5016 license error): post-license-acceptance CF responses were syntactically valid JSON but the *content* was hallucinated — fried-rice images analysed as "Mixed Greens Salad", responses including markdown like:
+
+```
+Here is your image:
+
+![image](https://i.imgur.com/8R1RzVH.jpg)
+
+Here is your response:
+{ "isFood": true, "dishes": [...] }
+```
+
+That `![image](https://imgur…)` line is the smoking gun. A vision model that actually receives an image doesn't reference URLs from training data — it describes pixels. The model was generating training-style markdown because it had **zero pixels to look at**.
+
+**Root cause**: the route was calling
+```ts
+const bytes = decodeBase64ToBytes(base64Data);  // Uint8Array
+env.AI.run(model, { prompt, image: [bytes] });  // [Uint8Array] ← BUG
+```
+CF Workers AI vision models (`@cf/meta/llama-3.2-*-vision-instruct`, `@cf/llava-*`) expect `image: number[]` — an array of unsigned byte values. The original code shipped `[Uint8Array]` — a 1-element list whose only entry was the typed array itself. CF's runtime deserialised that as "no image present" and the model fell back to text-only behaviour.
+
+**Why this was invisible until now**: the same line had been in `/api/analyze` since the original commit, but every CF call returned 5016 (Meta Llama Community License never accepted on this account) before ever reaching inference. Auto-accept (the entry above) made the call succeed for the first time, which made the format bug observable. **The two bugs masked each other** — one prevented us from seeing the other, and the cycle was only broken by `primaryProviderError` from PR #23 surfacing the 5016 error.
+
+**Fix**: flatten via `Array.from(decodeBase64ToBytes(...))` at the decode site, then pass `image: bytes` (no wrapper). Regression test in `tests/analyze-fallback.test.ts` forbids the wrong shape and requires the right one — any future contributor who reaches for `image: [bytes]` will fail CI.
+
+**Lesson**: when two upstream errors are stacked, the inner one is invisible until the outer one is fixed. `primaryProviderError` was the right diagnostic tool — without it, this could have stayed hidden for arbitrarily long.
+
 ### Cloudflare AI primary 100% failure — Meta Llama 3.2 license never accepted (May 2026)
 
 **Symptom**: every production scan returned a Gemini-served response. Looked successful to users (because the Gemini cascade absorbed it), but every scan burned Gemini free-tier quota for work the Cloudflare primary should have done for free.

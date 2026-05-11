@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Cloudflare AI vision was never seeing the image (`image: [bytes]` was a Uint8Array wrapped in an array)
+
+Surfaced once PR #25 unblocked the 5016 license error that had been masking it on every prior scan. Post-PR #25, CF responses came back parseable but **hallucinated** — fried-rice images were being analysed as "Mixed Greens Salad", and responses included `Here is your image: ![image](https://i.imgur.com/…)`. That last detail is the smoking gun: the vision model was generating training-data-style markdown about a hypothetical image because it had zero pixels to look at.
+
+**Root cause**: the route was calling
+```ts
+const bytes = decodeBase64ToBytes(base64Data);  // Uint8Array
+env.AI.run(model, { prompt, image: [bytes] });  // [Uint8Array] !!
+```
+CF Workers AI vision models (`@cf/meta/llama-3.2-*-vision-instruct`, `@cf/llava-…`) expect `image: number[]` — a flat array of unsigned byte values. The original code shipped `[Uint8Array]`, a 1-element list whose only entry was the typed array itself. CF deserialised that as "no image present" and the model fell back to text-only behaviour.
+
+The bug had been there since the original `/api/analyze` commit but was **completely invisible** because every CF call returned 5016 (Llama Community License never accepted on this account) before ever reaching the model. Auto-accept (PR #25) made the call succeed, which made the format bug observable for the first time.
+
+**Fix**: flatten via `Array.from(decodeBase64ToBytes(…))` at the decode site, then pass `image: bytes` (no wrapper).
+
+Touched:
+- `app/api/analyze/route.ts` — `decodeBase64ToBytes(...) ` wrapped in `Array.from(...)`; both call sites changed from `image: [bytes]` to `image: bytes`. Comment block records the failure mode so the next person doesn't accidentally re-wrap.
+- `tests/analyze-fallback.test.ts` — new regression case forbids `image: [bytes]` or `image: [decodeBase64ToBytes(...)]` in live code and requires `Array.from(decodeBase64ToBytes` at the decode site. Project total: **102/102 tests passing** (was 101/101).
+- `docs/KNOWN_ISSUES.md` — entry under Resolved with the full diagnostic trail and the masking-by-5016 narrative.
+
+Validation: re-probe `/api/analyze` against production after deploy. Expected: `modelUsed: cloudflare-llama-3.2-11b` returning a `dishes` array with the actual food in the image (Shrimp Fried Rice for the canonical test fixture).
+
 ### Fixed — Cloudflare AI primary 100% failure (Llama 3.2 license never accepted); now auto-accepts on first 5016
 
 Surfaced by bug-hunt May 2026 (Request ID `sex01ab2`). The `primaryProviderError` field shipped in PR #23 had been quietly hiding the same error on every production scan since launch:

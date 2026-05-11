@@ -89,6 +89,36 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(source).toContain('primaryProviderError');
   });
 
+  it('image is passed to CF AI as a flat number[], not wrapped in another array', () => {
+    // Bug-hunt May 2026 (post-PR #25): once the Llama license was
+    // auto-accepted, CF model responses revealed it had NEVER been
+    // seeing the image. Cause: route was calling
+    //   `env.AI.run(model, { prompt, image: [bytes] })`
+    // where `bytes` is a `Uint8Array`. CF deserialises that as a
+    // 1-element list whose only entry is the typed array; the vision
+    // model sees zero pixels and hallucinates a text-only response
+    // ("Here is your image: ![image](https://i.imgur.com/…)").
+    //
+    // Correct shape is `image: number[]` (array of byte values). Use
+    // `Array.from(Uint8Array)` to flatten.
+    const source = readFileSync(ANALYZE_ROUTE, 'utf8');
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    // The wrong shape must not survive in live code.
+    expect(code).not.toMatch(/image\s*:\s*\[\s*bytes\s*\]/);
+    expect(code).not.toMatch(/image\s*:\s*\[\s*decodeBase64ToBytes/);
+
+    // The decode site must convert Uint8Array → number[] before passing
+    // to env.AI.run.
+    expect(code).toMatch(/Array\.from\(\s*decodeBase64ToBytes/);
+
+    // The actual call must reference the flattened `bytes`, not a
+    // wrapping array literal.
+    expect(code).toMatch(/image\s*:\s*bytes\b/);
+  });
+
   it('attemptAiInference auto-accepts the Llama Community License on error 5016', () => {
     // Bug-hunt May 2026 (Request ID `sex01ab2`): every production scan
     // was failing the CF primary with error `5016: … you must submit
