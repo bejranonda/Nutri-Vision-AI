@@ -43,19 +43,23 @@ Shinny Guide คือแอป AI ที่ช่วยจัดลำดับ
 - `LAUNCH50` — ลด 50% เดือนแรก
 - `FAMILY2024` — ทดลองแฟมิลี่ 14 วัน
 
-## 🧠 วิธีการวิเคราะห์ของ AI (v2.2.0)
+## 🧠 วิธีการวิเคราะห์ของ AI (v2.3, พ.ค. 2026)
 
-Nutri-Vision AI ใช้หลักการวิเคราะห์แบบ **Identify-First** ขับเคลื่อนโดยระบบ **Dual-Provider Fallback** (สลับผู้ให้บริการ AI อัตโนมัติเมื่อระบบขัดข้อง)
+Nutri-Vision AI ใช้หลักการวิเคราะห์แบบ **Identify-First** ขับเคลื่อนโดยระบบ **Primary + Gemini Cascade Fallback** (สลับผู้ให้บริการ AI อัตโนมัติ และวนผ่านโมเดล Gemini หลายตัวจนกว่าจะพบตัวที่ใช้งานได้)
 
 ### ระบบประมวลผลอัจฉริยะ (Inference Pipeline):
 1.  **ตัวหลัก (Primary)**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct` (โมเดล multimodal คุณภาพสูง)
-2.  **ตัวสำรองขั้นสูง (Super Fallback)**: Google `@gemma-3-27b-it` (โมเดลประสิทธิภาพและความเสถียรสูง)
-    *   หากโมเดล 11B ทำงานล้มเหลวหรือค้างเกิน 25 วินาที ระบบจะสลับไปใช้โมเดล Gemma 3 27B ของ Google ทันที เพื่อให้ผู้ใช้ได้รับผลการวิเคราะห์แม้อยู่ในช่วงที่มีการใช้งานหนาแน่น
+2.  **ตัวสำรองแบบ Cascade**: Google Gemini Flash — `gemini-2.5-flash` → `gemini-2.0-flash` (โมเดล multimodal, ฟรีเทียร์ ~1500 ครั้ง/วัน ต่อโมเดล ต่อโปรเจกต์)
+    *   หากโมเดล 11B ของ Cloudflare ทำงานล้มเหลวหรือค้างเกิน 25 วินาที ระบบจะวนผ่านรายชื่อโมเดลใน `GEMINI_VISION_MODELS` (`frontend/src/lib/ai-providers.ts`) ตามลำดับ ส่งผลลัพธ์จากโมเดลแรกที่ตอบ 200 OK กลับไป **ข้ามต่อ** เมื่อเจอ 404 (โมเดลถูกปลดระวาง) หรือ 429 (โควต้าโมเดลนั้นหมด) และ throw ทันทีเมื่อเจอ error อื่น (เช่น 5xx / network — โมเดลพี่น้องช่วยไม่ได้)
+    *   **ทำไมต้องเป็น Cascade ไม่ใช่ id เดียว**: นโยบายฟรีเทียร์ของ Google เป็นแบบ *per-project AND per-model* — พฤษภาคม 2026 พบว่า `gemini-2.0-flash` ถูกตั้ง `limit: 0` บนคีย์เรา ขณะที่ `gemini-2.5-flash` บนคีย์เดียวกันยังมีโควต้า 1500 ครั้ง/วัน การ hardcode id เดียวคือ "บั๊กแฝง" ที่รอนโยบายผู้ให้บริการเปลี่ยน
+    *   **ห้ามใช้ alias `-latest`**: Google ปลดระวาง `gemini-1.5-flash-latest` จาก `v1beta` ในเดือนพฤษภาคม 2026 โดยไม่แจ้งล่วงหน้า — pin id แบบเจาะจงเวอร์ชันเสมอ
+    *   **Single source of truth**: chat path (`callGemini`) อ้างอิง `GEMINI_VISION_MODELS[0]` เพื่อให้ scan + chat ไม่หลุดจากกันแบบเงียบ ๆ
+    *   **`primaryProviderError`**: เมื่อ /api/analyze ตอบ 503 จะมี field นี้ใน response body เก็บข้อผิดพลาดของ Cloudflare primary ไว้ด้วย ไม่ให้ความผิดพลาดของ provider แรกถูกซ่อนเมื่อ fallback ล้มเหลวด้วย
 
 ระบบถูกออกแบบมาเพื่อความเสถียรระดับ Edge:
 1. บีบอัดรูปภาพฝั่งไคลเอนต์ (ลดขนาดจาก 10MB เหลือ ~150KB)
 2. **10-Phase Fault-Tolerant Pipeline**: แยกการทำงานแต่ละส่วน (DB, Session, AI) ออกจากกันอย่างเด็ดขาดด้วย `try/catch` โดยในส่วน AI มีระบบ **Auto-Correction Loop** ช่วยสแกนซ้ำถ้าหากพบว่า JSON ไม่สมบูรณ์
-3. ระบบป้องกันการค้าง (Timeout) รวม 45 วินาทีที่ฝั่ง Server ด้วย `Promise.race` และ `AbortController`
+3. ระบบป้องกันการค้าง (Timeout) รวม 45 วินาทีที่ฝั่ง Server ด้วย `Promise.race` และ `AbortController` — Cascade แต่ละโมเดลใช้เวลา `floor(งบรวม / จำนวนโมเดล)` เพื่อให้ทั้ง cascade ไม่เกินงบ
 4. ระบบติดตาม Request & Telemetry: ใช้ `?debug=1` ในหน้าสแกนเพื่อดูเวลาทำงาน กู้คืนข้อมูล JSON ที่พัง และเครื่องมือคัดลอกข้อมูล Debug ออกมาตรวจสอบ
 5. ตรวจสอบโครงสร้าง JSON อย่างเคร่งครัด พร้อมระบบแจ้งเตือน "ไม่ใช่ภาพอาหาร" (Graceful Non-Food Error)
 6. ระบบการตรวจสอบ Deployment (Health Verification) ทำงานผ่าน `/api/health` เพื่อเช็คสถานะฐานข้อมูลและ AI API
@@ -69,7 +73,8 @@ Nutri-Vision AI ใช้หลักการวิเคราะห์แบ�
 - **State**: Zustand + persist middleware
 - **ฐานข้อมูล**: Drizzle ORM + Cloudflare D1 (SQLite)
 - **Deploy**: Cloudflare Pages + Workers
-- **AI**: Cloudflare Workers AI (Llama 3.2 11B) + Google AI (Gemma 3 27B) + Locale-Aware Prompting
+- **AI vision** (สแกนอาหาร): Cloudflare Workers AI (Llama 3.2 11B Vision) → Google AI Gemini Flash cascade (`gemini-2.5-flash` → `gemini-2.0-flash`, ข้ามเมื่อ 404/429) — Multimodal fallback chain พร้อม locale-aware prompting
+- **AI chat** (Coach Shinny): Groq (Llama 3.3 70B, ฟรี 30 ครั้ง/นาที) → Google AI Gemini (`GEMINI_VISION_MODELS[0]`, ~1500 ครั้ง/วัน) → Cloudflare Workers AI — three-stage cascade, ฟรีเทียร์เป็นหลัก
 - **Performance**: บีบอัดรูปภาพฝั่งไคลเอนต์ (HTML5 Canvas) ก่อนส่ง AI
 
 ## 🚀 เริ่มต้นใช้งาน

@@ -262,9 +262,25 @@ components. Targets:
 - `tests/crypto.test.ts` — password hashing, constant-time compare, UUIDs.
 - `tests/ai-prompt.test.ts` — prompt builder + response validator.
 - `tests/schemas.test.ts` — zod request schemas (login, register, analyze, promo).
+- `tests/analyze-fallback.test.ts` — `GEMINI_VISION_MODELS` cascade invariants for `/api/analyze`: every entry must be `gemini-*`, never `gemma-*`, never `-latest$`; route must iterate the constant; response must surface `primaryProviderError`; scan page must use the `startsWith('google-gemini-')` prefix check.
 
 **When to add a test**: any time a user reports a bug that our static
 checks missed. See `ITERATION_PROCESS.md §6` ("Iterate until zero-error").
+
+### AI-pipeline real-food validation (mandatory before merging)
+
+Static checks cannot verify provider-side breakage — a retired model alias, a `limit: 0` free-tier quota, or a Cloudflare AI model that's rejecting your image format all look identical to a code bug from the user's seat. **For any PR that touches `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code**, run a headless probe against the live deploy with a real food image before declaring done:
+
+```bash
+B64=$(base64 -w0 research/test-image/buymeacoffee-food-6940159_640.jpg)
+printf '{"imageBase64":"data:image/jpeg;base64,%s","locale":"en","scanMode":"meal","photoCount":1}' "$B64" > /tmp/body.json
+curl -sS -X POST https://shinnyguide.autobahn.bot/api/analyze \
+     -H 'Content-Type: application/json' --data-binary @/tmp/body.json
+```
+
+The response must have **`isFood: true`** and a **populated `dishes` array** with scores and an eating sequence. A 200 with `isFood: false` (e.g. the image is a screenshot of the error UI) only exercises the rejection branch and is **not** evidence the success branch works. Record the `modelUsed` value in the PR description.
+
+Three "fixed" PRs (#21, #22, #23) shipped in Apr–May 2026 for the same class of bug because each round's validation only proved the route returned 200 on a non-food image. The rule above exists to break that cycle. Full procedure: `docs/GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`.
 
 ### i18n key drift check
 

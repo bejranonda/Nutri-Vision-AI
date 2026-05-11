@@ -42,16 +42,31 @@ frontend/src/
 - [Monetization](file:///d:/Git/Werapol/Nutri-Vision-AI/research/business/monetization.md) — Pricing tiers and promo code strategy
 - [Market Research](file:///d:/Git/Werapol/Nutri-Vision-AI/research/Roadmap/) — Full roadmap and market analysis
 
-## AI Methodology & Architecture (v2.2.0)
+## AI Methodology & Architecture (v2.3, May 2026)
 - **Composable Architecture**: Heavy client-side views (like `scan/page.tsx`) are completely decoupled into specific custom Hooks (`useScanUpload`, `useScanAnalysis`) to guarantee edge-case safety without UI re-renders.
 - **Identify-First**: Focus on identifying ingredients before dish naming to reduce hallucinations.
-- **Dual-Provider Fallback**: Attempts Cloudflare Llama 3.2 11B Vision first; falls back to Google Gemma 3 27B (now with 4096 tokens) if primary fails, times out, or returns severely malformed JSON (`safeParseJson` checks).
+- **Primary + Gemini Cascade Fallback**: `/api/analyze` attempts Cloudflare Llama 3.2 11B Vision first (25s timeout). On failure it falls back to a Gemini *cascade* — `GEMINI_VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']`, exported from `frontend/src/lib/ai-providers.ts`. The route returns on the first 200; skips on 404 (model retired) or 429 (per-model quota exhausted); throws on any other status. Per-model timeout is divided across the cascade. The 503 response body carries `primaryProviderError` so operators can see *both* the primary and fallback errors.
+- **Why a cascade, not a single id**: Google's free tier is *per-project AND per-model*. May 2026 (Request IDs `tqunrejp` / `fz64f4uh`) caught us with `gemini-2.0-flash` at `limit: 0` while `gemini-2.5-flash` on the same key still had 1500 req/day. **Never** pin to a `-latest` alias — Google retired `gemini-1.5-flash-latest` from `v1beta` in May 2026 without notice. Use explicit, dated model ids only.
+- **Chat uses `GEMINI_VISION_MODELS[0]`** in `lib/ai-providers.ts → callGemini`, so the scan and chat paths can never silently drift apart on the Gemini step.
+- **Regression test**: `frontend/tests/analyze-fallback.test.ts` locks the cascade invariants (non-empty, every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`).
 - **10-Phase Pipeline**: Fault-tolerant API route for resilient scanning featuring Edge cache control, lazy session cleanup, and robust error cataloging (`error_class` logging in DB schema).
 
-## Current Status (Mar 2026)
-- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes)
+## Required Gemini API setup
+
+- Generate a key from <https://aistudio.google.com/apikey>.
+- Store as `GOOGLE_AI_API_KEY` in `frontend/.env.local` (dev) or `wrangler pages secret put GOOGLE_AI_API_KEY` (prod). `GEMINI_API_KEY` is also accepted as an alias by `lib/ai-providers.ts`.
+- The cascade currently exercises `gemini-2.5-flash` then `gemini-2.0-flash`. Per-project per-model quota can drop to `limit: 0` silently; the cascade survives one of them being throttled but **not** the case where the entire key is rate-limited. If you see persistent 503s, probe `/api/analyze` directly and inspect the response `details` / `primaryProviderError` fields.
+
+## Validation before declaring "shipped"
+
+Static checks cannot verify provider-side breakage. After deploy, run a real-food probe (see `GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`) and confirm the response has `isFood: true` and a populated `dishes` array. A 200 with `isFood: false` only proves the rejection branch works.
+
+## Current Status (May 2026)
+- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
 - ✅ Member system with promo codes (D1 persistent)
 - ✅ i18n in 4 languages
 - ✅ Backend API integration (Cloudflare Workers & D1)
-- ✅ Real AI food analysis with Dual-Provider Fallback & Hooks orchestrator (v2.2.0)
+- ✅ Real AI food analysis with Primary + Gemini Cascade Fallback (v2.3)
+- ✅ AI Coach Shinny (chat) with Groq → Gemini → CF cascade
 - 🔜 Payment integration (PromptPay, Rabbit LINE Pay)
+- 🐛 Cloudflare AI vision primary frequently failing on real images — cascade absorbs it, but diagnostic PR pending (see `KNOWN_ISSUES.md → §0`)

@@ -77,9 +77,10 @@ The Cloudflare preview URL (commented by the CF bot on the PR) is the
 Before clicking "Merge", the author must do all of these on the CF preview:
 
 1. **Home → Scan happy path** (desktop + mobile viewport):
-   - Upload a known-good food photo.
+   - Upload a **real food photo** (a known-good one — `research/test-image/buymeacoffee-food-6940159_640.jpg` is the canonical fixture).
    - Scan completes within ~20s.
    - A `DishCard` renders with a score and a sequence.
+   - **A 200 response with `isFood:false` does NOT count.** A non-food image only proves the rejection branch works; it does not prove the success path round-trips through the AI cascade. Three "fixed" PRs went out for the same Gemini-cascade bug in Apr–May 2026 because each round's validation stopped here.
 2. **Multi-photo flow**:
    - Upload 2+ photos in meal mode.
    - Overview shows `dishCount === photoCount`.
@@ -94,6 +95,8 @@ Before clicking "Merge", the author must do all of these on the CF preview:
 5. **Console / network**:
    - 0 red errors in DevTools Console.
    - 0 4xx/5xx responses on the happy path.
+
+For PRs that touch `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code, also run the **headless probe** documented in `GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`. Record the `modelUsed` value the cascade landed on in the PR description.
 
 If any of these fails, the PR goes back to review — no override.
 
