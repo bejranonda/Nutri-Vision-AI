@@ -134,7 +134,21 @@ PR #7 shipped solely to recover from this silent drop.
 
 Within 5 minutes of the merge commit landing on `main`, Cloudflare
 Pages will deploy production at <https://shinnyguide.autobahn.bot/>.
-The merger must click through the same 5 checks from §3 on production.
+The merger must:
+
+1. **Verify the deploy SHA matches the merge commit** — single curl,
+   no behavioural inference needed:
+   ```bash
+   git rev-parse --short main
+   # → 9e74084
+   curl -s https://shinnyguide.autobahn.bot/api/health | jq -r .deployment.shaShort
+   # → 9e74084   ← must match within ~5 min of the merge
+   ```
+   If the production SHA doesn't move within 10 minutes, check the
+   Cloudflare Pages dashboard for a stuck build before retrying §3
+   checks (you'd otherwise be validating *old* code and conclude
+   "fix didn't work").
+2. Click through the same 5 checks from §3 on production.
 
 If any production check fails:
 1. File a revert PR *within 15 minutes* (keep the rollback window tight).

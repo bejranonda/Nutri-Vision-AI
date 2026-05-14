@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `/api/health` now surfaces Cloudflare Pages deployment metadata
+
+Bug-hunt May 2026 closing gap: the only way to verify "is the current deploy actually the commit I just merged?" was through behavioural inference (does `modelUsed` reflect the post-PR shape? does rate-limit suddenly engage?). That's slow and error-prone — it's how PRs #21, #22, and #23 each shipped feeling complete while leaving an unfixed user-facing bug, because the validation matrix passed against a stale deploy that hadn't rolled over yet.
+
+`/api/health` now reads `CF_PAGES_COMMIT_SHA`, `CF_PAGES_BRANCH`, and `CF_PAGES_URL` from the Cloudflare Pages build environment and exposes them as a `deployment` block:
+
+```json
+{
+  "status": "healthy",
+  "deployment": {
+    "sha": "9e74084adfa7516f4502401cdfbe8775165f215f",
+    "shaShort": "9e74084",
+    "branch": "main",
+    "pagesUrl": "https://nutri-vision-ai.pages.dev"
+  }
+}
+```
+
+`ITERATION_PROCESS.md §5` post-merge verification now starts with `git rev-parse --short main` vs `curl /api/health | jq -r .deployment.shaShort` — if they don't match within ~5 min, the §3 behavioural checks would be validating old code.
+
+Touched:
+- `app/api/health/route.ts` — added `deployment` block; reads the three CF Pages env vars defensively (null in local dev, which is the correct sentinel).
+- `tests/health.test.ts` — **new test file**, 5 cases pinning the response shape: `deployment` block exists, reads from the three `CF_PAGES_*` env vars, produces a 7-char short SHA, returns `null` when env vars are unset, and `status` field stays top-level. Project total: **113/113 tests passing** (was 108/108).
+- `README.md`, `docs/KNOWLEDGE_BASE.md`, `docs/GUIDELINE.md`, `docs/ITERATION_PROCESS.md` — point operators at the new field with the canonical curl-vs-git-rev-parse recipe.
+
 ### Fixed — Rate limiting was silently failing open in production
 
 Bug-hunt May 2026 (continuation): **40 parallel requests to `/api/voucher/check`** (configured limit: 30 / minute) all returned HTTP 200. Zero 429s. Same test on `/api/auth/login` (configured limit: 10 / 15min) returned 12 consecutive 401s with no rate-limit engagement. The brute-force protection for the pilot launch was **not actually protecting anything**.
