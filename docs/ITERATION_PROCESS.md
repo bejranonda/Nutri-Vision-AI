@@ -98,6 +98,17 @@ Before clicking "Merge", the author must do all of these on the CF preview:
 
 For PRs that touch `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code, also run the **headless probe** documented in `GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`. Record the `modelUsed` value the cascade landed on in the PR description.
 
+For PRs that touch `lib/rate-limit.ts` or wire new routes into `rateLimit()`, run a **sequential** burst against the configured limit + 5:
+
+```bash
+for i in $(seq 1 35); do
+  curl -sS -o /dev/null -w "%{http_code}\n" \
+    "https://shinnyguide.autobahn.bot/api/voucher/check?code=SEQ$i"
+done
+```
+
+Expect the first N (≈ limit) to return 200, then 429s. **Parallel bursts with `&` give false negatives** — concurrent requests scatter across multiple worker instances and each sees its own per-instance bucket. Bug-hunt May 2026 (PR #28) caught this: 40 parallel voucher probes against a 30/min limit all returned 200 while a sequential 35-probe burst from the same machine correctly tripped at request 27. Sequential matches the actual single-IP brute-force threat model.
+
 If any of these fails, the PR goes back to review — no override.
 
 ---
@@ -159,9 +170,9 @@ A build is "zero-error" when:
 - Every destructive path (register, redeem, logout) is idempotent or race-safe at the DB level.
 
 Not yet fully met (see `docs/KNOWN_ISSUES.md` → "Ongoing Follow-ups"):
-- Rate limiting on auth + scan endpoints.
 - Empirical prompt evaluation in CI.
 - Secondary indexes on FK columns.
+- Cross-instance rate-limit coordination (current per-instance Map is sufficient for sequential-from-one-IP brute force; distributed multi-PoP attackers can still evade).
 
 ---
 

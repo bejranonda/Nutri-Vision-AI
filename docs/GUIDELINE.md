@@ -168,7 +168,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs) | Vitest | `frontend/tests/crypto.test.ts`, `ai-prompt.test.ts`, `schemas.test.ts` | **34** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit) | Vitest | `frontend/tests/*.test.ts` (9 files) | **108** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -182,6 +182,21 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 ### When a bug makes it to production
 
 Follow `ITERATION_PROCESS.md §6` — the fix PR must add the missing regression test that would have caught the bug, and (if the bug is a class of thing rather than a one-off typo) extend the automated check suite so the whole class is prevented.
+
+### "Doesn't throw" is not the same as "works" — enforcement testing
+
+Bug-hunt May 2026 (PR #28) caught a class of test gap that the existing process didn't surface: the rate-limit unit suite had 9 tests, all green, all verifying *"this function doesn't throw under weird conditions"* (no `caches` global, weird headers, missing IPs). The function never threw. The function also **never blocked a single request in production** because `caches.default` wasn't persisting between OpenNext requests — the bucket reset on every call. The tests' fail-open contract was *exactly* the shape the broken production runtime produced. Bug shipped with green tests.
+
+**Rule**: when a contract is *enforcing* something (rate limit, scan quota, voucher single-use, password verification, …), the test suite must include at least one test that proves the *enforcement* triggers, not just that the function returns. The "doesn't throw" contract is necessary (broken helpers must not 500 the route) but not sufficient.
+
+Concretely, for `lib/rate-limit.ts` the post-#28 suite adds:
+- Same-IP exhaustion blocks the (N+1)th request
+- Distinct IPs get distinct buckets
+- Distinct routes get distinct buckets
+- A sustained flood after the limit is hit doesn't extend the window indefinitely
+- The "anon" bucket exists for requests with no IP header
+
+Apply the same lens whenever you add a route gate, schema, quota counter, or domain invariant. If your test could pass with the gate completely commented out, it's a fail-open contract test — add an enforcement test alongside it.
 
 ### Before declaring an AI-pipeline fix "shipped" — real-food validation
 

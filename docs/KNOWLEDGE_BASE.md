@@ -73,7 +73,7 @@ To ensure the high accuracy of the Dual-Provider architecture, we maintain a sta
 The static safety net runs on every commit via `npm run check:all`:
 
 1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
-2. **Vitest test suite** — 100 tests under `frontend/tests/` lock the PRs #6–#23 security, prompt, and AI-fallback logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, and the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`).
+2. **Vitest test suite** — **108 tests** under `frontend/tests/` lock the PRs #6–#28 security, prompt, AI-fallback, and rate-limit logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
 3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
 
 Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
@@ -83,6 +83,26 @@ Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full ga
 `npm run check:all` is necessary but **not sufficient** before declaring an AI-pipeline fix "shipped". The static suite cannot detect provider-side issues like a retired model alias, a `limit: 0` free-tier quota, or a primary that fails on real images but works on test fixtures. The process gate in `ITERATION_PROCESS.md §3 / §5` requires a **post-deploy probe with a real food photo** that returns a populated `dishes` array — a 200 with `isFood:false` (i.e. a non-food image like a screenshot of the error UI) is not evidence the cascade works.
 
 Three "fixed" PRs (#21, #22, #23) went out for the same underlying class of bug before this gate was added. Each round, the static suite passed and a non-food image returned 200 — so the cycle felt complete — but the user got 503 on their actual food photo because the validation hadn't actually exercised the success branch.
+
+### Per-IP rate limiting (`lib/rate-limit.ts`)
+
+Sliding-window limiter applied to every public POST surface that does expensive or sensitive work:
+
+| Route | Limit | Window | Threat |
+|-------|-------|--------|--------|
+| `/api/auth/login` | 10 | 15 min | Brute-force password guessing |
+| `/api/auth/register` | 3 | 15 min | Sign-up spam |
+| `/api/voucher/check` | 30 | 1 min | Voucher-code enumeration |
+| `/api/chat` | 20 | 1 min | Free-tier AI abuse |
+| `/api/analyze` | (per-tier scan quota; D1-backed counter — separate from per-IP) | — | Tier-quota evasion |
+
+**Storage**: module-scoped `Map<string, Bucket>` in the worker's V8 heap. Persists across requests within a worker instance until the instance is recycled (~30 min idle on Cloudflare). Memory bounded by a periodic prune.
+
+**Why not `caches.default`** (the v1 design): In raw Workers, `caches.default` gives same-millisecond read-after-write consistency. In the **OpenNext-on-Pages runtime**, it does not — the `cache.put()` doesn't propagate before the next request reads, so every request sees an empty bucket. Bug-hunt May 2026 caught this: 40 parallel `/api/voucher/check` probes against a 30/min limit all returned 200; sequential 35 returned 26×200 then 9×429. The fix swapped the primary store to the module Map; the call-site API is unchanged so future swaps for Upstash Redis or Durable Object stay transparent.
+
+**Threat-model fit**: per-instance scope catches sequential brute-force from one IP (the *actual* threat — a credential-stuffer hitting `/api/auth/login` from a single source). A distributed attacker hitting 20+ CF PoPs simultaneously can still evade; that's documented as a future swap-to-cross-instance-store path. **Public probes use parallel curl bursts, which scatter across instances and look like 200-only — sequential probes are the correct manual smoke test.**
+
+**Failure mode contract**: `rateLimit()` MUST NOT throw. Auth/scan/voucher routes call it BEFORE entering their try/catch; an uncaught throw would surface as the framework's default 500. Every code path falls open on unexpected conditions — better to let a request through than 429 everyone because the limiter is broken.
 
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.
