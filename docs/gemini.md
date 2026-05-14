@@ -55,7 +55,7 @@ frontend/src/
 
 - Generate a key from <https://aistudio.google.com/apikey>.
 - Store as `GOOGLE_AI_API_KEY` in `frontend/.env.local` (dev) or `wrangler pages secret put GOOGLE_AI_API_KEY` (prod). `GEMINI_API_KEY` is also accepted as an alias by `lib/ai-providers.ts`.
-- The cascade currently exercises `gemini-2.5-flash` then `gemini-2.0-flash`. Per-project per-model quota can drop to `limit: 0` silently; the cascade survives one of them being throttled but **not** the case where the entire key is rate-limited. If you see persistent 503s, probe `/api/analyze` directly and inspect the response `details` / `primaryProviderError` fields.
+- The cascade currently exercises `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`. Per-project per-model quota can drop to `limit: 0` silently; the cascade survives one or two of them being throttled but **not** the case where the entire key is rate-limited. If you see persistent 503s after the deploy, probe `/api/analyze` directly and inspect the response `details` (Gemini error message) and `primaryProviderError` fields — the latter carries the **Cloudflare safety-net error** when CF was also tried and failed after the Gemini cascade exhausted (post-PR #27).
 
 ## Validation before declaring "shipped"
 

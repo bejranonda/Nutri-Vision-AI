@@ -67,6 +67,7 @@ Nutri-Vision AI ใช้หลักการวิเคราะห์แบ�
 6. ระบบการตรวจสอบ Deployment (Health Verification) ทำงานผ่าน `/api/health` เพื่อเช็คสถานะฐานข้อมูลและ AI API
 7. **การตรวจสอบคำขอด้วย Zod**: ทุก `/api/*` route ตรวจสอบ JSON body ด้วย schema ใน `frontend/src/lib/schemas.ts` ก่อนแตะฐานข้อมูลหรือเรียก AI เพื่อกันข้อมูลผิดรูปแบบตั้งแต่ที่ edge
 8. **ป้องกัน Promo Code ซ้ำที่ระดับฐานข้อมูล**: โค้ดโปรโมชันถูกบังคับให้ redeem ได้ครั้งเดียวต่อผู้ใช้ผ่าน `UNIQUE INDEX` บน `code_redemptions(user_id, code_id)` — แม้จะมีการยิง request พร้อมกันก็ไม่สามารถรับสิทธิ์ซ้ำได้
+9. **Per-IP Rate Limiting** (`lib/rate-limit.ts`): sliding-window throttle ทุก POST endpoint สาธารณะ — `/api/auth/login` (10/15นาที), `/api/auth/register` (3/15นาที), `/api/voucher/check` (30/นาที), `/api/chat` (20/นาที). Primary store เป็น `Map` ระดับ module (V8 heap, per-worker-instance) เปลี่ยนจาก `caches.default` หลังจาก bug-hunt พ.ค. 2026 พบว่า Workers Cache API ไม่ให้ same-millisecond consistency ใน OpenNext-on-Pages runtime — 40 parallel voucher probes ต่อ limit 30/นาที ตอบ 200 ทั้งหมด ทดสอบด้วย 5 enforcement test cases ที่พิสูจน์ว่า limit ทำงานจริง ไม่ใช่แค่ไม่ throw
 
 ## 🛠 เทคโนโลยี
 
