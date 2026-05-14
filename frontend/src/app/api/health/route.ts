@@ -39,6 +39,18 @@ export async function GET(req: Request) {
 
         const status = hasAI || hasGoogleKey ? 'healthy' : 'degraded';
 
+        // Surface the Cloudflare Pages deployment metadata that the
+        // platform sets at build time. Bug-hunt May 2026: deployment
+        // freshness was previously only verifiable by behavioural probes
+        // (does `modelUsed` reflect the post-PR shape?). Surfacing the
+        // commit SHA directly lets operators and CI verify "is the
+        // current deploy the commit I think it is?" in one curl. Keys
+        // come from CF Pages build env — see
+        //   https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables
+        const sha = (env as any)?.CF_PAGES_COMMIT_SHA || null;
+        const branch = (env as any)?.CF_PAGES_BRANCH || null;
+        const pagesUrl = (env as any)?.CF_PAGES_URL || null;
+
         const response: Record<string, any> = {
             status,
             timestamp: new Date().toISOString(),
@@ -51,6 +63,15 @@ export async function GET(req: Request) {
                 },
                 database: dbStatus,
                 runtime: isCloudflareRuntime ? 'cloudflare' : 'node',
+            },
+            // Deployment metadata. Fields are null in local dev (env
+            // vars only set by Cloudflare Pages at build time); null
+            // is the correct sentinel for "not running on Pages".
+            deployment: {
+                sha,
+                shaShort: sha ? String(sha).slice(0, 7) : null,
+                branch,
+                pagesUrl,
             },
             version: process.env.npm_package_version || 'unknown',
         };

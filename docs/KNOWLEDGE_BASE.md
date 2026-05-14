@@ -73,7 +73,7 @@ To ensure the high accuracy of the Dual-Provider architecture, we maintain a sta
 The static safety net runs on every commit via `npm run check:all`:
 
 1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
-2. **Vitest test suite** — **108 tests** under `frontend/tests/` lock the PRs #6–#28 security, prompt, AI-fallback, and rate-limit logic: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
+2. **Vitest test suite** — **113 tests** under `frontend/tests/` lock the PRs #6–#30 security, prompt, AI-fallback, rate-limit, and health-shape contracts: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
 3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
 
 Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
@@ -103,6 +103,29 @@ Sliding-window limiter applied to every public POST surface that does expensive 
 **Threat-model fit**: per-instance scope catches sequential brute-force from one IP (the *actual* threat — a credential-stuffer hitting `/api/auth/login` from a single source). A distributed attacker hitting 20+ CF PoPs simultaneously can still evade; that's documented as a future swap-to-cross-instance-store path. **Public probes use parallel curl bursts, which scatter across instances and look like 200-only — sequential probes are the correct manual smoke test.**
 
 **Failure mode contract**: `rateLimit()` MUST NOT throw. Auth/scan/voucher routes call it BEFORE entering their try/catch; an uncaught throw would surface as the framework's default 500. Every code path falls open on unexpected conditions — better to let a request through than 429 everyone because the limiter is broken.
+
+### Deployment-freshness verification via `/api/health`
+
+`/api/health` reads `CF_PAGES_COMMIT_SHA`, `CF_PAGES_BRANCH`, and `CF_PAGES_URL` from the Cloudflare Pages build environment and exposes them as a `deployment` block in the JSON response:
+
+```json
+{
+  "status": "healthy",
+  "deployment": {
+    "sha": "9e74084adfa7516f4502401cdfbe8775165f215f",
+    "shaShort": "9e74084",
+    "branch": "main",
+    "pagesUrl": "https://nutri-vision-ai.pages.dev"
+  },
+  ...
+}
+```
+
+This closes the bug-hunt May 2026 gap where the only way to verify "is the current deploy actually the commit I just merged?" was through behavioural inference (does `modelUsed` reflect the post-PR shape? does the rate-limit suddenly engage?). Behavioural inference is slow and error-prone — it's how PRs #21, #22, and #23 each shipped feeling complete while leaving an unfixed user-facing bug, because the validation matrix passed against a stale deploy that hadn't rolled over yet.
+
+The `ITERATION_PROCESS.md §5` post-merge verification now starts with this single curl: if `deployment.shaShort` doesn't match the merge commit within ~5 min, the §3 checks would be validating old code and the conclusion ("fix didn't work") would be wrong. Compare against `git rev-parse --short main` before doing anything else.
+
+In local dev (no `CF_PAGES_*` env vars), all four `deployment` fields are `null` — that's the correct sentinel for "not running on Pages", not an error.
 
 ### Backend (FastAPI)
 -   **Async First**: All IO operations (DB, AI calls) are asynchronous.

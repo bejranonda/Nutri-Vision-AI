@@ -83,7 +83,10 @@ The analysis pipeline is built for **Edge Reliability**:
 5. Strict JSON schema validation and graceful "Non-Food" detection rendering.
 6. **Decoupled Architecture**: Logic is fully isolated via custom hooks (`useScanUpload`, `useScanAnalysis`, `useScanDebug`), ensuring a clean Orchestrator Page.
 6. **Multi-Photo Collage Engine**: Client-side canvas stitching up to 10 photos, with **Dynamic Canvas Scaling** to prevent memory crashes on older phones (scales based on `navigator.deviceMemory`).
-7. Deployment Monitoring: Verify AI bindings and database status securely via the `/api/health` endpoint.
+7. Deployment Monitoring: Verify AI bindings, database status, and **deployment freshness** (commit SHA + branch from CF Pages build env) securely via the `/api/health` endpoint. The `deployment.shaShort` field lets you eyeball "is this the commit I think it is?" in one curl:
+   ```bash
+   curl -s https://shinnyguide.autobahn.bot/api/health | jq .deployment
+   ```
 8. **Per-IP Rate Limiting** (`lib/rate-limit.ts`): sliding-window throttle on every public POST surface — `/api/auth/login` (10/15min), `/api/auth/register` (3/15min), `/api/voucher/check` (30/min), `/api/chat` (20/min), `/api/analyze`. Primary store is a module-scoped `Map` (per-worker-instance, V8-heap-resident), chosen over `caches.default` after bug-hunt May 2026 found the Workers Cache API doesn't give same-millisecond read-after-write consistency in the OpenNext-on-Pages runtime — 40 parallel voucher probes against a 30/min limit had all returned 200. Tested with 5 enforcement cases that prove the limit actually engages, not just that the helper doesn't throw.
 
 ## 🛠 Tech Stack

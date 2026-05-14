@@ -140,7 +140,11 @@ try { ... } catch (err) {
 Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for rapid iterative testing:
 1. **Debug Mode**: Append `?debug=1` to the `/scan` URL. After completing a scan, this exposes a dark accordion panel detailing precise API phase timings, the specific model used, network overhead, and the raw, unparsed JSON output of the AI directly in the UI.
    - **Copy Data**: The Debug Panel includes a "Copy Data" button allowing QA to easily copy exactly what the AI responded with. If validation/parsing fails, this debug panel will also intercept and render the broken `failedJson` payload.
-2. **Health Endpoints**: Use `/api/health` to verify deployment dependencies (Database connection, Cloudflare AI binding, Google API key availability) without incurring full inference costs. Append `?verbose=1` for detailed environment traces.
+2. **Health Endpoints**: Use `/api/health` to verify deployment dependencies (Database connection, Cloudflare AI binding, Google API key availability) without incurring full inference costs. Append `?verbose=1` for detailed environment traces. The response also carries a `deployment` block with `sha` / `shaShort` / `branch` / `pagesUrl` pulled from `CF_PAGES_*` build-time env vars — use this to verify deployment freshness in one curl:
+   ```bash
+   curl -s https://shinnyguide.autobahn.bot/api/health | jq .deployment.shaShort
+   # → "9e74084"  ← compare to `git rev-parse --short main`
+   ```
 
 ## 🚀 Development Workflow
 
@@ -168,7 +172,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit) | Vitest | `frontend/tests/*.test.ts` (9 files) | **108** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health shape) | Vitest | `frontend/tests/*.test.ts` (10 files) | **113** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
