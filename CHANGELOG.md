@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Rate limiting was silently failing open in production
+
+Bug-hunt May 2026 (continuation): **40 parallel requests to `/api/voucher/check`** (configured limit: 30 / minute) all returned HTTP 200. Zero 429s. Same test on `/api/auth/login` (configured limit: 10 / 15min) returned 12 consecutive 401s with no rate-limit engagement. The brute-force protection for the pilot launch was **not actually protecting anything**.
+
+**Root cause**: `lib/rate-limit.ts` v1 used `caches.default` (Cloudflare Workers Cache API) as its primary store. In raw Workers this gives same-millisecond read-after-write consistency. In the OpenNext-on-Pages runtime, it does not — the cache `put` doesn't propagate before the next request reads, so every request sees an empty bucket. The original code's defensive `try { } catch { return allowed:true }` design meant this failure was **completely silent**: no log, no metric, no test failure.
+
+**Fix**: switched the primary store to a module-scoped `Map<string, Bucket>`. Bucket state now lives in the worker's V8 heap and persists across requests within the same instance — always works regardless of runtime. The original `caches.default` path is dropped entirely; if we later need cross-instance coordination, swap for Upstash Redis / Durable Object behind the same `rateLimit()` API.
+
+Threat-model fit: per-instance memory is sufficient against the *intended* threat (single-IP brute-force from one client). A distributed attacker hitting 20+ CF PoPs concurrently can still exceed the limit; that requires a cross-instance store and is documented as a future swap path.
+
+Touched:
+- `lib/rate-limit.ts` — `rateLimitInner` rewritten around a module-scoped `Map`. Added periodic LRU prune to bound memory at `O(unique_IPs × routes)` for the window TTL. Exposed `_resetForTest()` so suites don't bleed state between cases.
+- `tests/rate-limit.test.ts` — **5 new enforcement tests** that exercise the actual blocking behaviour (was previously only fail-open contract testing, which is what let the bug ship). Project total: **108/108 tests passing** (was 103/103).
+- `docs/KNOWN_ISSUES.md` — Resolved entry with the bug-hunt diagnostic trail.
+
+Validation: re-probe `/api/voucher/check` with 40 parallel requests after deploy. Expected: first ~30 return 200, remainder return 429 with `retry-after` header. `/api/auth/login` brute force: 11th attempt returns 429.
+
 ### Changed — Reversed scan cascade: Gemini is now primary, Cloudflare is the safety-net fallback
 
 Post-bug-hunt May 2026 (PRs #25 + #26) discovery: with the 5016 license and image-format bugs both fixed, CF's vision model could finally serve responses — but it served **inaccurate** ones. The smaller Llama 3.2 11B model called Shrimp Fried Rice "Pineapple" with 100% confidence on multiple probes, and its JSON compliance was non-deterministic (sometimes parseable, sometimes free-form text that failed validation).

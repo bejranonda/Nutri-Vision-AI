@@ -136,6 +136,18 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### Rate limiting silently failed open in production — `caches.default` doesn't persist between OpenNext requests (May 2026)
+
+**Symptom**: 40 parallel requests to `/api/voucher/check` (limit 30 / min) all returned 200. 12 consecutive bad-credential `/api/auth/login` attempts all returned 401 (limit was 10 / 15min). No 429s anywhere. Brute-force protection for the pilot launch was effectively absent.
+
+**Root cause**: `lib/rate-limit.ts` v1 stored its sliding-window buckets in `caches.default`. In raw Cloudflare Workers this gives same-millisecond read-after-write consistency suitable for rate-limit accounting. In the OpenNext-on-Pages runtime, it does not — the cache `put` doesn't propagate before the next request reads, so every request sees an empty bucket and the counter never accumulates. The original code's defensive `try { } catch { return allowed:true }` design meant the failure was **completely silent** — no log, no metric, and the existing unit tests only verified the fail-open contract (no `caches` global in Vitest → returned `allowed:true`), which is exactly the same shape the broken production runtime produced.
+
+**Fix**: switched the primary store to a module-scoped `Map<string, Bucket>` that lives in the worker's V8 heap and persists across requests within the same instance. Always works regardless of runtime. Memory is bounded by a periodic prune.
+
+**Lesson**: tests that only verify "doesn't throw" are insufficient for a contract that says "enforces a limit." After this incident the suite adds 5 enforcement tests covering same-IP exhaustion, distinct-IP isolation, distinct-route isolation, sustained-flood handling, and the no-IP "anon" bucket — every code path that could quietly fail-open now has positive coverage.
+
+**Future**: if we ever need cross-instance coordination (distributed attacker hitting 20+ PoPs simultaneously), swap the in-memory primary for Upstash Redis or a Durable Object behind the same `rateLimit()` API. Call sites stay identical.
+
 ### CF AI vision wasn't seeing the image (`image: [Uint8Array]` instead of `number[]`) — May 2026
 
 **Symptom** (only observable after PR #25 unblocked the 5016 license error): post-license-acceptance CF responses were syntactically valid JSON but the *content* was hallucinated — fried-rice images analysed as "Mixed Greens Salad", responses including markdown like:
