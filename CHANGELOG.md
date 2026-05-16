@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — CF safety-net fallback was truncating its JSON output (default `max_tokens` too low)
+
+User report: scan 503 with Request ID `02tf04hd` on the Thai locale (user is on premium tier — not a quota issue). Direct probe (Request ID `eh0dzg8k`) surfaced the diagnostic chain via PR #23's `primaryProviderError` + PR #25's `failedJson` preview:
+
+```
+primaryProviderError: 'The operation was aborted'                       ← Gemini cascade timed out
+failedJson:           {"isFood":true,"dishes":[{"name":"ข้าวผัด",      ← CF served, saw the food
+                       "detectedItems":["🥔 ข้าว","🐟 น้ำปลา",…        ← but stopped mid-array
+details:              JSON Parse Error: Regex-extracted JSON also       ← validation failed
+                       invalid: Expected ',' or ']' …
+```
+
+**Root cause**: when CF Workers AI runs `@cf/meta/llama-3.2-11b-vision-instruct` without explicit `max_tokens`, it defaults to ~256 — way too tight for our schema. On a verbose Thai response (long `detectedItems` array + multi-byte UTF-8), the model stopped mid-stream and the JSON parser couldn't recover. The Gemini call already passed `maxOutputTokens: 4096`; the CF call didn't pass the equivalent.
+
+**Fix**: pass `max_tokens: 4096` on both CF call sites in `attemptAiInference` (initial inference + post-license-accept retry). Matches the Gemini budget. The text-only `prompt: 'agree'` license-acceptance call doesn't need it (default is fine for a ~10-token ping).
+
+The combined diagnostic chain that surfaced this — `primaryProviderError` (PR #23) + `failedJson` (PR #25) — meant root cause was visible in one probe. **The session's diagnostic investment is paying recurring dividends**: every subsequent 503 will continue to surface its actual root cause in the response body without requiring a separate logging deployment.
+
+Touched:
+- `app/api/analyze/route.ts` — `max_tokens: 4096` on both `env.AI.run({prompt, image, …})` calls. Inline comment records the Request IDs and the truncation failure mode.
+- `tests/analyze-fallback.test.ts` — new regression case asserts both image-carrying CF call sites include `max_tokens: 4096`. Project total: **114/114 tests passing** (was 113/113).
+- `docs/KNOWN_ISSUES.md` — Resolved entry with the diagnostic trail.
+
 ### Added — `/api/health` now surfaces Cloudflare Pages deployment metadata
 
 Bug-hunt May 2026 closing gap: the only way to verify "is the current deploy actually the commit I just merged?" was through behavioural inference (does `modelUsed` reflect the post-PR shape? does rate-limit suddenly engage?). That's slow and error-prone — it's how PRs #21, #22, and #23 each shipped feeling complete while leaving an unfixed user-facing bug, because the validation matrix passed against a stale deploy that hadn't rolled over yet.

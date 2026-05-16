@@ -250,6 +250,17 @@ export async function POST(req: NextRequest) {
             //      License …"
             // The acceptance is account-level and one-shot; subsequent
             // scans never re-trigger it.
+            //
+            // `max_tokens: 4096` is required, NOT optional. CF Workers
+            // AI defaults to ~256 max_tokens for llama-3.2 vision, which
+            // truncates the JSON output mid-array on any non-trivial
+            // scan (multi-item detectedItems, Thai/multi-byte chars).
+            // Bug-hunt May 2026 (Request IDs `02tf04hd`, `eh0dzg8k`):
+            // when Gemini cascade timed out and CF served the result,
+            // the JSON was structurally invalid because CF stopped
+            // mid-stream. `safeParseJson` rescued the {…} block but
+            // the contents were broken (unclosed arrays). Bumping to
+            // 4096 matches what we already pass to Gemini.
             const runWithTimeout = (payload: any) =>
                 Promise.race([
                     env.AI.run(model, payload),
@@ -261,7 +272,7 @@ export async function POST(req: NextRequest) {
             logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, model, timeoutMs });
             let response: any;
             try {
-                response = await runWithTimeout({ prompt: localizedPrompt, image: bytes });
+                response = await runWithTimeout({ prompt: localizedPrompt, image: bytes, max_tokens: 4096 });
             } catch (firstErr: any) {
                 const msg = String(firstErr?.message ?? firstErr);
                 // Code-prefix `5016:` is the stable marker; the human
@@ -280,7 +291,7 @@ export async function POST(req: NextRequest) {
                         throw firstErr; // propagate original — cascade will handle
                     }
                     // Retry the real inference now that license is on file
-                    response = await runWithTimeout({ prompt: localizedPrompt, image: bytes });
+                    response = await runWithTimeout({ prompt: localizedPrompt, image: bytes, max_tokens: 4096 });
                 } else {
                     throw firstErr;
                 }

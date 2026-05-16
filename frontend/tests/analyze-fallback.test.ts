@@ -148,6 +148,34 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(code).toMatch(/image\s*:\s*bytes\b/);
   });
 
+  it('attemptAiInference passes max_tokens: 4096 to CF AI to prevent JSON truncation', () => {
+    // Bug-hunt May 2026 (Request IDs `02tf04hd` user-facing, `eh0dzg8k`
+    // probe): when the Gemini cascade timed out and CF served the
+    // result, the JSON was structurally invalid because CF's vision
+    // model stopped mid-stream on a verbose Thai response (long
+    // detectedItems array + multi-byte chars). `safeParseJson`
+    // rescued the {…} block, but the contents had unclosed arrays
+    // and validation failed → 503 to the user.
+    //
+    // CF Workers AI defaults to ~256 max_tokens for llama-3.2 vision,
+    // which is way too tight for our schema. Explicit 4096 (matching
+    // what we already pass to Gemini) gives enough headroom for the
+    // longest realistic response.
+    const source = readFileSync(ANALYZE_ROUTE, 'utf8');
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    // Both CF call sites (initial inference + post-license-accept retry)
+    // must carry max_tokens. The agree-prompt call is exempt — it's a
+    // text-only acceptance ping where 256 default is fine.
+    const callsWithImage = code.match(/\{\s*prompt:\s*localizedPrompt[^}]*\}/g) ?? [];
+    expect(callsWithImage.length).toBeGreaterThanOrEqual(2);
+    for (const call of callsWithImage) {
+      expect(call).toMatch(/max_tokens:\s*4096/);
+    }
+  });
+
   it('attemptAiInference auto-accepts the Llama Community License on error 5016', () => {
     // Bug-hunt May 2026 (Request ID `sex01ab2`): every production scan
     // was failing the CF primary with error `5016: … you must submit
