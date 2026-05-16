@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users, promoCodes, codeRedemptions } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
@@ -16,13 +17,13 @@ export async function POST(req: NextRequest) {
         // with a 1-MB "code" string.
         const parsed = PromoRedeemRequest.safeParse(rawBody);
         if (!parsed.success) {
-            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+            return jsonResponse(zodFailure(parsed.error), { status: 400 });
         }
         const { code } = parsed.data;
 
         const token = await getSessionToken();
         if (!token) {
-            return NextResponse.json({ error: 'Not authenticated. Please log in first.' }, { status: 401 });
+            return jsonResponse({ error: 'Not authenticated. Please log in first.' }, { status: 401 });
         }
 
         const env = await getEnv();
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
             )
             .limit(1);
         if (activeSessions.length === 0) {
-            return NextResponse.json({ error: 'Session invalid or expired' }, { status: 401 });
+            return jsonResponse({ error: 'Session invalid or expired' }, { status: 401 });
         }
         const userId = activeSessions[0].userId!;
 
@@ -68,21 +69,21 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
         if (foundCodes.length === 0) {
-            return NextResponse.json({ error: 'Invalid promotion code' }, { status: 404 });
+            return jsonResponse({ error: 'Invalid promotion code' }, { status: 404 });
         }
 
         const promoCode = foundCodes[0];
 
         if (!promoCode.isActive) {
-            return NextResponse.json({ error: 'This code is no longer active' }, { status: 400 });
+            return jsonResponse({ error: 'This code is no longer active' }, { status: 400 });
         }
 
         if (promoCode.expiresAt && new Date() > new Date(promoCode.expiresAt)) {
-            return NextResponse.json({ error: 'This code has expired' }, { status: 400 });
+            return jsonResponse({ error: 'This code has expired' }, { status: 400 });
         }
 
         if (promoCode.usageLimit && promoCode.usageCount != null && promoCode.usageCount >= promoCode.usageLimit) {
-            return NextResponse.json({ error: 'This code has reached its usage limit' }, { status: 400 });
+            return jsonResponse({ error: 'This code has reached its usage limit' }, { status: 400 });
         }
 
         // 2. Check if user already redeemed this code (only need the id).
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
         if (previousRedemptions.length > 0) {
-            return NextResponse.json({ error: 'You have already redeemed this code' }, { status: 400 });
+            return jsonResponse({ error: 'You have already redeemed this code' }, { status: 400 });
         }
 
         // --- Apply benefits ---
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
         } catch (insertErr: any) {
             const msg = String(insertErr?.message || '');
             if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
-                return NextResponse.json(
+                return jsonResponse(
                     { error: 'You have already redeemed this code' },
                     { status: 400 },
                 );
@@ -150,7 +151,7 @@ export async function POST(req: NextRequest) {
             .set({ usageCount: (promoCode.usageCount || 0) + 1 })
             .where(eq(promoCodes.id, promoCode.id));
 
-        return NextResponse.json({
+        return jsonResponse({
             message: 'Code redeemed successfully!',
             benefits: {
                 tier: newTier,
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
         // DB driver text / stack hints that help an attacker probe the
         // schema — never return it to the client.
         console.error('Promo code redemption error:', error);
-        return NextResponse.json(
+        return jsonResponse(
             { error: 'Internal server error' },
             { status: 500 }
         );

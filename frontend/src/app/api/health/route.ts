@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getEnvSafe } from '@/lib/cloudflare';
 
 /**
@@ -88,12 +89,12 @@ export async function GET(req: Request) {
             };
         }
 
-        return NextResponse.json(response, {
+        return jsonResponse(response, {
             status: status === 'healthy' ? 200 : 503,
             headers: { 'Cache-Control': 'no-store' },
         });
     } catch (error: any) {
-        return NextResponse.json({
+        return jsonResponse({
             status: 'error',
             timestamp: new Date().toISOString(),
             latencyMs: Date.now() - startTime,

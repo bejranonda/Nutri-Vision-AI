@@ -9,6 +9,7 @@
  * The revoke-self call returns 403 with a specific error.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '@/db';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(() => null);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+    return jsonResponse(zodFailure(parsed.error), { status: 400 });
   }
   const { userId, makeAdmin } = parsed.data;
 
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
   // meaningless because you must already be an admin to call this —
   // but toggling off on yourself is the real footgun we must block.
   if (!makeAdmin && userId === actingAdmin.id) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'You cannot revoke your own admin status. Ask another admin.' },
       { status: 403 },
     );
@@ -49,14 +50,14 @@ export async function POST(req: NextRequest) {
   try {
     env = await getEnvSafe();
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
   const db = getDb(env);
 
   const existing = await db.select({ id: users.id, email: users.email })
     .from(users).where(eq(users.id, userId)).limit(1);
   if (existing.length === 0) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    return jsonResponse({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -66,9 +67,9 @@ export async function POST(req: NextRequest) {
       target: existing[0].email,
       makeAdmin,
     });
-    return NextResponse.json({ ok: true, isAdmin: makeAdmin });
+    return jsonResponse({ ok: true, isAdmin: makeAdmin });
   } catch (e) {
     logger.error('[ADMIN_ACTION] isAdmin toggle failed', { e });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 }

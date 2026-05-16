@@ -136,6 +136,19 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### Every API route except `/api/health` returned responses with no `Cache-Control` header (May 2026)
+
+**Symptom** (surfaced by UX-audit sweep, not by a user report): probing every `/api/*` endpoint for response headers showed 12 of 13 routes returning no `Cache-Control` at all. Personalized endpoints like `/api/auth/me` (returns user PII), authentication 4xx responses (carry request-tied identifiers), and 400 zod failures (carry `requestId`) were all theoretically cacheable by an intermediate proxy.
+
+**Real-world blast radius**: Cloudflare's edge happens not to cache cookie-bearing responses by default, so this likely never produced a user-visible incident. But:
+- The behaviour is **implicit** — depends on edge-cache configuration, not on a contract we own
+- Future routes added without thinking about cache headers would inherit the same gap
+- Defense-in-depth says set the header explicitly
+
+**Fix**: new `lib/api-response.ts` exports `jsonResponse(body, init?)` — `NextResponse.json` with `Cache-Control: no-store` defaulted. All 13 API routes migrated. `tests/api-response.test.ts` walks every `src/app/api/**/route.ts` and asserts `NextResponse.json(...)` doesn't appear in live code — invariant locked in.
+
+**Lesson**: "browse the response headers of every endpoint at least once" belongs in the routine UX audit. The surface is invisible from looking at code (NextResponse.json *seems* fine — it just doesn't set the header you want). Only an HTTP-level probe catches it.
+
 ### CF safety-net was truncating JSON mid-stream — default `max_tokens` too low (May 2026)
 
 **Symptom**: scan 503 on the Thai locale, Request ID `02tf04hd` (user-facing), `eh0dzg8k` (diagnostic probe). User was on the premium tier (∞ scans/month), so not a quota issue.

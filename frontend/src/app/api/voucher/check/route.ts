@@ -19,6 +19,7 @@
  * codes.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { getEnvSafe } from '@/lib/cloudflare';
 import { VoucherCheckQuery, zodFailure } from '@/lib/schemas';
@@ -41,26 +42,26 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code') ?? '';
   const parsed = VoucherCheckQuery.safeParse({ code });
   if (!parsed.success) {
-    return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+    return jsonResponse(zodFailure(parsed.error), { status: 400 });
   }
 
   let env;
   try {
     env = await getEnvSafe();
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 
   let db;
   try {
     db = getDb(env);
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 
   const result = await validateVoucherForRegistration(db, parsed.data.code);
   if (!result.valid) {
-    return NextResponse.json({ valid: false, reason: result.reason });
+    return jsonResponse({ valid: false, reason: result.reason });
   }
-  return NextResponse.json(toPublicVoucherView(result));
+  return jsonResponse(toPublicVoucherView(result));
 }
