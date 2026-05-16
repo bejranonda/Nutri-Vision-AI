@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users, foodScans } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
         if (!parsed.success) {
             const failure = zodFailure(parsed.error);
             logger.scanApiStage('BODY_PARSE_ERROR', { requestId, fields: Object.keys(failure.fields) });
-            return NextResponse.json({ ...failure, requestId }, { status: 400 });
+            return jsonResponse({ ...failure, requestId }, { status: 400 });
         }
         const imageBase64 = parsed.data.imageBase64;
         const locale = parsed.data.locale ?? 'th';
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
 
         if (!imageBase64) {
             logger.scanApiStage('VALIDATION_FAILED', { requestId, reason: 'no_image' });
-            return NextResponse.json({ error: 'Image data is required', requestId }, { status: 400 });
+            return jsonResponse({ error: 'Image data is required', requestId }, { status: 400 });
         }
 
         // ── Phase 2: Validate image format ────────────────────────
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
         const imageValidation = validateImageBase64(imageBase64);
         if (!imageValidation.valid) {
             logger.scanApiStage('IMAGE_VALIDATION_FAILED', { requestId, error: imageValidation.error });
-            return NextResponse.json(
+            return jsonResponse(
                 { error: 'Invalid image format', message: imageValidation.error, requestId },
                 { status: 400 }
             );
@@ -194,7 +195,7 @@ export async function POST(req: NextRequest) {
 
             if (tierConfig.scansPerMonth !== Infinity && activeUser.scansThisMonth >= tierConfig.scansPerMonth) {
                 logger.scanApiStage('RATE_LIMITED', { requestId, tier: tierStr, used: activeUser.scansThisMonth, limit: tierConfig.scansPerMonth });
-                return NextResponse.json({
+                return jsonResponse({
                     error: 'Scan limit reached',
                     message: 'You have exhausted your free scans for this month. Please upgrade to continue.',
                     requestId
@@ -574,14 +575,14 @@ export async function POST(req: NextRequest) {
             });
 
             if (aiError.message === 'AI_BINDING_MISSING') {
-                return NextResponse.json({
+                return jsonResponse({
                     error: 'AI not available',
                     message: 'Food analysis requires Cloudflare Workers AI. The AI binding is not configured.',
                     requestId
                 }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
             }
 
-            return NextResponse.json({
+            return jsonResponse({
                 error: 'AI analysis failed',
                 message: 'Food analysis is temporarily unavailable. Our AI models are currently under high load. Please try again in a moment.',
                 details: aiError.message,
@@ -707,7 +708,7 @@ export async function POST(req: NextRequest) {
             tier: currentTier
         });
 
-        return NextResponse.json({
+        return jsonResponse({
             result: resultJson,
             scanMode,
             overallScore: scoreOverall,
@@ -727,7 +728,7 @@ export async function POST(req: NextRequest) {
             stack: error.stack?.substring(0, 1000),
             totalDurationMs
         });
-        return NextResponse.json(
+        return jsonResponse(
             {
                 error: 'Internal server error',
                 message: `Unexpected error in phase: ${currentPhase}`,

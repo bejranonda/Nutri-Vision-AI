@@ -23,6 +23,7 @@
  * write fails (logged but doesn't poison the user-visible reply).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { users, sessions, chatMessages } from '@/db/schema';
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.json().catch(() => null);
     const parsed = ChatRequest.safeParse(rawBody);
     if (!parsed.success) {
-      return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+      return jsonResponse(zodFailure(parsed.error), { status: 400 });
     }
     const { message, history = [], locale = 'th' } = parsed.data;
 
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     //    Same lookup pattern as /api/auth/me + /api/promo/redeem.
     const token = await getSessionToken();
     if (!token) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
     const env = await getEnv();
     const db = getDb(env);
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
       .where(and(eq(sessions.token, token), gt(sessions.expiresAt, new Date())))
       .limit(1);
     if (activeSessions.length === 0) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'Invalid or expired session' },
         { status: 401 },
       );
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       .limit(1);
     const user = userRows[0];
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return jsonResponse({ error: 'User not found' }, { status: 404 });
     }
 
     // 4. Tier gate — `aiQuestionsPerDay`. We count user-role messages
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
       dailyRemaining = Math.max(0, dailyLimit - usedToday);
 
       if (usedToday >= dailyLimit) {
-        return NextResponse.json(
+        return jsonResponse(
           {
             error: 'daily_limit_reached',
             limit: dailyLimit,
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
     const result = await chatComplete(env, { messages });
     if (!result.ok) {
       logger.error('[chat] all providers failed', { error: result.error });
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'AI providers unavailable, please try again later' },
         { status: 503 },
       );
@@ -178,7 +179,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. Respond
-    return NextResponse.json({
+    return jsonResponse({
       reply: result.reply,
       modelUsed: `${result.provider}/${result.modelUsed}`,
       latencyMs: result.latencyMs,
@@ -188,7 +189,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     logger.error('[chat] unhandled', { error: String((err as any)?.message ?? err) });
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'Internal server error' },
       { status: 500 },
     );

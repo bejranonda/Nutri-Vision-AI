@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Every API route except `/api/health` was returning responses with no `Cache-Control` header
+
+Bug-hunt May 2026 UX-audit pass: sweep of every `/api/*` endpoint showed only `/api/health` was returning `Cache-Control: no-store`. The other 12 routes (`auth/login`, `auth/me`, `auth/register`, `auth/logout`, `chat`, `analyze` 400s, `promo/redeem`, `voucher/check`, all `admin/*`) shipped responses with no `Cache-Control` at all. Each of those carries personalized data (user records), per-request identifiers (`requestId`), or session-tied state — none safe for an intermediate cache to store.
+
+Cloudflare's edge happens not to cache cookie-bearing responses by default, so real-world blast radius was small. But relying on that is fragile and varies by edge-cache configuration — explicit `Cache-Control: no-store` is the contract.
+
+**Fix**: new `lib/api-response.ts` exports `jsonResponse(body, init?)` — a thin wrapper around `NextResponse.json` that defaults `Cache-Control: no-store` on every API response. All 13 API routes migrated to use it. The escape hatch (caller-supplied `Cache-Control` overrides the default) is preserved for the hypothetical future "cacheable manifest" route, but opting out has to be visible at the call site.
+
+**Locked in by test**: `tests/api-response.test.ts` walks every `src/app/api/**/route.ts` file and asserts `NextResponse.json(...)` doesn't appear in live code. Any new route that uses the unwrapped `NextResponse.json` now fails CI.
+
+Touched:
+- `lib/api-response.ts` — **new file**, single `jsonResponse` export.
+- All 13 routes under `src/app/api/**/route.ts` — migrated from `NextResponse.json(...)` to `jsonResponse(...)`. Import line updated; the explicit `Cache-Control: 'no-store'` that some routes (`/analyze` success, `/health`) already passed is harmless (helper merges it the same way).
+- `tests/api-response.test.ts` — **new file**, 5 helper-shape tests + per-route invariant enforcement (14 generated test cases, one per route file). Project total: **134/134 passing** (was 115/115).
+- `tests/analyze-fallback.test.ts` — updated the `fallbackProviderError` regex to accept either `NextResponse.json` or `jsonResponse` at the call site (post-migration).
+
 ### Added — `fallbackProviderError` field on `/api/analyze` 503 responses
 
 Bug-hunt May 2026, Request ID `qh0f02ft` (drink_snack mode): both the Gemini cascade AND the CF safety-net failed. The 503 response surfaced `primaryProviderError: 'The operation was aborted'` (Gemini) but **nothing about CF's failure** — only the auto-correction retry's last error in `details`. Operators couldn't tell whether CF actually failed first or whether CF wasn't even tried.

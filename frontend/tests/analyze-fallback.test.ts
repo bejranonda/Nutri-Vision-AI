@@ -109,8 +109,12 @@ describe('analyze fallback — Gemini vision cascade', () => {
     // the pattern `fallbackProviderError = cfErr.message` to confirm
     // it's captured at the right call site (not just declared).
     expect(source).toMatch(/fallbackProviderError\s*=\s*cfErr\.message/);
-    // Must surface in the 503 response body, not just in logs.
-    expect(source).toMatch(/return\s+NextResponse\.json\(\{[\s\S]*?fallbackProviderError[\s\S]*?\}\s*,\s*\{\s*status:\s*503/);
+    // Must surface in the 503 response body, not just in logs. Post-PR
+    // (Cache-Control sweep): the route uses the `jsonResponse` helper
+    // from `@/lib/api-response` which forces Cache-Control: no-store
+    // on every API response. Either `NextResponse.json` (legacy) or
+    // `jsonResponse` (current) at the call site is acceptable.
+    expect(source).toMatch(/return\s+(?:NextResponse\.json|jsonResponse)\(\{[\s\S]*?fallbackProviderError[\s\S]*?\}\s*,\s*\{\s*status:\s*503/);
   });
 
   it('cascade order: Gemini is primary, Cloudflare Workers AI is fallback', () => {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users, sessions } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
         const token = await getSessionToken();
 
         if (!token) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+            return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const env = await getEnv();
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
             ).limit(1);
 
         if (activeSessions.length === 0) {
-            return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
+            return jsonResponse({ error: 'Invalid or expired session' }, { status: 401 });
         }
 
         const session = activeSessions[0];
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
         const user = foundUsers[0];
 
         if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return jsonResponse({ error: 'User not found' }, { status: 404 });
         }
 
         // Helper to check if trial is expired to quickly downgrade if necessary
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
             // await db.update(users).set({ subscriptionTier: 'free' }).where(eq(users.id, user.id));
         }
 
-        return NextResponse.json({
+        return jsonResponse({
             user: {
                 id: user.id,
                 email: user.email,
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         // Server-side only — never return error.message to the client.
         console.error('Session retrieval error:', error);
-        return NextResponse.json(
+        return jsonResponse(
             { error: 'Internal server error' },
             { status: 500 }
         );

@@ -9,6 +9,7 @@
  * route is a pure admin override and leaves no trial timer.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '@/db';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(() => null);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+    return jsonResponse(zodFailure(parsed.error), { status: 400 });
   }
   const { userId, tier } = parsed.data;
 
@@ -39,14 +40,14 @@ export async function POST(req: NextRequest) {
   try {
     env = await getEnvSafe();
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
   const db = getDb(env);
 
   const existing = await db.select({ id: users.id, email: users.email, currentTier: users.subscriptionTier })
     .from(users).where(eq(users.id, userId)).limit(1);
   if (existing.length === 0) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    return jsonResponse({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest) {
       from: existing[0].currentTier,
       to: tier,
     });
-    return NextResponse.json({ ok: true, tier });
+    return jsonResponse({ ok: true, tier });
   } catch (e) {
     logger.error('[ADMIN_ACTION] tier update failed', { e });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 }
