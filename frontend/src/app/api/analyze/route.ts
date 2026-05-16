@@ -429,12 +429,24 @@ export async function POST(req: NextRequest) {
         };
 
         let failedJsonText = '';
-        // Captured so the outer catch's response can surface the original
-        // Cloudflare-primary failure alongside Google's. Without this, an
-        // operator looking at a 503 response only sees the LAST error in
-        // the chain (Google's 429), and the actual root cause (CF model
-        // retired, AI binding missing, etc.) is silently dropped.
+        // Captured so the outer catch's 503 response surfaces the full
+        // chain instead of just the LAST error:
+        //   - primaryProviderError: the Gemini-cascade failure that
+        //     kicked the request into the CF safety-net (was originally
+        //     called "primary" when CF was primary; semantics shifted
+        //     after PR #27 but the field name is preserved for clients
+        //     that already parse it).
+        //   - fallbackProviderError: the CF safety-net failure when CF
+        //     ALSO fails (timeout, returned non-JSON, validation throws).
+        //     Without this, an operator looking at a 503 only sees the
+        //     auto-correction retry's error in `details` and can't tell
+        //     which provider gave up first. Bug-hunt May 2026, Request
+        //     ID `qh0f02ft` (drink_snack mode): both providers failed,
+        //     diagnostic chain showed `primaryProviderError: 'The
+        //     operation was aborted'` but `failedJson: (empty)` — no
+        //     signal at all about what CF actually did.
         let primaryProviderError: string | null = null;
+        let fallbackProviderError: string | null = null;
 
         try {
             const googleKey = env.GOOGLE_AI_API_KEY;
@@ -469,8 +481,17 @@ export async function POST(req: NextRequest) {
                         primaryProviderError = gErr.message;
                         if (env.AI) {
                             logger.info(`🔄 SCAN FALLBACK [${requestId}] | Gemini cascade failed (${gErr.message?.substring(0, 120)}), trying Cloudflare Workers AI...`);
-                            aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 20000);
-                            usedModel = 'cloudflare-llama-3.2-11b';
+                            // Capture CF errors into `fallbackProviderError`
+                            // before re-throwing so the outer 503 response
+                            // surfaces both providers' failures, not just
+                            // the auto-correction retry's last error.
+                            try {
+                                aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 20000);
+                                usedModel = 'cloudflare-llama-3.2-11b';
+                            } catch (cfErr: any) {
+                                fallbackProviderError = cfErr.message;
+                                throw cfErr;
+                            }
                         } else {
                             throw gErr;
                         }
@@ -564,11 +585,20 @@ export async function POST(req: NextRequest) {
                 error: 'AI analysis failed',
                 message: 'Food analysis is temporarily unavailable. Our AI models are currently under high load. Please try again in a moment.',
                 details: aiError.message,
-                // Echo the Cloudflare-primary error if it's what kicked us
-                // into the Google cascade. Without this, an outer 503 only
-                // shows the LAST error (Google), and operators have no way
-                // to see whether the primary provider needs attention.
+                // Provider-specific diagnostic chain. Together with
+                // `details` (the auto-correction retry's last error) this
+                // gives operators the full "who failed and how" picture
+                // on a single curl, no log access required.
+                //   primaryProviderError:  Gemini cascade failure (or
+                //                          null if Gemini wasn't tried)
+                //   fallbackProviderError: CF safety-net failure (or
+                //                          null if CF wasn't tried OR
+                //                          CF succeeded but later
+                //                          validation rejected its JSON
+                //                          — that case shows up in
+                //                          `failedJson` instead)
                 primaryProviderError,
+                fallbackProviderError,
                 failedJson: failedJsonText, // Send broken JSON to client debug panel
                 requestId,
                 durationMs: aiDurationMs
