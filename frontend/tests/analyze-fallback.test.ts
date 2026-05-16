@@ -92,6 +92,27 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(source).toContain('primaryProviderError');
   });
 
+  it('route surfaces the safety-net failure as `fallbackProviderError`', () => {
+    // Bug-hunt May 2026 (Request ID qh0f02ft, drink_snack mode): both
+    // Gemini cascade AND CF safety-net failed. Response showed
+    // `primaryProviderError: 'The operation was aborted'` (Gemini) but
+    // nothing about CF's failure — only the auto-correction retry's
+    // last error in `details`. Operators couldn't tell whether CF
+    // actually failed first or whether CF wasn't even tried.
+    //
+    // `fallbackProviderError` is captured in runInferenceWithValidation
+    // around the CF call BEFORE re-throwing, so the outer 503 response
+    // carries both providers' failures simultaneously.
+    const source = readFileSync(ANALYZE_ROUTE, 'utf8');
+    expect(source).toContain('fallbackProviderError');
+    // Must be assigned inside the CF-fallback catch block — looking for
+    // the pattern `fallbackProviderError = cfErr.message` to confirm
+    // it's captured at the right call site (not just declared).
+    expect(source).toMatch(/fallbackProviderError\s*=\s*cfErr\.message/);
+    // Must surface in the 503 response body, not just in logs.
+    expect(source).toMatch(/return\s+NextResponse\.json\(\{[\s\S]*?fallbackProviderError[\s\S]*?\}\s*,\s*\{\s*status:\s*503/);
+  });
+
   it('cascade order: Gemini is primary, Cloudflare Workers AI is fallback', () => {
     // Bug-hunt May 2026: CF Llama 3.2 11B vision is unreliable (returns
     // wrong dish names with 100% confidence — "Pineapple" for Shrimp

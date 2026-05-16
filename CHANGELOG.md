@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `fallbackProviderError` field on `/api/analyze` 503 responses
+
+Bug-hunt May 2026, Request ID `qh0f02ft` (drink_snack mode): both the Gemini cascade AND the CF safety-net failed. The 503 response surfaced `primaryProviderError: 'The operation was aborted'` (Gemini) but **nothing about CF's failure** — only the auto-correction retry's last error in `details`. Operators couldn't tell whether CF actually failed first or whether CF wasn't even tried.
+
+Now the response carries `fallbackProviderError` alongside `primaryProviderError`:
+
+```json
+{
+  "error": "AI analysis failed",
+  "details": "...",                              // last error in chain (auto-correction retry)
+  "primaryProviderError": "The operation was aborted",  // Gemini cascade
+  "fallbackProviderError": "CF timeout after 20s",      // CF safety-net  ← NEW
+  "failedJson": "...",                           // CF's raw response if it returned anything
+  "requestId": "..."
+}
+```
+
+The full chain ("who failed and how") is now visible on a single curl, no log access required. **This continues the diagnostic-dividend pattern from PRs #23 + #25**: each surface added makes the next session's bug findable in one probe instead of multiple round trips.
+
+Touched:
+- `app/api/analyze/route.ts` — wrapped the CF safety-net call in a try/catch that captures `cfErr.message` into `fallbackProviderError` before re-throwing. Surfaces in the 503 response body. Inline comment explains how it interacts with `failedJson` (which still captures CF's raw response when CF DID return but the content failed validation).
+- `tests/analyze-fallback.test.ts` — new regression case asserts the field is captured at the right call site (`fallbackProviderError = cfErr.message`) AND surfaced in the 503 response shape (not just declared). Project total: **115/115 tests passing** (was 114/114).
+
 ### Fixed — CF safety-net fallback was truncating its JSON output (default `max_tokens` too low)
 
 User report: scan 503 with Request ID `02tf04hd` on the Thai locale (user is on premium tier — not a quota issue). Direct probe (Request ID `eh0dzg8k`) surfaced the diagnostic chain via PR #23's `primaryProviderError` + PR #25's `failedJson` preview:
