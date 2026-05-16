@@ -136,6 +136,31 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### CF safety-net was truncating JSON mid-stream — default `max_tokens` too low (May 2026)
+
+**Symptom**: scan 503 on the Thai locale, Request ID `02tf04hd` (user-facing), `eh0dzg8k` (diagnostic probe). User was on the premium tier (∞ scans/month), so not a quota issue.
+
+**Root cause**, surfaced by the existing `primaryProviderError` + `failedJson` diagnostic surfaces in one probe:
+
+```
+primaryProviderError: 'The operation was aborted'
+failedJson:           {"isFood":true,"dishes":[{"name":"ข้าวผัด",
+                       "detectedItems":["🥔 ข้าว","🐟 น้ำปลา","🥗 ผัก",
+                                        "🍳 ไข่","🌶 พริก",…
+details:              JSON Parse Error: Regex-extracted JSON also
+                       invalid: Expected ',' or ']' …
+```
+
+Two stacked conditions:
+1. **Gemini cascade timed out** (per-model = floor(25s / 3) = 8.3s; when one model genuinely hangs, the AbortController fires and the cascade exits — by design, since hangs aren't fixable by trying a sibling model).
+2. **CF safety-net was invoked, correctly identified the food** ("ข้าวผัด" / fried rice in Thai), but stopped mid-array because the CF Workers AI default `max_tokens` for `@cf/meta/llama-3.2-11b-vision-instruct` is ~256 tokens. A verbose Thai response (long `detectedItems` array + multi-byte UTF-8 chars) easily exceeds that budget. The JSON parser saw an unclosed `["…","…",` and the route returned 503.
+
+The Gemini call had been passing `maxOutputTokens: 4096` all along; the CF call site never had the equivalent. The bug was invisible while CF was failing for other reasons (5016 license, image format), and only became observable once both of those were fixed (PRs #25 + #26) AND the cascade started actually falling through to CF (which happens whenever Gemini is slow or rate-limited).
+
+**Fix**: pass `max_tokens: 4096` on both CF call sites in `attemptAiInference` (initial inference + post-license-accept retry). Matches the Gemini budget. The `prompt: 'agree'` license-acceptance ping doesn't need it (default 256 is fine for a ~10-token reply).
+
+**Diagnostic note**: this 503 was diagnosable in **one probe** because the response body carries `primaryProviderError` (PR #23) and `failedJson` preview (existed before #23). Each prior session's bug took multiple round trips because the diagnostic chain wasn't there yet. The investment in diagnostic surfaces compounds: every subsequent 503 starts at the root cause, not at "well, the user-facing message is generic — let me probe and see."
+
 ### Rate limiting silently failed open in production — `caches.default` doesn't persist between OpenNext requests (May 2026)
 
 **Symptom**: 40 parallel requests to `/api/voucher/check` (limit 30 / min) all returned 200. 12 consecutive bad-credential `/api/auth/login` attempts all returned 401 (limit was 10 / 15min). No 429s anywhere. Brute-force protection for the pilot launch was effectively absent.
