@@ -172,7 +172,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health shape) | Vitest | `frontend/tests/*.test.ts` (10 files) | **113** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA) | Vitest | `frontend/tests/*.test.ts` (12 files) | **143** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -186,6 +186,33 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 ### When a bug makes it to production
 
 Follow `ITERATION_PROCESS.md §6` — the fix PR must add the missing regression test that would have caught the bug, and (if the bug is a class of thing rather than a one-off typo) extend the automated check suite so the whole class is prevented.
+
+### Probe response headers, not just bodies — UX audit checklist
+
+Bug-hunt May 2026 round 2 caught 12 of 13 `/api/*` routes shipping responses with **no `Cache-Control` header**. Bug-hunt round 3 caught HTML responses missing `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`. None of these were visible from reading code — `NextResponse.json` *seems* fine; it just silently doesn't set the headers you want. Only an HTTP-level probe surfaces these gaps.
+
+**Rule**: when changing any `/api/*` route OR any HTML page surface, run the response-header sweep:
+
+```bash
+# API surface
+for endpoint in auth/me auth/login auth/register auth/logout chat \
+                promo/redeem voucher/check?code=x health analyze; do
+  curl -sS -D - -o /dev/null -X POST \
+    "https://shinnyguide.autobahn.bot/api/$endpoint" \
+    -H 'Content-Type: application/json' -d '{}' \
+  | grep -i '^cache-control'
+done
+
+# HTML surface
+curl -sS -D - -o /dev/null https://shinnyguide.autobahn.bot/th \
+  | grep -iE '^(strict-transport-security|content-security-policy|x-frame-options|x-content-type-options|referrer-policy|permissions-policy)'
+```
+
+Expected:
+- Every `/api/*` response: `Cache-Control: no-store` (enforced at CI time by `tests/api-response.test.ts` — `NextResponse.json(...)` is forbidden in live code; routes must use `jsonResponse()` from `lib/api-response.ts`).
+- Every HTML page: HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` locking everything except camera.
+
+A missing header is just as much a bug as a missing field — it's just invisible from inside the code.
 
 ### "Doesn't throw" is not the same as "works" — enforcement testing
 

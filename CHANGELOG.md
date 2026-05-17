@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Security headers + PWA manifest + multi-locale sitemap (UX round 3)
+
+UX-audit round 3 probed HTML pages and discovered systemic gaps that no user had reported but that affected privacy, install UX, and SEO:
+
+| Gap | Surface | Fix |
+|---|---|---|
+| No `X-Frame-Options` | every HTML page | `next.config.js` headers → `DENY` (no iframe-embed use case) |
+| No `Referrer-Policy` | every HTML page | → `strict-origin-when-cross-origin` (stops leaking `?debug=1` URLs to third-party CDNs) |
+| No `Permissions-Policy` | every HTML page | → `camera=(self)` only; mic/geo/payment/usb/sensors all off |
+| `/manifest.webmanifest` → 404 | mobile users | `src/app/manifest.ts` (Next.js convention) — enables Add-to-Home-Screen |
+| `/sitemap.xml` → 404 | search engines | `src/app/sitemap.ts` — public surfaces only (`/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login`) with `hreflang` alternates across all 4 locales |
+
+**Excluded by design from sitemap**: `/dashboard`, `/chat` (auth-gated; indexing them points search users at a redirect-to-login experience), `/admin/*`, `/api/*`.
+
+**CSP not included**: Content-Security-Policy would require a full audit of every inline style/script Next.js emits, plus the dev-mode HMR client's `unsafe-eval`. Tracked as a follow-up in `KNOWN_ISSUES.md`.
+
+Touched:
+- `next.config.js` — `headers()` block applies the three security headers to every non-`/api/*` route. API routes already set `Cache-Control: no-store` via `lib/api-response.ts` and don't render HTML, so framing/referrer headers don't apply.
+- `src/app/manifest.ts` — **new file**, returns `MetadataRoute.Manifest`. Brand colour tokens (`#ec7064` theme, `#fff5f5` background) match `globals.css`.
+- `src/app/sitemap.ts` — **new file**, returns `MetadataRoute.Sitemap`. Auto-generated entries cover all 4 locales × 6 public paths = 24 hreflang-linked URLs.
+- `tests/seo-pwa.test.ts` — **new test file**, **9 cases** pinning manifest + sitemap shape: brand colours, standalone-portrait display, auth-gated routes excluded, every entry carries `hreflang` alternates for all 4 locales, absolute URLs. Project total: **143/143 tests passing** (was 134/134).
+- `docs/KNOWN_ISSUES.md` — Resolved entry; CSP follow-up + `/icon.png` 404 (separate deployment issue, not addressed in this PR) documented.
+
 ### Fixed — Every API route except `/api/health` was returning responses with no `Cache-Control` header
 
 Bug-hunt May 2026 UX-audit pass: sweep of every `/api/*` endpoint showed only `/api/health` was returning `Cache-Control: no-store`. The other 12 routes (`auth/login`, `auth/me`, `auth/register`, `auth/logout`, `chat`, `analyze` 400s, `promo/redeem`, `voucher/check`, all `admin/*`) shipped responses with no `Cache-Control` at all. Each of those carries personalized data (user records), per-request identifiers (`requestId`), or session-tied state — none safe for an intermediate cache to store.
