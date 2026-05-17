@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/sitemap.xml` still 404 after PR #36; moved handler to `/api/sitemap` behind a rewrite
+
+Post-deploy validation of PR #36 caught its sitemap fix didn't actually fix anything: `/sitemap.xml` continued returning 404 in production even after dropping the `app/sitemap.ts` convention for an explicit `app/sitemap.xml/route.ts` handler. The localised 404 page from the same PR shipped correctly (response carried `ขออภัย` / Shinny brand / 32KB body — vs the framework's 7.5KB default), but the sitemap stayed broken.
+
+Suspected cause: Next.js's `sitemap.{js,ts,xml,jsx,tsx}` special-filename recognition collides with a dotted folder name like `sitemap.xml/`. Either Next.js itself or the OpenNext-on-Cloudflare-Pages adapter ends up treating the folder as a malformed convention file and skips it during route registration. No build warning, no log entry — just a 404.
+
+Fix: move the handler to a non-dotted path that the adapter handles reliably (`/api/sitemap` — the most thoroughly-tested surface) and add a `next.config.js` rewrite so the public URL stays `/sitemap.xml`. Search engines and robots.txt links don't notice; the rewrite is transparent.
+
+Touched:
+- `src/app/api/sitemap/route.ts` — **new path**, identical handler logic moved from `src/app/sitemap.xml/route.ts`. Inline comment records PR #34 → #36 → this PR's iteration trail so the next person doesn't re-discover the dotted-folder trap.
+- `src/app/sitemap.xml/` — **deleted** (folder removed; `route.ts` moved as above).
+- `next.config.js` — added `rewrites()` mapping `/sitemap.xml` → `/api/sitemap`.
+- `.gitignore` — removed the PR #36 carve-out (`!frontend/src/app/sitemap.xml/`) since the folder no longer exists. Back to clean state.
+- `tests/seo-pwa.test.ts` — updated the sitemap test's import path to `@/app/api/sitemap/route`. No test logic changed. Project total: **158/158 passing**.
+
+Diagnostic note: PR #36's CHANGELOG entry promised "explicit `route.ts` always works on every adapter". That claim was wrong for dotted folder names. **Revised rule**: explicit `route.ts` only beats the convention when the folder path is alphanumeric — dotted paths still collide with Next.js's special-filename recognition. `/api/*` is the universally-safe location; pair with `rewrites()` for the public-facing URL.
+
 ### Fixed — `/sitemap.xml` 404 + locale-aware 404 page not actually rendering (UX round 4 post-deploy validation)
 
 Round 4 (PR #35) shipped `app/sitemap.ts` (Next.js convention) and `app/[locale]/not-found.tsx`. Local tests passed; production probes after deploy showed two real-world failures:

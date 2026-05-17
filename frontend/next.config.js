@@ -34,6 +34,28 @@ const nextConfig = {
    * audit of every inline style/script Next.js emits (plus the
    * dev-mode HMR client's `unsafe-eval`). Tracked as a follow-up.
    */
+  /**
+   * URL rewrite so `/sitemap.xml` lands at `/api/sitemap`.
+   *
+   * Background: Next.js's `app/sitemap.ts` convention and the
+   * subsequent `app/sitemap.xml/route.ts` attempt both 404'd on
+   * OpenNext-on-Pages (PR #34 → #36 → this PR). The cause is opaque
+   * but tied to Next.js's `sitemap.{js,ts,xml}` special-filename
+   * recognition not surviving the adapter's route compilation.
+   *
+   * Workaround: serve the sitemap from the well-tested `/api/*`
+   * surface and rewrite the public-facing URL. Search engines and
+   * the robots.txt entry can still link to `/sitemap.xml` — the
+   * rewrite is transparent to the client.
+   */
+  async rewrites() {
+    return [
+      {
+        source: '/sitemap.xml',
+        destination: '/api/sitemap',
+      },
+    ];
+  },
   async headers() {
     return [
       {
