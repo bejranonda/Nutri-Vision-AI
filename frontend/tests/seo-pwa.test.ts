@@ -15,11 +15,10 @@
  * have an image", "search engines see all four locales", or "the
  * 404 page shows in the user's language".
  */
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import manifest from '@/app/manifest';
-import { GET as sitemapGET } from '@/app/api/sitemap/route';
 import { locales } from '@/lib/i18n-config';
 
 describe('PWA manifest', () => {
@@ -60,24 +59,18 @@ describe('PWA manifest', () => {
   });
 });
 
-describe('Sitemap (route handler at /sitemap.xml)', () => {
-  // The PR-#34 `app/sitemap.ts` convention silently 404'd in
-  // production on the OpenNext-on-Pages adapter. PR-#36 swapped to an
-  // explicit `app/sitemap.xml/route.ts` GET handler that returns XML
-  // directly — same content, lower-level routing primitive that the
-  // adapter handles reliably.
-  let xmlBody: string;
-  let response: Response;
-
-  beforeAll(async () => {
-    response = await sitemapGET();
-    xmlBody = await response.clone().text();
-  });
-
-  it('returns 200 with application/xml content-type', () => {
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toMatch(/application\/xml/);
-  });
+describe('Sitemap (static file at /public/sitemap.xml)', () => {
+  // History of this surface:
+  //   PR #34: app/sitemap.ts (Next.js convention)               → 404 on OpenNext-on-Pages
+  //   PR #36: app/sitemap.xml/route.ts (dotted folder)          → 404 (collides with sitemap.* convention)
+  //   PR #37: app/api/sitemap/route.ts + next.config rewrites() → /api/sitemap works, rewrite doesn't fire
+  //   PR #38: static /public/sitemap.xml                        → ✓ bulletproof
+  //
+  // The static-file path loses the dynamic generation but gains
+  // predictable serving. Update the file by hand (or via the
+  // pre-build script) when adding a locale or public path.
+  const xmlPath = resolve(__dirname, '../public/sitemap.xml');
+  const xmlBody = readFileSync(xmlPath, 'utf8');
 
   it('serves a well-formed sitemap envelope', () => {
     expect(xmlBody).toMatch(/^<\?xml version="1\.0"/);
@@ -93,29 +86,19 @@ describe('Sitemap (route handler at /sitemap.xml)', () => {
   });
 
   it('excludes auth-gated and admin routes', () => {
-    // /dashboard and /chat require auth — indexing them points search
-    // users at a redirect-to-login.
     expect(xmlBody).not.toContain('/dashboard');
     expect(xmlBody).not.toContain('/chat');
-    // /admin is never appropriate to index.
     expect(xmlBody).not.toContain('/admin');
-    // /api/* is never user-facing.
     expect(xmlBody).not.toContain('/api/');
   });
 
   it('every entry has hreflang alternates covering all 4 locales', () => {
-    // Without this, search engines don't know /th/scan and /en/scan
-    // are the same page in different languages — they'd treat them as
-    // duplicate-content competitors.
     for (const locale of locales) {
       expect(xmlBody).toContain(`hreflang="${locale}"`);
     }
   });
 
   it('uses absolute URLs against the production host', () => {
-    // Relative URLs in sitemaps are technically allowed but many
-    // crawlers handle them inconsistently. Absolute is the safe form.
-    // Extract every <loc> and confirm.
     const locs = Array.from(xmlBody.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1]);
     expect(locs.length).toBeGreaterThan(0);
     for (const loc of locs) {

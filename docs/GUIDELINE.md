@@ -172,7 +172,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **158** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **156** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -235,13 +235,15 @@ done
 
 Expected: every locale has an `og:image` and `twitter:image` tag; the 404 title is in that locale's language.
 
-**Convention vs explicit handler rule of thumb** (post-PR #36, revised by PR #37): Next.js's App Router file conventions (`app/sitemap.ts`, `app/manifest.ts`, `app/icon.png`, etc.) are convenient but unevenly supported on OpenNext-on-Cloudflare-Pages. When a convention 404s in production, follow this escalation:
+**Convention vs explicit handler rule of thumb** (v3, post-PR #38 — the session iterated four times on `/sitemap.xml` before landing on the final form): Next.js's App Router file conventions and routing primitives are unevenly supported on OpenNext-on-Cloudflare-Pages. When a convention 404s in production, follow this **final** escalation:
 
-1. **First**: try the convention file (`app/manifest.ts` ✓, `app/sitemap.ts` ✗). Fast if it works.
-2. **If 404**: do **not** try `app/<name>.<ext>/route.ts` — dotted folder names collide with Next.js's `<name>.{js,ts,xml,jsx,tsx}` special-filename recognition. PR #36 tried this for `/sitemap.xml` and ALSO 404'd.
-3. **Last resort**: move the handler to `/api/<name>/route.ts` (the universally-safe surface) and add a `rewrites()` rule in `next.config.js` to expose at the public URL. The rewrite is transparent to clients, search engines, and robots.txt links. See PR #37 for the working `/sitemap.xml` setup.
+1. **First**: try the convention file (`app/manifest.ts` ✓, `app/sitemap.ts` ✗ on this adapter). Fast if it works.
+2. **If 404**: do **not** try `app/<name>.<ext>/route.ts` — dotted folder names collide with Next.js's `<name>.{js,ts,xml,jsx,tsx}` special-filename recognition. PR #36 verified this fails for `/sitemap.xml`.
+3. **Do not** try `app/api/<name>/route.ts` + `next.config.js → rewrites()` — `rewrites()` doesn't fire on this adapter. PR #37 verified: `/api/sitemap` returned 200 + correct XML, but the rewrite from `/sitemap.xml` → `/api/sitemap` never triggered. `/sitemap.xml` stayed 404.
+4. **If the content can be pre-rendered**: ship a **static file in `/public/`**. Cloudflare Pages serves these reliably. PR #38 did this for `/sitemap.xml`. Trade dynamic generation for bulletproof serving. Manual updates when source data changes are fine for low-frequency content (locale lists, public-path inventory).
+5. **If the content MUST be dynamic at request time**: accept that the public URL has to be `/api/<name>` directly. Update `robots.txt` (or equivalent discovery surface) to point at the API path. The canonical URL is just a convention.
 
-Trade-off across all three: convention buys typed return values; explicit handler buys predictable serving. For URLs that must be at a fixed path (sitemap, robots, well-known JSON files), reliability beats typing.
+Trade-off across all five: convention buys typed return values; explicit handler buys typed route handler; static file buys nothing but reliability. For URLs that must be at a fixed path (sitemap, robots, well-known JSON files), reliability beats every other concern.
 
 Same lesson for nested `not-found.tsx` in dynamic segments: OpenNext-on-Pages short-circuits to a static 404 fallback before the layout chain runs. Add a catch-all `[...slug]/page.tsx` in the segment that calls `notFound()` to force the chain to execute. See PR #36 + `KNOWN_ISSUES.md → Next.js App Router file conventions are unreliable on OpenNext-on-Cloudflare-Pages`.
 

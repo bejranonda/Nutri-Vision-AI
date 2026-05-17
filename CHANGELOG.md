@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/sitemap.xml` still 404 after PR #37; switched to static file in `/public/`
+
+PR #37 moved the handler to `/api/sitemap` and added `next.config.js → rewrites()` to expose at `/sitemap.xml`. Post-deploy probing isolated the failure cleanly:
+
+```
+/api/sitemap   → 200, application/xml, 3587 bytes  ✓ handler works
+/sitemap.xml   → 404                               ✗ rewrite doesn't fire
+```
+
+**`next.config.js → rewrites()` doesn't run on OpenNext-on-Cloudflare-Pages**. Likely cause: Next.js compiles rewrites into Vercel-specific edge middleware that the OpenNext adapter doesn't translate. Four iterations on this surface (#34 convention → #36 dotted folder → #37 API + rewrite → now) is enough.
+
+**Fix**: drop the rewrite plumbing entirely. Ship `/public/sitemap.xml` as a static file. Cloudflare Pages serves `/public/*` reliably (already proven for `/images/shinny_avatar.png`). Loses dynamic generation; gains bulletproof serving.
+
+Touched:
+- `frontend/public/sitemap.xml` — **new static file**, 3587 bytes, same content as the dynamic handler produced. Update by hand when adding a locale or public path (`src/lib/i18n-config.ts → locales` change → regenerate this file).
+- `frontend/src/app/api/sitemap/` — **deleted**.
+- `frontend/next.config.js` — removed the `rewrites()` block (it doesn't run on the adapter).
+- `.gitignore` — carve-out for `frontend/public/sitemap.xml` (the existing `*.xml` rule matches by name).
+- `tests/seo-pwa.test.ts` — reads the static file directly via `readFileSync`. Same 5 invariants (well-formed envelope, home + scan entries, auth-gated routes excluded, hreflang for all 4 locales, absolute URLs). 156/156 passing.
+
+**Revised escalation rule** (this is now version 3 — the session has been honest about its own iterations):
+1. Try the Next.js convention file (`app/manifest.ts` ✓, `app/sitemap.ts` ✗).
+2. **Do NOT** try `app/<name>.<ext>/route.ts` — dotted-folder collision.
+3. **Do NOT** try `app/api/<name>/route.ts` + `rewrites()` — rewrites don't fire on this adapter.
+4. **DO** ship a static file in `/public/` if the content can be pre-rendered.
+
+The audit playbook in `GUIDELINE.md` is updated accordingly.
+
 ### Fixed — `/sitemap.xml` still 404 after PR #36; moved handler to `/api/sitemap` behind a rewrite
 
 Post-deploy validation of PR #36 caught its sitemap fix didn't actually fix anything: `/sitemap.xml` continued returning 404 in production even after dropping the `app/sitemap.ts` convention for an explicit `app/sitemap.xml/route.ts` handler. The localised 404 page from the same PR shipped correctly (response carried `ขออภัย` / Shinny brand / 32KB body — vs the framework's 7.5KB default), but the sitemap stayed broken.
