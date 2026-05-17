@@ -136,6 +136,30 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### Next.js App Router file conventions are unreliable on OpenNext-on-Cloudflare-Pages — prefer explicit `route.ts` handlers (May 2026 — resolved)
+
+**Symptom**: Round 4 (PR #35) shipped two Next.js convention files. After deploy, production probes showed only one worked:
+
+```
+/manifest.webmanifest  (from app/manifest.ts)   → 200 ✓
+/sitemap.xml           (from app/sitemap.ts)    → 404 ❌
+```
+
+No build error in either case — the adapter just silently dropped the sitemap one. Same family of convention, opaque difference.
+
+Separately, `app/[locale]/not-found.tsx` shipped in the same PR also didn't render on production. Probing `/th/no-such-path` returned Next.js's English framework default (`<title>404: This page could not be found.</title>`), zero Thai chars in body, no `<html lang="th">`. The locale segment never executed — the adapter served a static 404 fallback before the layout chain ran.
+
+**Root cause** (suspected, not proven): the OpenNext-on-Cloudflare-Pages adapter handles `manifest.ts` but not `sitemap.ts`; and serves a static 404 before nested `not-found.tsx` files in dynamic segments. Both behaviours are adapter quirks, not Next.js bugs.
+
+**Fix** (PR #36): bypass the conventions and reach for lower-level routing primitives the adapter handles reliably.
+
+- Replaced `app/sitemap.ts` with `app/sitemap.xml/route.ts` — an explicit `GET` returning hand-built XML. Same content, fully under our control.
+- Added `app/[locale]/[...slug]/page.tsx` — a catch-all that calls `notFound()`, forcing the locale segment to enter and the closest `not-found.tsx` (the localized one) to render.
+
+**Rule for future contributors**: when a Next.js file-convention surface is supposed to be reachable at a fixed URL (`/sitemap.xml`, `/robots.txt`, etc.) AND it's broken in production, don't spend time diagnosing the adapter. Drop to `route.ts`. The convention buys you typed return values; the explicit handler buys you predictable serving. The trade is worth it.
+
+**Codified in**: `docs/GUIDELINE.md` → "Probe response headers, not just bodies" gained a "convention vs explicit handler" rule of thumb. The sitemap + locale-404 probes are now in the routine sweep.
+
 ### 404 page rendered fully English on Thai URLs; no og:image on any locale (May 2026 round 4 — resolved)
 
 **Symptom**: probing `/th/this-route-does-not-exist` returned Next.js's default 404 with `<title>404: This page could not be found.</title>` and zero Thai characters anywhere in the response body. Same applied to `/de/...` and `/da/...` — every locale fell through to the English default.

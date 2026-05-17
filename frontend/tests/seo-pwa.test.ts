@@ -15,11 +15,11 @@
  * have an image", "search engines see all four locales", or "the
  * 404 page shows in the user's language".
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import manifest from '@/app/manifest';
-import sitemap from '@/app/sitemap';
+import { GET as sitemapGET } from '@/app/sitemap.xml/route';
 import { locales } from '@/lib/i18n-config';
 
 describe('PWA manifest', () => {
@@ -60,47 +60,66 @@ describe('PWA manifest', () => {
   });
 });
 
-describe('Sitemap', () => {
-  const entries = sitemap();
+describe('Sitemap (route handler at /sitemap.xml)', () => {
+  // The PR-#34 `app/sitemap.ts` convention silently 404'd in
+  // production on the OpenNext-on-Pages adapter. PR-#36 swapped to an
+  // explicit `app/sitemap.xml/route.ts` GET handler that returns XML
+  // directly — same content, lower-level routing primitive that the
+  // adapter handles reliably.
+  let xmlBody: string;
+  let response: Response;
+
+  beforeAll(async () => {
+    response = await sitemapGET();
+    xmlBody = await response.clone().text();
+  });
+
+  it('returns 200 with application/xml content-type', () => {
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toMatch(/application\/xml/);
+  });
+
+  it('serves a well-formed sitemap envelope', () => {
+    expect(xmlBody).toMatch(/^<\?xml version="1\.0"/);
+    expect(xmlBody).toContain('<urlset');
+    expect(xmlBody).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
+    expect(xmlBody).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
+    expect(xmlBody).toMatch(/<\/urlset>\s*$/);
+  });
 
   it('includes the home + scan entries (the highest-priority surfaces)', () => {
-    const urls = entries.map((e) => e.url);
-    // Home is the bare locale root (no path suffix).
-    expect(urls.some((u) => u.endsWith(`/${locales[0]}`))).toBe(true);
-    expect(urls.some((u) => u.endsWith(`/${locales[0]}/scan`))).toBe(true);
+    expect(xmlBody).toMatch(/<loc>https:\/\/shinnyguide\.autobahn\.bot\/th<\/loc>/);
+    expect(xmlBody).toMatch(/<loc>https:\/\/shinnyguide\.autobahn\.bot\/th\/scan<\/loc>/);
   });
 
   it('excludes auth-gated and admin routes', () => {
-    const urls = entries.map((e) => e.url).join(' ');
     // /dashboard and /chat require auth — indexing them points search
     // users at a redirect-to-login.
-    expect(urls).not.toContain('/dashboard');
-    expect(urls).not.toContain('/chat');
+    expect(xmlBody).not.toContain('/dashboard');
+    expect(xmlBody).not.toContain('/chat');
     // /admin is never appropriate to index.
-    expect(urls).not.toContain('/admin');
+    expect(xmlBody).not.toContain('/admin');
     // /api/* is never user-facing.
-    expect(urls).not.toContain('/api/');
+    expect(xmlBody).not.toContain('/api/');
   });
 
   it('every entry has hreflang alternates covering all 4 locales', () => {
     // Without this, search engines don't know /th/scan and /en/scan
     // are the same page in different languages — they'd treat them as
     // duplicate-content competitors.
-    for (const entry of entries) {
-      expect(entry.alternates).toBeDefined();
-      expect(entry.alternates!.languages).toBeDefined();
-      const langs = Object.keys(entry.alternates!.languages!);
-      for (const locale of locales) {
-        expect(langs).toContain(locale);
-      }
+    for (const locale of locales) {
+      expect(xmlBody).toContain(`hreflang="${locale}"`);
     }
   });
 
   it('uses absolute URLs against the production host', () => {
     // Relative URLs in sitemaps are technically allowed but many
     // crawlers handle them inconsistently. Absolute is the safe form.
-    for (const entry of entries) {
-      expect(entry.url).toMatch(/^https:\/\/shinnyguide\.autobahn\.bot\//);
+    // Extract every <loc> and confirm.
+    const locs = Array.from(xmlBody.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1]);
+    expect(locs.length).toBeGreaterThan(0);
+    for (const loc of locs) {
+      expect(loc).toMatch(/^https:\/\/shinnyguide\.autobahn\.bot\//);
     }
   });
 });
@@ -161,6 +180,35 @@ describe('locale-aware 404 page', () => {
     // home for general recovery, scan for the primary feature.
     expect(source).toMatch(/href=\"\/\"/);
     expect(source).toMatch(/href=\"\/scan\"/);
+  });
+});
+
+describe('locale catch-all forces the [locale] segment to enter on unknown paths', () => {
+  // Round 4 follow-up: shipping `app/[locale]/not-found.tsx` alone
+  // wasn't enough — OpenNext-on-Pages was short-circuiting to a
+  // static 404 fallback before the locale segment ran, so `/th/no-such`
+  // still rendered the English framework default with no
+  // `<html lang="th">`. Adding `app/[locale]/[...slug]/page.tsx` that
+  // calls `notFound()` forces the segment chain to execute; Next.js
+  // then finds the closest `not-found.tsx` inside `[locale]/` and
+  // renders it with the locale layout's translations + fonts intact.
+  //
+  // Sibling routes (`/th/scan`, `/th/login`, …) take precedence over
+  // the catch-all by Next.js's specificity rules, so this file only
+  // fires when no explicit child matches.
+  const source = readFileSync(
+    resolve(__dirname, '../src/app/[locale]/[...slug]/page.tsx'),
+    'utf8',
+  );
+
+  it('imports `notFound` from `next/navigation`', () => {
+    expect(source).toMatch(/import\s*\{[^}]*\bnotFound\b[^}]*\}\s*from\s*'next\/navigation'/);
+  });
+
+  it('calls `notFound()` as the route handler', () => {
+    // Body must invoke notFound() — the function whose only job is
+    // to trigger Next.js's not-found render path.
+    expect(source).toMatch(/notFound\(\)/);
   });
 });
 

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/sitemap.xml` 404 + locale-aware 404 page not actually rendering (UX round 4 post-deploy validation)
+
+Round 4 (PR #35) shipped `app/sitemap.ts` (Next.js convention) and `app/[locale]/not-found.tsx`. Local tests passed; production probes after deploy showed two real-world failures:
+
+1. **`/sitemap.xml` → 404** in production, even though `/manifest.webmanifest` from the same Next.js convention family returned 200. OpenNext-on-Cloudflare-Pages handles the `manifest.ts` convention but silently drops the `sitemap.ts` one. No build error, no log entry — just a 404.
+2. **`/th/no-such-path` rendered the English framework default** (`<title>404: This page could not be found.</title>`, zero Thai chars, no `<html lang="th">`). The locale layout never executed — OpenNext was short-circuiting to a static 404 fallback before the segment chain could run.
+
+Both fixed by bypassing the adapter-fragile Next.js conventions and dropping to lower-level routing primitives that the adapter handles reliably:
+
+- **Sitemap**: deleted `src/app/sitemap.ts`; added `src/app/sitemap.xml/route.ts` — an explicit `GET` handler that returns the XML directly with `Content-Type: application/xml`. Same content, lower-level routing.
+- **Locale 404**: added `src/app/[locale]/[...slug]/page.tsx` — a catch-all server component that calls `notFound()`. Forces the locale segment to enter on any unmatched path under `/<locale>/...`. Next.js then renders the closest `not-found.tsx` — which is the localized one inside `[locale]/`. Sibling routes (`/th/scan`, `/th/login`, …) still take precedence over the catch-all by Next.js's specificity rules.
+
+Touched:
+- `src/app/sitemap.ts` — **deleted**.
+- `src/app/sitemap.xml/route.ts` — **new file**, explicit `GET` handler building the XML by hand. Defensive `xmlEscape()` for the `&`-in-URL case.
+- `src/app/[locale]/[...slug]/page.tsx` — **new file**, two-line catch-all that calls `notFound()`.
+- `tests/seo-pwa.test.ts` — rewrote the sitemap tests to invoke the route handler directly and parse the XML body. Added 2 new cases asserting the catch-all source uses `notFound()` from `next/navigation`. Project total: **157/157 tests passing** (was 153/153).
+- `docs/KNOWN_ISSUES.md` — Resolved entry; OpenNext-on-Pages adapter quirks documented so the next contributor knows to reach for explicit handlers when convention-based files silently 404.
+
 ### Added — `og:image` / `twitter:image` + locale-aware 404 page (UX round 4)
 
 Round 4 UX audit probed the rendered HTML for share-preview metadata and the 404 experience. Found two gaps that no user had reported but that broke the share-driven product loop and the locale contract:
