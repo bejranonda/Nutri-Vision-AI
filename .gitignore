@@ -108,11 +108,5 @@ dump.rdb
 # Reference files (internal docs)
 Initial/
 *.xml
-# Carve-out: the `*.xml` rule above matches by *name*, so it also
-# excludes Next.js App Router route directories named e.g.
-# `sitemap.xml/`. Re-include those explicitly. Without this, PR #36's
-# `frontend/src/app/sitemap.xml/route.ts` failed to stage.
-!frontend/src/app/sitemap.xml/
-!frontend/src/app/sitemap.xml/**
 reference.txt
 .claude/settings.local.json

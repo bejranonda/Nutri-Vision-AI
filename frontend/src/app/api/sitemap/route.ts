@@ -1,22 +1,32 @@
 /**
- * GET /sitemap.xml — multi-locale sitemap as an explicit route handler.
+ * GET /api/sitemap → exposed publicly at /sitemap.xml via a
+ * `next.config.js` rewrite. Multi-locale sitemap as an explicit
+ * route handler.
  *
- * History: PR #34 used Next.js's `app/sitemap.ts` convention (returns
- * `MetadataRoute.Sitemap`). That works on stock Next.js + Vercel but
- * **silently 404s on the OpenNext-on-Cloudflare-Pages adapter** —
- * deploy-validated round 3 confirmed `/manifest.webmanifest` (same
- * convention family) returned 200 while `/sitemap.xml` returned 404.
- * No build error, no log entry, just a 404 in production.
+ * History (so the next person doesn't re-discover the bear traps):
  *
- * Rather than spend more time diagnosing the adapter's
- * convention-handling differences, this file bypasses the convention
- * entirely. `route.ts` is the lowest-common-denominator handler in
- * App Router — explicit `GET` returns a `Response` with whatever body
- * we want. Always works on every adapter.
+ *   - PR #34 used Next.js's `app/sitemap.ts` convention (returns
+ *     `MetadataRoute.Sitemap`). Works on stock Next.js + Vercel but
+ *     silently 404'd on OpenNext-on-Cloudflare-Pages. No build error,
+ *     no log entry, just a 404 in production.
  *
- * The trade-off: we lose Next.js's typed `MetadataRoute.Sitemap`
- * helper. In exchange we get explicit XML construction plus a
- * `Content-Type: application/xml` header. Net win.
+ *   - PR #36 moved to `app/sitemap.xml/route.ts` — an explicit GET
+ *     at a dotted folder name. ALSO 404'd on production. Suspected
+ *     collision: Next.js's `sitemap.{js,ts,xml,jsx,tsx}` convention
+ *     recognises the basename `sitemap` and the dotted folder
+ *     `sitemap.xml/` confused either Next.js or the adapter into
+ *     treating it as a malformed convention file.
+ *
+ *   - PR #37 (this file) moves to `/api/sitemap` — a plain API route,
+ *     no dotted folder, no convention collision — and adds a
+ *     `next.config.js` rewrite so the public-facing URL is still
+ *     `/sitemap.xml`. API routes are the most thoroughly-tested
+ *     surface in the adapter; this is the conservative path.
+ *
+ * Trade-offs vs `MetadataRoute.Sitemap`:
+ *   + Lose: typed return value.
+ *   + Gain: explicit XML construction, predictable serving, full
+ *     control over Content-Type header.
  */
 import { locales } from '@/lib/i18n-config';
 

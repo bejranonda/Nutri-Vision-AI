@@ -19,7 +19,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import manifest from '@/app/manifest';
-import { GET as sitemapGET } from '@/app/sitemap.xml/route';
+import { GET as sitemapGET } from '@/app/api/sitemap/route';
 import { locales } from '@/lib/i18n-config';
 
 describe('PWA manifest', () => {
