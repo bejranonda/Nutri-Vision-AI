@@ -108,5 +108,13 @@ dump.rdb
 # Reference files (internal docs)
 Initial/
 *.xml
+# Carve-out: the `*.xml` rule above matches by name, so it also
+# excludes `frontend/public/sitemap.xml` — the static multi-locale
+# sitemap we serve at /sitemap.xml. PRs #34 → #37 tried multiple
+# dynamic approaches (Next.js convention, dotted-folder route.ts,
+# /api/sitemap + rewrites) — all failed on OpenNext-on-Cloudflare-
+# Pages. Static file in /public/ is the bulletproof path. Update
+# this file manually when adding a locale or public path.
+!frontend/public/sitemap.xml
 reference.txt
 .claude/settings.local.json

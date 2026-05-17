@@ -158,10 +158,12 @@ Separately, `app/[locale]/not-found.tsx` shipped in the same PR also didn't rend
 
 **Rule for future contributors (revised after PR #37)**: PR #36 originally said "drop to `route.ts` at the target URL". That worked for the locale-404 catch-all but **not for `/sitemap.xml`** — putting an explicit handler at `app/sitemap.xml/route.ts` (a dotted folder name) ALSO 404'd. Next.js's `sitemap.{js,ts,xml,jsx,tsx}` special-filename recognition collides with the dotted folder.
 
-**Revised rule**:
-1. **Try the convention file first** (`app/manifest.ts`, `app/robots.ts`, etc.) — fastest if it works.
-2. **If the convention 404s in production**, do NOT switch to `app/<name>.<ext>/route.ts` — same trap.
-3. **Move to `/api/<name>/route.ts`** (universally-safe, fully-tested surface) and add a `rewrites()` rule in `next.config.js` to expose at the public URL. Search engines and robots.txt links don't notice; the rewrite is transparent.
+**Final rule** (v3, after PR #38):
+1. **Try the convention file first** (`app/manifest.ts`, `app/robots.ts`, etc.) — fastest if it works. (`manifest.ts` does; `sitemap.ts` doesn't.)
+2. **If the convention 404s in production**, do NOT switch to `app/<name>.<ext>/route.ts` — same trap (PR #36 verified).
+3. **Do NOT** switch to `app/api/<name>/route.ts` + `next.config.js → rewrites()` — `rewrites()` doesn't fire on the adapter (PR #37 verified: `/api/sitemap` returned 200 + correct XML; `/sitemap.xml` still 404'd).
+4. **If the content can be pre-rendered**, ship it as a **static file in `/public/`**. Cloudflare Pages serves these reliably. Trade dynamic generation for bulletproof serving. Manual updates when the source data changes are fine for low-frequency content (locale lists, public-path inventory). PR #38 did this for `/sitemap.xml`.
+5. **If the content MUST be dynamic at request time**, accept that the public URL has to be `/api/<name>` directly. Update `robots.txt` (or equivalent discovery surface) to point at the API path. The canonical URL is just a convention; search engines accept any URL declared in robots.
 
 **Codified in**: `docs/GUIDELINE.md` → "Probe response headers, not just bodies" gained a "convention vs explicit handler" rule of thumb. The sitemap + locale-404 probes are now in the routine sweep.
 
