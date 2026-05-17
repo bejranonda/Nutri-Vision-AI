@@ -136,6 +136,20 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### 404 page rendered fully English on Thai URLs; no og:image on any locale (May 2026 round 4 — resolved)
+
+**Symptom**: probing `/th/this-route-does-not-exist` returned Next.js's default 404 with `<title>404: This page could not be found.</title>` and zero Thai characters anywhere in the response body. Same applied to `/de/...` and `/da/...` — every locale fell through to the English default.
+
+Separately, every locale page rendered HTML head with no `og:image` and no `twitter:image`. Sharing the URL on LINE, Facebook, X, Discord, or Slack rendered a text-only card with no preview — embarrassing for a product whose explicit pitch is "scan your food, share with friends".
+
+**Root cause**:
+1. **404**: there was no `src/app/[locale]/not-found.tsx`. Next.js falls back to the framework default when no local segment defines its own.
+2. **og:image**: the layout's `metadata.openGraph` had `title`/`description`/`type`/`locale` but no `images` array. The Open Graph spec requires an `og:image` for any preview card to render.
+
+**Fix**: locale-aware not-found page using a new `not_found` namespace in all four locale JSONs (`title`, `headline`, `subtitle`, `back_to_home`, `start_scan`); layout metadata extended with `openGraph.images`, `twitter.card`, `twitter.images`, and `metadataBase` so relative paths resolve against the prod origin. Locked in by 10 new test cases.
+
+**Lesson for the audit playbook**: probing arbitrary not-found paths per locale belongs in the routine HTML sweep. The default 404 page looks fine if you only probe `/`, `/scan` etc. — only "rare" paths reveal it.
+
 ### `/icon.png` and `/apple-icon.png` return 404 in production despite existing in `src/app/` (May 2026 round 3)
 
 **Symptom**: HTML head correctly references `<link rel="icon" href="/icon.png?<hash>"/>` (Next.js App Router auto-generates this from `src/app/icon.png`), but the URL itself returns HTTP 404. Every browser tab therefore shows the default browser icon instead of the Shinny logo.

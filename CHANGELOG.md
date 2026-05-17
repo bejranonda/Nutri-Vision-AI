@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `og:image` / `twitter:image` + locale-aware 404 page (UX round 4)
+
+Round 4 UX audit probed the rendered HTML for share-preview metadata and the 404 experience. Found two gaps that no user had reported but that broke the share-driven product loop and the locale contract:
+
+1. **No `og:image` / `twitter:image`** on any locale page. Sharing the homepage on LINE / FB / X / Discord / Slack produced a text-only card with no preview — embarrassing for a product whose explicit pitch is "scan your food, share with friends".
+2. **404 page was fully English** even when hitting Thai URLs. `/th/this-route-does-not-exist` returned the Next.js default with `<title>404: This page could not be found.</title>` and zero Thai characters in body. Breaks the Thai-primary product positioning.
+
+Touched:
+- `src/app/[locale]/layout.tsx` — added `openGraph.images` (1200×630 ratio recommendation, our 640×640 avatar fits both FB + X), `twitter.card: 'summary_large_image'`, `twitter.images`, and `metadataBase: new URL('https://shinnyguide.autobahn.bot')` so relative paths resolve against the prod origin (without it, crawler-side renders point at `localhost`).
+- `src/app/[locale]/not-found.tsx` — **new file**. Localized 404 with the Shinny avatar, two CTAs (Home + Scan) so it's not a dead-end. Uses `next-intl` from the new `not_found` namespace.
+- `src/messages/{th,en,de,da}.json` — new `not_found` namespace with 5 keys × 4 locales = 20 strings. Native phrasing per locale (Thai uses `ค่ะ` polite particle to match the Shinny voice, German uses `möglicherweise verschoben`, etc.).
+- `tests/seo-pwa.test.ts` — **10 new cases** pinning: og:image presence, twitter card type, metadataBase, the 404 page references `useTranslations('not_found')`, every `not_found.*` key gets rendered, both CTAs present, and cross-locale namespace completeness (4 generated tests, one per locale). Project total: **153/153 passing** (was 143/143).
+
 ### Added — Security headers + PWA manifest + multi-locale sitemap (UX round 3)
 
 UX-audit round 3 probed HTML pages and discovered systemic gaps that no user had reported but that affected privacy, install UX, and SEO:

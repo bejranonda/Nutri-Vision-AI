@@ -537,5 +537,12 @@
     "login": "Dieses Feature kommt bald! Authentifizierung wird gerade implementiert.",
     "dashboard": "Dieses Feature kommt bald! Dein persönliches Dashboard wird vorbereitet.",
     "recipes": "Dieses Feature kommt bald! Unsere Köche und KI arbeiten an Rezepten."
+  },
+  "not_found": {
+    "title": "Entschuldigung! 🙏",
+    "headline": "Diese Seite konnte nicht gefunden werden",
+    "subtitle": "Die gesuchte Seite wurde möglicherweise verschoben oder existiert nicht.",
+    "back_to_home": "Zurück zur Startseite",
+    "start_scan": "Scan starten"
   }
 }

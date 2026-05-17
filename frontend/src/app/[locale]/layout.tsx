@@ -14,12 +14,40 @@ export const metadata: Metadata = {
   description: 'AI-powered nutrition analysis with "อร่อย ตาม ลำดับ" (Delicious in Order) food sequencing. Reduce blood sugar spikes by 70% while enjoying the foods you love.',
   keywords: ['nutrition', 'food sequencing', 'blood sugar', 'glycemic index', 'Thai food', 'healthy eating', 'AI nutrition'],
   authors: [{ name: 'Shinny Guide Team' }],
+  // metadataBase lets relative image paths resolve against the
+  // production origin when crawlers + social-card readers fetch the
+  // page. Without this, `images: ['/path']` resolves against
+  // localhost in production responses.
+  metadataBase: new URL('https://shinnyguide.autobahn.bot'),
   openGraph: {
     title: 'Shinny Guide — Smart Food Sequencing',
     description: 'Discover how eating in the right order can transform your health. Veggies → Protein → Carbs → Sweets',
     type: 'website',
     locale: 'en_US',
     alternateLocale: ['th_TH', 'de_DE', 'da_DK'],
+    // UX-audit round 4 (May 2026): probe found no og:image / no
+    // twitter:image on any rendered locale page. Sharing the URL
+    // anywhere (LINE, Facebook, X, Discord, Slack) produced a
+    // text-only card with no preview. The Shinny avatar PNG is
+    // already preloaded on the homepage, so it costs us nothing
+    // extra to reuse as the share image. Spec'd dimensions are the
+    // Open Graph recommended 1200×630 ratio; the actual file is
+    // 640×640, which both Facebook and Twitter accept (gets
+    // letterboxed but stays sharp).
+    images: [
+      {
+        url: '/images/shinny_avatar.png',
+        width: 640,
+        height: 640,
+        alt: 'Shinny — the AI nutrition coach who guides you to eat in the right order',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Shinny Guide — Smart Food Sequencing',
+    description: 'Discover how eating in the right order can transform your health. Veggies → Protein → Carbs → Sweets',
+    images: ['/images/shinny_avatar.png'],
   },
 };
 

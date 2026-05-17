@@ -92,6 +92,7 @@ The analysis pipeline is built for **Edge Reliability**:
 10. **Security headers on every HTML page** via `next.config.js → headers()`: `X-Frame-Options: DENY` (no iframe-embed use case), `Referrer-Policy: strict-origin-when-cross-origin` (stops leaking debug URLs to third-party CDNs), `Permissions-Policy` locking everything except `camera=(self)` for the scan flow. HSTS + `X-Content-Type-Options: nosniff` already set at the Cloudflare edge.
 11. **PWA install support** via `src/app/manifest.ts` — served at `/manifest.webmanifest`. Brand-coloured (theme `#ec7064`, background `#fff5f5`), standalone-portrait display for the mobile-first scan flow.
 12. **Multi-locale sitemap** at `/sitemap.xml` via `src/app/sitemap.ts` — covers `/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login` across all 4 locales with `hreflang` alternates so search engines understand `/th/scan` and `/en/scan` are translations of the same page, not duplicate content. Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) deliberately excluded — indexing them would point search users at a redirect-to-login.
+13. **Share-preview metadata + locale-aware 404 page**: `og:image` + `twitter:image` ensure social shares render a preview card (Shinny avatar via `metadataBase`-resolved absolute URLs). `src/app/[locale]/not-found.tsx` localizes the 404 experience across all 4 locales with a `not_found` message namespace, plus two CTAs (Home + Scan) so users don't dead-end.
 
 ## 🛠 Tech Stack
 
