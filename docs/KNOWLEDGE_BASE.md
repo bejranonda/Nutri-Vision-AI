@@ -73,7 +73,7 @@ To ensure the high accuracy of the Dual-Provider architecture, we maintain a sta
 The static safety net runs on every commit via `npm run check:all`:
 
 1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
-2. **Vitest test suite** — **113 tests** under `frontend/tests/` lock the PRs #6–#30 security, prompt, AI-fallback, rate-limit, and health-shape contracts: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
+2. **Vitest test suite** — **143 tests** under `frontend/tests/` lock the PRs #6–#34 security, prompt, AI-fallback, rate-limit, health-shape, API-response, and SEO/PWA contracts: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
 3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
 
 Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
@@ -83,6 +83,27 @@ Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full ga
 `npm run check:all` is necessary but **not sufficient** before declaring an AI-pipeline fix "shipped". The static suite cannot detect provider-side issues like a retired model alias, a `limit: 0` free-tier quota, or a primary that fails on real images but works on test fixtures. The process gate in `ITERATION_PROCESS.md §3 / §5` requires a **post-deploy probe with a real food photo** that returns a populated `dishes` array — a 200 with `isFood:false` (i.e. a non-food image like a screenshot of the error UI) is not evidence the cascade works.
 
 Three "fixed" PRs (#21, #22, #23) went out for the same underlying class of bug before this gate was added. Each round, the static suite passed and a non-food image returned 200 — so the cycle felt complete — but the user got 503 on their actual food photo because the validation hadn't actually exercised the success branch.
+
+### HTML security headers (`next.config.js → headers()`)
+
+UX-audit round 3 (May 2026) probed HTML responses for the standard defence-in-depth headers and found only HSTS and `X-Content-Type-Options: nosniff` (both set by the Cloudflare edge, not Next.js itself). The route shipped the following three via `next.config.js`:
+
+| Header | Value | Why |
+|---|---|---|
+| `X-Frame-Options` | `DENY` | No iframe-embed use case anywhere; deny is the safest default and blocks clickjacking. |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Stops leaking locale-tagged URLs (which can carry `?debug=1` or scan request IDs) to third-party CDNs and trackers. Same-origin gets full URL, cross-origin gets just origin. |
+| `Permissions-Policy` | `camera=(self), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()` | Scan flow needs camera. Everything else is unused, so a compromised dependency can't quietly call them. |
+
+Headers apply to every non-`/api/*` route. API routes don't render HTML, and they already set `Cache-Control: no-store` via `lib/api-response.ts`.
+
+**Not yet shipped**: `Content-Security-Policy`. Needs a full audit of inline styles/scripts Next.js emits. Tracked in `KNOWN_ISSUES.md → Content-Security-Policy not yet set`.
+
+### PWA manifest + multi-locale sitemap
+
+- `src/app/manifest.ts` is served at `/manifest.webmanifest` (Next.js App Router convention). Standalone-portrait display, brand-colour tokens. Mobile users get an Add-to-Home-Screen path. UX-audit round 3 caught that this file had been 404'ing.
+- `src/app/sitemap.ts` is served at `/sitemap.xml`. Auto-generated entries for `/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login` × 4 locales with `hreflang` alternates pointing across all 4. Tells search engines that `/th/scan` and `/en/scan` are translations of the same page, not duplicate-content competitors.
+
+Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) are deliberately excluded from the sitemap — indexing them would point search users at a redirect-to-login experience.
 
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 

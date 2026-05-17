@@ -136,6 +136,33 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### `/icon.png` and `/apple-icon.png` return 404 in production despite existing in `src/app/` (May 2026 round 3)
+
+**Symptom**: HTML head correctly references `<link rel="icon" href="/icon.png?<hash>"/>` (Next.js App Router auto-generates this from `src/app/icon.png`), but the URL itself returns HTTP 404. Every browser tab therefore shows the default browser icon instead of the Shinny logo.
+
+**Suspected cause**: the icon files are 418KB each. The OpenNext-on-Cloudflare-Pages adapter likely has a size threshold for assets it serves via the App Router convention (vs assets that should be in `/public/`). Files this large weren't designed to be served as favicons anyway — standard tab icons are 16×16/32×32 PNGs under 50KB.
+
+**Workaround until fixed**: leave as-is. Browser default icon is mildly ugly but not user-blocking. The newly-added PWA manifest references the same paths, so it inherits the same 404 — install-as-app flows will show the default icon too.
+
+**Fix path** (separate PR):
+1. Generate proper-sized icons (16, 32, 192, 512px PNGs + a maskable variant) — needs image tooling not available in this session.
+2. Move them to `/public/` (predictable serving, no App Router convention) and reference explicitly from `metadata.icons` in `app/[locale]/layout.tsx`.
+3. Update `app/manifest.ts` to point at the new paths.
+4. Delete the 418KB PNGs in `src/app/`.
+
+### Content-Security-Policy not yet set on HTML responses (May 2026 round 3 follow-up)
+
+**Status**: round-3 UX audit shipped `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` (PR #34). CSP was deliberately deferred.
+
+**Why deferred**: Next.js emits inline `<style>` blocks for critical CSS, and the dev-mode HMR client uses `unsafe-eval`. A meaningful CSP would need:
+1. A nonce-or-hash strategy for the inline styles (Next.js supports `nonce` via `headers()` callback but it's per-request, which complicates static export and edge caching).
+2. Separate dev vs prod policies (dev needs `unsafe-eval`; prod doesn't).
+3. An audit of every third-party origin: fonts (already preloaded from same-origin), `next/image` Cloudflare loader, any analytics.
+
+**Risk of NOT shipping CSP**: a successful XSS injection would have free reign. The codebase uses React (which auto-escapes string interpolation) and zod (which validates shapes), so XSS injection vectors are narrow — but defence-in-depth means CSP should ship eventually.
+
+**Tracked**: ship in a dedicated PR with the audit and a `report-only` rollout window before flipping to enforcing.
+
 ### Every API route except `/api/health` returned responses with no `Cache-Control` header (May 2026)
 
 **Symptom** (surfaced by UX-audit sweep, not by a user report): probing every `/api/*` endpoint for response headers showed 12 of 13 routes returning no `Cache-Control` at all. Personalized endpoints like `/api/auth/me` (returns user PII), authentication 4xx responses (carry request-tied identifiers), and 400 zod failures (carry `requestId`) were all theoretically cacheable by an intermediate proxy.
