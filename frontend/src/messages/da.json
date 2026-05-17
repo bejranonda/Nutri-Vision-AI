@@ -537,5 +537,12 @@
     "login": "Dette feature kommer snart! Autentificering implementeres i øjeblikket.",
     "dashboard": "Dette feature kommer snart! Dit personlige dashboard forberedes.",
     "recipes": "Dette feature kommer snart! Vores kokke og AI arbejder på opskrifter."
+  },
+  "not_found": {
+    "title": "Beklager! 🙏",
+    "headline": "Kunne ikke finde denne side",
+    "subtitle": "Den side, du leder efter, er muligvis flyttet eller findes ikke.",
+    "back_to_home": "Tilbage til forsiden",
+    "start_scan": "Start et scan"
   }
 }

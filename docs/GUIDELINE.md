@@ -172,7 +172,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA) | Vitest | `frontend/tests/*.test.ts` (12 files) | **143** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **153** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -213,6 +213,27 @@ Expected:
 - Every HTML page: HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` locking everything except camera.
 
 A missing header is just as much a bug as a missing field — it's just invisible from inside the code.
+
+**Extend the sweep to share-preview metadata and rare URLs**: bug-hunt round 4 caught no `og:image` on any locale page (text-only social cards) and a fully-English 404 page rendering on Thai URLs (`/th/nonexistent`). Routine probes hit `/`, `/scan`, `/login` — the rare paths and the *metadata inside* the HTML are what surface these bugs.
+
+```bash
+# Share-preview metadata on each locale
+for l in th en de da; do
+  echo "--- /$l ---"
+  curl -sS https://shinnyguide.autobahn.bot/$l \
+    | grep -oE '<meta (property|name)="(og:image|twitter:image|twitter:card)"[^>]*>' \
+    | head -3
+done
+
+# Locale-aware 404 probe per locale
+for l in th en de da; do
+  echo "--- /$l/no-such-path ---"
+  curl -sS https://shinnyguide.autobahn.bot/$l/no-such-path \
+    | grep -oE '<title>[^<]+</title>'
+done
+```
+
+Expected: every locale has an `og:image` and `twitter:image` tag; the 404 title is in that locale's language.
 
 ### "Doesn't throw" is not the same as "works" — enforcement testing
 

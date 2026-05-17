@@ -537,5 +537,12 @@
     "login": "This feature is coming soon! Authentication is currently being implemented.",
     "dashboard": "This feature is coming soon! Your personal dashboard is being prepared by our AI.",
     "recipes": "This feature is coming soon! Our chefs and AI are cooking up some recipes."
+  },
+  "not_found": {
+    "title": "I'm sorry! 🙏",
+    "headline": "Couldn't find that page",
+    "subtitle": "The page you're looking for may have moved or never existed.",
+    "back_to_home": "Back to home",
+    "start_scan": "Start a scan"
   }
 }
