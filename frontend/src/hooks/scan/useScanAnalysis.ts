@@ -171,22 +171,22 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             // too long" message even when the server succeeded.
             //
             // Server budget (see /api/analyze): Gemini cascade 25s +
-            // CF safety-net 20s = up to 45s end-to-end. Single-photo
-            // scans typically finish in 7–10s so a tight 30s client
-            // timeout never fired in practice. Multi-photo collages
-            // run 18–25s baseline (larger payload + longer AI parse),
-            // and when Gemini falls through to CF the total regularly
-            // exceeds 30s — exactly the user-reported failure mode.
+            // CF safety-net 20s = up to 45s end-to-end. Even a
+            // SINGLE-photo scan can hit the full 45s when the Gemini
+            // cascade is slow / exhausted and the request falls through
+            // to the CF safety-net (user-reported May 2026, screenshot
+            // at /th/scan showed the abort copy on a 1-photo upload —
+            // the prior 30s base wasn't enough headroom).
             //
-            // Scale 30s base + 12s per additional photo, cap at 60s.
+            // Scale 50s base + 8s per additional photo, cap at 75s.
             // Caps:
-            //   1 photo  →  30s   (unchanged from previous behaviour)
-            //   2 photos →  42s   (covers Gemini → CF fall-through)
-            //   3 photos →  54s   (worst observed multi-photo end-to-end)
-            //   4+       →  60s   (clamp; CF Pages wall-clock allows it)
+            //   1 photo  →  50s   (5s headroom above server's 45s budget)
+            //   2 photos →  58s   (covers Gemini → CF fall-through)
+            //   3 photos →  66s
+            //   4+       →  75s   (clamp; CF Pages wall-clock allows it)
             const API_TIMEOUT_MS = Math.min(
-                60_000,
-                30_000 + Math.max(0, uploadedImages.length - 1) * 12_000,
+                75_000,
+                50_000 + Math.max(0, uploadedImages.length - 1) * 8_000,
             );
             async function callAnalyzeApi(attempt: number): Promise<{ res: Response; responseText: string; durationMs: number }> {
                 const controller = new AbortController();

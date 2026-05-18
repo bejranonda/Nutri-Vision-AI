@@ -20,6 +20,7 @@ import DrinkSnackResults from '@/components/scan/DrinkSnackResults';
 import ScanUploadArea from '@/components/scan/ScanUploadArea';
 import ScanLoadingOverlay from '@/components/scan/ScanLoadingOverlay';
 import ScanDebugPanel from '@/components/scan/ScanDebugPanel';
+import ScanResultChat from '@/components/scan/ScanResultChat';
 
 // Hooks
 import { useScanUpload } from '@/hooks/scan/useScanUpload';
@@ -371,6 +372,23 @@ export default function ScanPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Inline AI Coach Shinny chat — appears once a real
+                    result is shown so the user can ask follow-up
+                    questions ("can I eat the rice first?", "swap the
+                    soda for what?") without leaving the page. Suppressed
+                    on the "not food" branch — there is no meal to
+                    discuss. */}
+                {analysis.hasResult && !analysis.isAnalyzing && !analysis.nonFoodReason && (
+                    <ScanResultChat
+                        scanMode={scanMode}
+                        mealData={analysis.mealResult}
+                        menuData={analysis.menuResult}
+                        drinkData={analysis.drinkResult}
+                        locale={locale}
+                        isAuthenticated={isAuthenticated}
+                    />
+                )}
 
                 {/* Mobile scan again button */}
                 {analysis.hasResult && !analysis.isAnalyzing && (

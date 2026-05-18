@@ -196,7 +196,42 @@
     "dishes_found": "Dishes found",
     "score_label": "Score",
     "not_food_title": "Hmm, I don't see food here",
-    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!"
+    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!",
+    "result_chat": {
+      "title": "Ask Shinny",
+      "subtitle": "Ask follow-up questions about this scan",
+      "aria_label": "Chat with Coach Shinny about the scanned meal",
+      "try_asking": "Try asking:",
+      "input_placeholder": "Ask Shinny about this meal…",
+      "input_placeholder_limit": "Daily limit reached — upgrade to keep asking",
+      "send": "Send",
+      "signin_prompt": "Sign in to chat with Shinny about this scan",
+      "signin_cta": "Sign in",
+      "error_generic": "Something went wrong. Please try again.",
+      "error_network": "Can't connect. Check your signal and try again.",
+      "error_rate_limited": "You're sending too fast. Wait a moment and try again.",
+      "error_signin": "Please sign in to chat with Shinny.",
+      "limit_title": "Daily limit reached",
+      "limit_body": "Free plan gives you 3 questions a day. Upgrade to premium for unlimited.",
+      "limit_cta": "See plans",
+      "greeting_fallback": "Hey! I'm Shinny. Got any questions about this scan?",
+      "greeting_meal": "Hi! I see you have {dishes} 🍽️ Want to know more about it?",
+      "greeting_meal_with_sequence": "Hi! I see you have {dishes} 🍽️ The optimal order is {sequence}. Ask me anything!",
+      "greeting_meal_no_names": "your meal",
+      "greeting_menu": "Hi! I see {count} menu items. Want me to recommend what to order?",
+      "greeting_drink_snack": "Hi! I see {item} 🥤 Anything you'd like to know about it?",
+      "starters": {
+        "meal_1": "Why eat veggies first?",
+        "meal_2": "Can I eat dessert first?",
+        "meal_3": "Anything to watch out for in this meal?",
+        "menu_1": "What's the lightest option?",
+        "menu_2": "Which item has the most protein?",
+        "menu_3": "What would go well to share with friends?",
+        "drink_1": "When's the best time to drink this?",
+        "drink_2": "Is there a healthier alternative?",
+        "drink_3": "How often can I have this?"
+      }
+    }
   },
   "demo": {
     "title": "How Shinny Guide Works",

@@ -196,7 +196,42 @@
     "dishes_found": "Gefundene Gerichte",
     "score_label": "Score",
     "not_food_title": "Hm, ich sehe hier kein Essen",
-    "scan_tip": "Lade ein klares Foto deiner Mahlzeit, eines Getränks oder einer Speisekarte hoch!"
+    "scan_tip": "Lade ein klares Foto deiner Mahlzeit, eines Getränks oder einer Speisekarte hoch!",
+    "result_chat": {
+      "title": "Frag Shinny",
+      "subtitle": "Stell weitere Fragen zu diesem Scan",
+      "aria_label": "Chat mit Coach Shinny zur gescannten Mahlzeit",
+      "try_asking": "Versuche zu fragen:",
+      "input_placeholder": "Frag Shinny zu dieser Mahlzeit…",
+      "input_placeholder_limit": "Tageslimit erreicht — Upgrade, um weiter zu fragen",
+      "send": "Senden",
+      "signin_prompt": "Melde dich an, um mit Shinny über diesen Scan zu chatten",
+      "signin_cta": "Anmelden",
+      "error_generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "error_network": "Keine Verbindung. Prüfe dein Netz und versuche es erneut.",
+      "error_rate_limited": "Zu viele Anfragen. Warte kurz und versuche es erneut.",
+      "error_signin": "Bitte melde dich an, um mit Shinny zu chatten.",
+      "limit_title": "Tageslimit erreicht",
+      "limit_body": "Im kostenlosen Plan sind 3 Fragen pro Tag möglich. Upgrade auf Premium für unbegrenzten Zugriff.",
+      "limit_cta": "Tarife ansehen",
+      "greeting_fallback": "Hi! Ich bin Shinny. Hast du Fragen zu diesem Scan?",
+      "greeting_meal": "Hi! Ich sehe, du hast {dishes} 🍽️ Möchtest du mehr darüber wissen?",
+      "greeting_meal_with_sequence": "Hi! Ich sehe, du hast {dishes} 🍽️ Die optimale Reihenfolge ist {sequence}. Frag mich gern!",
+      "greeting_meal_no_names": "deine Mahlzeit",
+      "greeting_menu": "Hi! Ich sehe {count} Menüpunkte. Soll ich dir empfehlen, was du bestellen solltest?",
+      "greeting_drink_snack": "Hi! Ich sehe {item} 🥤 Was möchtest du darüber wissen?",
+      "starters": {
+        "meal_1": "Warum zuerst Gemüse essen?",
+        "meal_2": "Kann ich das Dessert zuerst essen?",
+        "meal_3": "Worauf sollte ich bei dieser Mahlzeit achten?",
+        "menu_1": "Was ist die leichteste Option?",
+        "menu_2": "Welcher Eintrag hat am meisten Protein?",
+        "menu_3": "Was passt gut zum Teilen mit Freunden?",
+        "drink_1": "Wann trinke ich das am besten?",
+        "drink_2": "Gibt es eine gesündere Alternative?",
+        "drink_3": "Wie oft darf ich das trinken?"
+      }
+    }
   },
   "demo": {
     "title": "So funktioniert Shinny Guide",

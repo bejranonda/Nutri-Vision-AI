@@ -196,7 +196,42 @@
     "dishes_found": "Fundne retter",
     "score_label": "Score",
     "not_food_title": "Hmm, jeg kan ikke se mad her",
-    "scan_tip": "Prøv at uploade et klart foto af dit måltid, din drik eller en menu!"
+    "scan_tip": "Prøv at uploade et klart foto af dit måltid, din drik eller en menu!",
+    "result_chat": {
+      "title": "Spørg Shinny",
+      "subtitle": "Stil opfølgende spørgsmål om denne scanning",
+      "aria_label": "Chat med Coach Shinny om det scannede måltid",
+      "try_asking": "Prøv at spørge:",
+      "input_placeholder": "Spørg Shinny om dette måltid…",
+      "input_placeholder_limit": "Dagens kvote er opbrugt — opgrader for at spørge mere",
+      "send": "Send",
+      "signin_prompt": "Log ind for at chatte med Shinny om denne scanning",
+      "signin_cta": "Log ind",
+      "error_generic": "Noget gik galt. Prøv igen.",
+      "error_network": "Ingen forbindelse. Tjek signalet og prøv igen.",
+      "error_rate_limited": "Du sender for hurtigt. Vent lidt og prøv igen.",
+      "error_signin": "Log venligst ind for at chatte med Shinny.",
+      "limit_title": "Dagens kvote er opbrugt",
+      "limit_body": "Gratis-pakken giver 3 spørgsmål om dagen. Opgrader til premium for ubegrænset adgang.",
+      "limit_cta": "Se pakker",
+      "greeting_fallback": "Hej! Jeg er Shinny. Har du spørgsmål om denne scanning?",
+      "greeting_meal": "Hej! Jeg kan se du har {dishes} 🍽️ Vil du vide mere om det?",
+      "greeting_meal_with_sequence": "Hej! Jeg kan se du har {dishes} 🍽️ Den optimale rækkefølge er {sequence}. Spørg løs!",
+      "greeting_meal_no_names": "dit måltid",
+      "greeting_menu": "Hej! Jeg kan se {count} menupunkter. Skal jeg anbefale hvad du skal bestille?",
+      "greeting_drink_snack": "Hej! Jeg kan se {item} 🥤 Hvad vil du gerne vide om det?",
+      "starters": {
+        "meal_1": "Hvorfor spise grøntsager først?",
+        "meal_2": "Kan jeg spise dessert først?",
+        "meal_3": "Er der noget jeg skal være opmærksom på i dette måltid?",
+        "menu_1": "Hvad er den letteste mulighed?",
+        "menu_2": "Hvilken ret har mest protein?",
+        "menu_3": "Hvad passer godt til at dele med venner?",
+        "drink_1": "Hvornår er det bedste tidspunkt at drikke det?",
+        "drink_2": "Findes der et sundere alternativ?",
+        "drink_3": "Hvor ofte må jeg have det?"
+      }
+    }
   },
   "demo": {
     "title": "Sådan virker Shinny Guide",

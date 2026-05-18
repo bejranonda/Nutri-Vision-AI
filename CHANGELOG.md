@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Inline "Ask Shinny" chat on the scan results page
+
+User request: "how this script has a chat to communicate with the user after uploading the photos and get the results" — reference snippet showed a Gemini-direct chat panel beside the analysis. We adapt the pattern to the existing project surface: re-use the production `/api/chat` cascade (Groq → Gemini → CF) instead of a client-side Gemini call, keep the same auth + rate-limit + tier-counter as the standalone `/chat` page, and place the panel **below** the scan results so the existing dish-card layout is undisturbed.
+
+The panel mounts with a Shinny greeting that names the just-scanned meal (or menu / drink) and previews the optimal eating sequence. Because the greeting is the first turn of `history` on every follow-up send, the model sees the meal context on the user's first question without us having to plumb a separate scan-context API field. Suggested starter questions are mode-specific (different prompts for meal vs menu vs drink/snack) and resolve through `next-intl` for all four locales (th / en / de / da).
+
+For unauthenticated visitors the panel renders a "sign in to chat" CTA instead of the input — `/api/chat` is auth-only by design (anti-abuse), and surfacing a 401 mid-conversation would be a worse UX than gating the input upfront.
+
+Touched:
+- `frontend/src/components/scan/ScanResultChat.tsx` — **new component**, ~280 LOC. Self-contained: builds the greeting/starters from the scan response, manages chat turns, talks to `/api/chat`, and renders the sign-in CTA when `isAuthenticated` is false. Resets whenever the analyzed meal changes (greeting context follows the active scan).
+- `frontend/src/app/[locale]/scan/page.tsx` — imports the new component and mounts it inside the results layout. Hidden on the "not food" branch (no meal to discuss) and during loading.
+- `frontend/src/messages/{th,en,de,da}.json` — added `scan.result_chat.*` block with header copy, error/limit strings, mode-specific greetings, and three starter questions per mode.
+
+### Fixed — Single-photo scans could also timeout (timeout base bumped 30s → 50s)
+
+User report (May 2026, screenshot at `shinnyguide.autobahn.bot/th/scan`): a **single-photo** upload showed the same Thai abort copy `การวิเคราะห์ใช้เวลานานเกินไป...` that we'd just fixed in PR #39 for multi-photo. PR #39 left the single-photo base at 30s under the assumption that "single-photo scans typically finish in 7-10s" — true on the Gemini happy path, but when the Gemini cascade is slow or exhausted and the request falls through to the CF safety-net, even a single-photo scan can hit the full 45s server budget. 30s < 45s = same abort-before-server-completes bug, just at lower frequency.
+
+**Fix**: bump the formula's base from 30s → 50s (5s headroom above the 45s server cascade budget — same headroom PR #39 gave the multi-photo case). Per-photo bonus relaxes from 12s → 8s to keep the multi-photo caps roughly where they were, and the overall cap goes 60s → 75s to maintain the same headroom-above-cascade for 3+ photo collages.
+
+```ts
+const API_TIMEOUT_MS = Math.min(
+  75_000,
+  50_000 + Math.max(0, uploadedImages.length - 1) * 8_000,
+);
+//  1 photo  →  50s  (covers Gemini → CF fall-through, was 30s)
+//  2 photos →  58s
+//  3 photos →  66s
+//  4+       →  75s (clamp)
+```
+
+Touched:
+- `frontend/src/hooks/scan/useScanAnalysis.ts` — formula constants updated; inline comment now records *both* user reports (multi-photo from #39, single-photo from this PR) and the headroom-above-server-budget rule.
+- `frontend/tests/scan-timeout.test.ts` — the single-photo base test was pinned to `30_000` by PR #39; that pin was the bug. Loosened to "base ≥ 50_000" (matches the cap rule) so a future contributor who shrinks below the 45s server budget still fails CI. 160/160 tests still passing.
+
 ### Fixed — Multi-photo scans always failed with "analysis taking too long" — client timeout was tighter than server budget
 
 User report (Thai): "เวลาใส่หลายรูป เจอแบบนี้ตลอด" (every multi-photo upload errors). Screenshot showed `การวิเคราะห์ใช้เวลานานเกินไป กรุณาลองอีกครั้งด้วยรูปที่ชัดกว่านี้` — the **client-side** abort copy, not the server's "AI under high load" 503. **No `Request ID`** on the error card, confirming the request never reached server-completion state.
