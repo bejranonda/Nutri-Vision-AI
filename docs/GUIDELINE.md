@@ -172,7 +172,7 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **156** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **160** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -246,6 +246,14 @@ Expected: every locale has an `og:image` and `twitter:image` tag; the 404 title 
 Trade-off across all five: convention buys typed return values; explicit handler buys typed route handler; static file buys nothing but reliability. For URLs that must be at a fixed path (sitemap, robots, well-known JSON files), reliability beats every other concern.
 
 Same lesson for nested `not-found.tsx` in dynamic segments: OpenNext-on-Pages short-circuits to a static 404 fallback before the layout chain runs. Add a catch-all `[...slug]/page.tsx` in the segment that calls `notFound()` to force the chain to execute. See PR #36 + `KNOWN_ISSUES.md → Next.js App Router file conventions are unreliable on OpenNext-on-Cloudflare-Pages`.
+
+### Client timeouts MUST exceed server budgets
+
+PR #39 caught a structural mismatch: client fetch abort was `30_000` ms while the server cascade can take up to 45 s (Gemini 25 s + CF 20 s). Single-photo scans finished well under 30 s so the wall never triggered. Multi-photo collages routinely exceeded 30 s and the client aborted before the server returned, showing the user a misleading "analysis taking too long" message even when the server had completed successfully.
+
+**Rule**: any `fetch` against `/api/*` that wraps an `AbortController` deadline must use a deadline that's at least 5 s greater than the server's worst-case end-to-end budget at that route. For `/api/analyze` the worst case is multi-photo + Gemini-cascade-to-CF-fallthrough ≈ 45 s, so the client deadline must be ≥ 50 s (current cap: 60 s).
+
+When the server budget is variable (multi-photo collages need longer), scale the client deadline by the same axis (`photoCount`, payload size, scan mode). See `frontend/src/hooks/scan/useScanAnalysis.ts → API_TIMEOUT_MS` for the canonical pattern: `Math.min(cap, base + (photoCount - 1) * step)`.
 
 ### "Doesn't throw" is not the same as "works" — enforcement testing
 

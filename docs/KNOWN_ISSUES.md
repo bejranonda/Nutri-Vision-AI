@@ -136,6 +136,16 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Fix (v2.1.7)**: Implemented a **Dual-Provider Fallback Strategy**. The system attempts the Cloudflare 11B model first (25s timeout); if it fails, it automatically falls back to **Google's `gemma-3-27b-it`** model via the Google AI API.
 - **Note on Meta Llama License**: If Cloudflare returns a "Prior to using this model, you must submit the prompt 'agree'" error, you must visit the Cloudflare AI dashboard and manually accept the Meta Llama 3.2 license agreement.
 
+### Multi-photo scans always failed: client `API_TIMEOUT_MS` was tighter than server cascade budget (May 2026 — resolved)
+
+**User report (Thai)**: "เวลาใส่หลายรูป เจอแบบนี้ตลอด" — every multi-photo upload showed the client-abort copy `การวิเคราะห์ใช้เวลานานเกินไป` ("analysis taking too long"). No `Request ID` on the error card — confirming the request never reached server-completion state, ruling out the 503 cascade-failure path that the previous bug-hunt rounds had been targeting.
+
+**Root cause**: `useScanAnalysis.ts` hardcoded `API_TIMEOUT_MS = 30_000`. Server's `/api/analyze` cascade has a 45 s worst-case budget (Gemini 25 s + CF safety-net 20 s). Single-photo scans finish in 7–10 s so the mismatch was invisible; multi-photo collages run 18–25 s baseline and routinely cross 30 s when Gemini falls through to CF. Client aborted every multi-photo scan even when the server had successfully completed the analysis a couple seconds later.
+
+**Fix** (PR #39): `API_TIMEOUT_MS = Math.min(60_000, 30_000 + (photoCount - 1) * 12_000)`. Single photo stays at 30 s; multi-photo gets 12 s per extra photo up to a 60 s cap (5 s headroom above the server cascade budget).
+
+**Pattern**: structurally identical to PR #28's rate-limit bug. A safety wrapper *worked* for the common-case path (single-photo / `caches.default` hit) and *silently failed* for the edge case (multi-photo / `caches.default` miss on OpenNext). Tests passed because no test exercised the edge-case axis. **Always add a test that exercises the axis the bug lives on**: PR #28 added enforcement tests; PR #39 added a per-photoCount formula test.
+
 ### Next.js App Router file conventions are unreliable on OpenNext-on-Cloudflare-Pages — prefer explicit `route.ts` handlers (May 2026 — resolved)
 
 **Symptom**: Round 4 (PR #35) shipped two Next.js convention files. After deploy, production probes showed only one worked:
