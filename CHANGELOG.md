@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Multi-photo scans always failed with "analysis taking too long" — client timeout was tighter than server budget
+
+User report (Thai): "เวลาใส่หลายรูป เจอแบบนี้ตลอด" (every multi-photo upload errors). Screenshot showed `การวิเคราะห์ใช้เวลานานเกินไป กรุณาลองอีกครั้งด้วยรูปที่ชัดกว่านี้` — the **client-side** abort copy, not the server's "AI under high load" 503. **No `Request ID`** on the error card, confirming the request never reached server-completion state.
+
+**Root cause**: structural mismatch between client and server timeouts.
+
+| Layer | Budget |
+|---|---|
+| Client fetch abort (`API_TIMEOUT_MS`) | **30 s** (hardcoded) |
+| Server cascade (`/api/analyze`) | Gemini 25 s + CF safety-net 20 s = **up to 45 s** |
+
+Single-photo scans typically finish in 7–10 s, so the 30 s client wall never triggered — the mismatch was invisible. **Multi-photo collages** run 18–25 s baseline (larger payload + longer AI parse for the stitched image), and when the Gemini cascade falls through to the CF safety-net, total response time routinely exceeds 30 s. **Client aborted on every multi-photo scan**, leaving the user with a misleading "taking too long" message even when the server had successfully completed the analysis a few seconds later.
+
+**Fix**: scale `API_TIMEOUT_MS` by photo count:
+
+```ts
+const API_TIMEOUT_MS = Math.min(
+  60_000,
+  30_000 + Math.max(0, uploadedImages.length - 1) * 12_000,
+);
+//  1 photo  → 30 s  (unchanged — preserves fast-fail UX for genuinely-broken requests)
+//  2 photos → 42 s  (covers Gemini → CF fall-through)
+//  3 photos → 54 s  (worst observed multi-photo end-to-end)
+//  4+       → 60 s  (clamped; >5s headroom above server's 45s cascade budget)
+```
+
+Touched:
+- `frontend/src/hooks/scan/useScanAnalysis.ts` — `API_TIMEOUT_MS` rewritten with the per-photo scale + cap. Inline comment records the user-report context, the server budget breakdown, and the per-photoCount mapping table so the next contributor doesn't shrink the cap below the cascade.
+- `frontend/tests/scan-timeout.test.ts` — **new test file**, 4 cases pinning: (a) hardcoded `30_000` is forbidden in live code, (b) formula references `uploadedImages.length`, (c) cap (60 s) stays ≥ 5 s above server budget (45 s), (d) base case (1 photo) preserves the 30 s wall. Project total: **160/160 tests passing** (was 156/156).
+
+**Pattern recognition**: this is structurally identical to PR #28's rate-limit bug — a "doesn't throw" safety wrapper masked the actual problem. Pre-fix, the hardcoded 30 s client timeout *worked* for 90 %+ of scans (single-photo) and silently failed for the remaining 10 % (multi-photo). Tests passed because no test exercised the multi-photo timing axis. **Adding the regression test makes the formula's intent visible**: the timeout must exceed server budget by 5 s, the formula must scale with photo count, the base case must preserve the fast-fail UX for single-photo. Any future contributor who reverts to a single fixed value re-introduces the bug and fails CI.
+
 ### Fixed — `/sitemap.xml` still 404 after PR #37; switched to static file in `/public/`
 
 PR #37 moved the handler to `/api/sitemap` and added `next.config.js → rewrites()` to expose at `/sitemap.xml`. Post-deploy probing isolated the failure cleanly:
