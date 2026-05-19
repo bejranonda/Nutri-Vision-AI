@@ -35,6 +35,26 @@ export const metadata: Metadata = {
     shortcut: '/favicon.svg',
     apple: '/images/shinny_avatar.png',
   },
+  // hreflang alternates so search engines know /th, /en, /de, /da
+  // are translations of the same page (not duplicate-content
+  // competitors). Bug-hunt May 2026 UX-round 5 e2e probe caught the
+  // absence — sitemap.xml had the alternates but the per-page <link
+  // rel="alternate" hreflang> tags didn't render. og:locale:alternate
+  // exists (covers Open Graph), but search-engine canonicalisation
+  // needs the rel=alternate links specifically.
+  alternates: {
+    canonical: '/th',
+    languages: {
+      th: '/th',
+      en: '/en',
+      de: '/de',
+      da: '/da',
+      // x-default points crawlers at the locale to serve when none
+      // of the user's preferred languages match — Thai is the
+      // primary launch locale.
+      'x-default': '/th',
+    },
+  },
   openGraph: {
     title: 'Shinny Guide — Smart Food Sequencing',
     description: 'Discover how eating in the right order can transform your health. Veggies → Protein → Carbs → Sweets',
