@@ -233,11 +233,13 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{t('display_name')}</label>
+                                <label htmlFor="auth-display-name" className="block text-sm font-medium text-gray-700 mb-1">{t('display_name')}</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="auth-display-name"
                                         type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                                        autoComplete="name"
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                         placeholder="Shinny"
                                     />
@@ -247,10 +249,11 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
+                            <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
+                                    id="auth-email"
                                     type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                                     // autoComplete="email" is broader than "username" — works on
                                     // both login + register tabs without per-mode switching. iOS
@@ -266,10 +269,11 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('password')}</label>
+                            <label htmlFor="auth-password" className="block text-sm font-medium text-gray-700 mb-1">{t('password')}</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
+                                    id="auth-password"
                                     type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
                                     // Mode-aware autoComplete so password managers don't try to
                                     // prefill saved credentials into the *register* form (which
@@ -281,7 +285,14 @@ export default function LoginPage() {
                                     className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                     placeholder="••••••"
                                 />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    // Icon-only button — accessible name required (e2e iter 7).
+                                    aria-label={t('toggle_password_visibility')}
+                                    aria-pressed={showPassword}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
                             </div>
@@ -290,10 +301,11 @@ export default function LoginPage() {
 
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{t('confirm_password')}</label>
+                                <label htmlFor="auth-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">{t('confirm_password')}</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="auth-confirm-password"
                                         type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                                         autoComplete="new-password"
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
@@ -306,12 +318,13 @@ export default function LoginPage() {
 
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="auth-voucher-code" className="block text-sm font-medium text-gray-700 mb-1">
                                     {t('voucher_label')}
                                 </label>
                                 <div className="relative">
                                     <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="auth-voucher-code"
                                         type="text"
                                         value={voucherCode}
                                         onChange={(e) => setVoucherCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}

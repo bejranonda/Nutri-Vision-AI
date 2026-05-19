@@ -22,7 +22,9 @@
     "recipes": "Opskrifter",
     "learn": "Lær",
     "profile": "Profil",
-    "pricing": "Priser"
+    "pricing": "Priser",
+    "open_menu": "Åbn menu",
+    "close_menu": "Luk menu"
   },
   "home": {
     "title": "Shinny Guide",
@@ -419,7 +421,8 @@
       "wrong_scope": "Denne kode kan ikke bruges til at oprette nye konti.",
       "rate_limited": "For mange forespørgsler — vent et øjeblik og prøv igen.",
       "check_failed": "Koden kunne ikke verificeres lige nu. Prøv igen om lidt."
-    }
+    },
+    "toggle_password_visibility": "Vis adgangskode"
   },
   "pricing": {
     "title": "Vælg Din Plan",

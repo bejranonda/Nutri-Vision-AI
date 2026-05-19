@@ -68,6 +68,11 @@ export default function HomePage() {
             <LanguageSwitcher currentLocale={locale} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              // Icon-only button — screen readers need an accessible
+              // name. aria-expanded keeps assistive tech in sync with
+              // the disclosure widget state. Caught by e2e iter 7.
+              aria-label={mobileMenuOpen ? tNav('close_menu') : tNav('open_menu')}
+              aria-expanded={mobileMenuOpen}
               className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
             >
               {mobileMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}

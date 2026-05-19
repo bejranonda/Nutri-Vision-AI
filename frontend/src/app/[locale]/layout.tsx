@@ -9,6 +9,17 @@ const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const prompt = Prompt({ subsets: ["thai", "latin"], weight: ["300", "400", "500", "600", "700"], variable: '--font-prompt' });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
 
+// Light-only color scheme today (brand palette is warm coral on light
+// backgrounds; no dark-mode design tokens shipped yet). Declaring
+// `light` here keeps browser-native widgets (scrollbar, form
+// controls, autofill background) matched to the design instead of
+// using a system-dark theme that clashes with brand-primary-50
+// (#fff5f5). When dark mode lands, expand to "light dark" and add
+// the matching CSS variables. Caught by e2e iter 7.
+export const viewport = {
+  colorScheme: 'light' as const,
+};
+
 export const metadata: Metadata = {
   title: 'Shinny Guide — Smart Food Sequencing for Better Health',
   description: 'AI-powered nutrition analysis with "อร่อย ตาม ลำดับ" (Delicious in Order) food sequencing. Reduce blood sugar spikes by 70% while enjoying the foods you love.',
