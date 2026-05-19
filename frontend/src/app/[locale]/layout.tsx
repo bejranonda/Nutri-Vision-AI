@@ -19,6 +19,22 @@ export const metadata: Metadata = {
   // page. Without this, `images: ['/path']` resolves against
   // localhost in production responses.
   metadataBase: new URL('https://shinnyguide.autobahn.bot'),
+  // Explicit icon paths instead of relying on the Next.js App Router
+  // `app/icon.png` / `app/apple-icon.png` convention. UX-audit round 3
+  // proved those files 404'd on OpenNext-on-Pages even though they
+  // existed in `src/app/` — Cloudflare Pages serves `/public/*`
+  // reliably, the App Router icon convention doesn't.
+  // - `/favicon.svg` is a 1KB hand-written SVG (brand-primary-400
+  //   rounded square + white "S"). Scales to every tab size; replaces
+  //   the 418KB src/app/icon.png that never served.
+  // - `/images/shinny_avatar.png` already serves (proven by og:image)
+  //   and is square + branded — perfect for `apple-touch-icon` which
+  //   iOS expects as raster, not SVG.
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/images/shinny_avatar.png',
+  },
   openGraph: {
     title: 'Shinny Guide — Smart Food Sequencing',
     description: 'Discover how eating in the right order can transform your health. Veggies → Protein → Carbs → Sweets',
