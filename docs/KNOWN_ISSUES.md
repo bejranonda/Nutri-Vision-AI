@@ -191,6 +191,23 @@ Separately, every locale page rendered HTML head with no `og:image` and no `twit
 
 **Lesson for the audit playbook**: probing arbitrary not-found paths per locale belongs in the routine HTML sweep. The default 404 page looks fine if you only probe `/`, `/scan` etc. — only "rare" paths reveal it.
 
+### UX-audit Round 6 (e2e loop) — 10 iterations, 10 bugs caught + fixed (May 2026 — resolved)
+
+Introduced Playwright as a real-browser test layer. Ran a structured iteration loop: write/expand the e2e suite → run against live deploy → triage findings → ship fixes → wait for deploy → re-verify. Converged after 10 iterations across PRs #41–#44.
+
+**Bugs the e2e layer caught that the 164-case Vitest unit suite couldn't**:
+- Per-page `<link rel="alternate" hreflang>` missing — sitemap had them, page metadata didn't (PR #41)
+- Login `<input type="email">` and `<input type="password">` had no `autoComplete` — iOS Keychain + password managers silently failed to fill (PR #42)
+- `tooManyResponse()` built raw `Response` without `Cache-Control: no-store` — bypassed PR #33's `jsonResponse` helper (PR #42)
+- Mobile hamburger `<button>` had no `aria-label` — SR announced "button" with no purpose (PR #43)
+- Password eye-toggle `<button>` had no `aria-label` (PR #43)
+- 5 login `<label>` elements had no `htmlFor` linkage to their inputs — SR announced "blank text field" (PR #43)
+- No `color-scheme` declaration — native widgets clashed with brand palette on system-dark (PR #43)
+- 6th `<input>` (promo-redeem code, distinct from registration voucher) also unlabeled (PR #44)
+- CF Insights beacon flying under the third-party-script radar (PR #44 — legitimate, just needed explicit acknowledgement)
+
+**Lesson**: unit tests pin source-code invariants; e2e pins rendered behaviour. Both have their place, neither substitutes for the other. The session-derived rule (`docs/GUIDELINE.md`): **run e2e BEFORE the deploy cycle on any public-surface change** — saves the 4-iteration spiral that the `/sitemap.xml` PRs (#34→#38) needed before this layer existed.
+
 ### `/icon.png` and `/apple-icon.png` returned 404 in production despite existing in `src/app/` (May 2026 round 3 — resolved by PR #40)
 
 **Symptom**: HTML head correctly referenced `<link rel="icon" href="/icon.png?<hash>"/>` (Next.js App Router auto-generates this from `src/app/icon.png`), but the URL itself returned HTTP 404. Every browser tab showed the default browser icon instead of the Shinny logo.

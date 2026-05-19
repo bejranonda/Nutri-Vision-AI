@@ -74,7 +74,15 @@ The Cloudflare preview URL (commented by the CF bot on the PR) is the
 
 ## 3. Pre-merge manual verification
 
-Before clicking "Merge", the author must do all of these on the CF preview:
+For any PR that changes the **public surface** (HTML metadata, form structure, API response shape, layout components, manifest, sitemap, robots, error pages, locale strings), **run the Playwright e2e suite first**:
+
+```bash
+cd frontend && npm run test:e2e
+```
+
+5 spec files (~79 cases, ~25s). Pins 10+ surfaces the unit suite can't reach. UX-audit round 6 ran this loop 10 iterations and caught 10 real bugs (PRs #41–#44) before they shipped. The e2e suite is the difference between a 1-iteration fix and a 4-iteration spiral (the `/sitemap.xml` saga, PRs #34→#38, predates this layer).
+
+Then, on the CF preview:
 
 1. **Home → Scan happy path** (desktop + mobile viewport):
    - Upload a **real food photo** (a known-good one — `research/test-image/buymeacoffee-food-6940159_640.jpg` is the canonical fixture).
