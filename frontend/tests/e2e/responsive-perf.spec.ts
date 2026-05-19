@@ -108,6 +108,11 @@ test.describe('no <script> tags reference http:// or external CDN outside whitel
   const WHITELIST = [
     'shinnyguide.autobahn.bot',
     '_next/static',
+    // Cloudflare Insights — injected by CF Pages at the edge for
+    // anonymous web-analytics. Caught by iter-9 e2e on first run;
+    // legitimate vendor script, scoped to a single CF-managed
+    // domain. If we ever disable CF Insights, drop this entry.
+    'static.cloudflareinsights.com',
     // (add hosts here when adding new third-party scripts;
     // PRs that don't update this list fail this test.)
   ];

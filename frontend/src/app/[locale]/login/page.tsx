@@ -430,6 +430,11 @@ export default function LoginPage() {
                         </div>
                         <div className="flex gap-2">
                             <input
+                                // The promo-section header reads `t('promo_section')` —
+                                // wire that as the accessible name for SR users so the
+                                // input is announced as "Promo code, text field" instead
+                                // of the silent placeholder.
+                                aria-label={t('promo_section')}
                                 type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                                 placeholder={t('promo_placeholder')}
                                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
