@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Browser tab icon was the default browser glyph because `src/app/icon.png` never served
+
+UX-audit round 3 documented this in `KNOWN_ISSUES.md` but didn't fix it: `/icon.png` and `/apple-icon.png` both 404'd in production. The 418KB PNG files lived in `src/app/` (App Router convention), but the OpenNext-on-Pages adapter never served them — likely the same convention-vs-static-asset split that bit `/sitemap.xml`.
+
+User-visible impact: every browser tab on `shinnyguide.autobahn.bot` showed the default browser globe/document icon instead of a brand mark. Mild but persistent UX scrappiness for the entire app surface.
+
+**Fix** — apply the established escalation rule from PR #38 (convention fails → move to `/public/*`):
+
+- **`frontend/public/favicon.svg`** — new 1KB hand-written SVG. Brand-primary-400 (`#ec7064`) rounded square + white capital "S" in `viewBox="0 0 256 256"`. Replaces the 418KB PNG that couldn't serve. Text-diffable in PRs; scales to every tab size without aliasing.
+- **`frontend/src/app/[locale]/layout.tsx`** — explicit `icons` block in `metadata`: `icon: '/favicon.svg'`, `apple: '/images/shinny_avatar.png'` (the avatar is already proven to serve via the og:image path; iOS expects raster for `apple-touch-icon`).
+- **`frontend/src/app/manifest.ts`** — icons array updated to reference the same paths (SVG + the avatar PNG for both `any` and `maskable` purpose).
+- **`frontend/src/app/icon.png` + `frontend/src/app/apple-icon.png`** — **deleted** (836KB total). The App Router convention proven unreliable for this adapter; explicit `/public/` paths are the working surface.
+- **`frontend/tests/seo-pwa.test.ts`** — 3 new cases: layout-metadata icons point at `/favicon.svg` + `/images/...`, manifest icons reject `/icon.png` and `/apple-icon.png`, `public/favicon.svg` exists with valid envelope + brand-colour token. **163/163 passing** (was 160/160).
+
+**Pattern**: applies the rule the session derived through PRs #34–#38. Convention surfaces are unreliable on OpenNext-on-Pages; `/public/*` files always serve. For brand assets that don't change request-by-request, ship as static files.
+
 ### Fixed — Multi-photo scans always failed with "analysis taking too long" — client timeout was tighter than server budget
 
 User report (Thai): "เวลาใส่หลายรูป เจอแบบนี้ตลอด" (every multi-photo upload errors). Screenshot showed `การวิเคราะห์ใช้เวลานานเกินไป กรุณาลองอีกครั้งด้วยรูปที่ชัดกว่านี้` — the **client-side** abort copy, not the server's "AI under high load" 503. **No `Request ID`** on the error card, confirming the request never reached server-completion state.

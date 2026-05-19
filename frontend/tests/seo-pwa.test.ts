@@ -54,6 +54,33 @@ describe('PWA manifest', () => {
     }
   });
 
+  it('icons point at /public/ paths that actually serve (not the broken App Router convention)', () => {
+    // PR #40 specifically: the manifest used to reference /icon.png
+    // and /apple-icon.png (Next.js App Router convention from
+    // src/app/), but those 404'd in production on OpenNext-on-Pages.
+    // Swapped for paths under /public/* which Cloudflare Pages serves
+    // reliably. A future contributor who reverts breaks the PWA
+    // install flow's icon — caught here.
+    const srcs = m.icons!.map((i) => i.src);
+    expect(srcs).toContain('/favicon.svg');
+    expect(srcs.some((s) => s.startsWith('/images/'))).toBe(true);
+    // None of the icons may point at the broken convention paths.
+    expect(srcs).not.toContain('/icon.png');
+    expect(srcs).not.toContain('/apple-icon.png');
+  });
+
+  it('favicon.svg file actually exists in /public/', () => {
+    // Static-file existence check — if someone deletes the SVG
+    // without updating the manifest, the install flow's icon breaks.
+    const svgPath = resolve(__dirname, '../public/favicon.svg');
+    const svg = readFileSync(svgPath, 'utf8');
+    // Must be a valid SVG envelope. Defensive — catches the case
+    // where the file gets accidentally cleared or corrupted.
+    expect(svg).toMatch(/^<svg[\s\S]*<\/svg>\s*$/);
+    expect(svg).toContain('viewBox="0 0 256 256"');
+    expect(svg).toContain('#ec7064'); // brand-primary-400 — design contract
+  });
+
   it('start_url is the root so locale detection runs', () => {
     expect(m.start_url).toBe('/');
   });
@@ -126,6 +153,17 @@ describe('locale layout metadata — Open Graph + Twitter share previews', () =>
   it('declares twitter:card and twitter:image', () => {
     expect(source).toMatch(/twitter:\s*\{[\s\S]*?card:\s*'summary_large_image'/);
     expect(source).toMatch(/twitter:\s*\{[\s\S]*?images:/);
+  });
+
+  it('declares explicit icon paths pointing at /public/ files (not the App Router convention)', () => {
+    // Bug-hunt May 2026 round 3 caught that `src/app/icon.png` and
+    // `src/app/apple-icon.png` 404'd in production on OpenNext-on-
+    // Pages even though the files existed. PR #40 swapped the
+    // metadata to point at `/public/` paths which serve reliably.
+    // Reverting to the convention re-introduces the broken-tab-icon
+    // bug, so we lock the explicit paths here.
+    expect(source).toMatch(/icons:\s*\{[\s\S]*?icon:\s*'\/favicon\.svg'/);
+    expect(source).toMatch(/icons:\s*\{[\s\S]*?apple:\s*'\/images\/shinny_avatar\.png'/);
   });
 
   it('sets metadataBase so relative image paths resolve against prod origin', () => {

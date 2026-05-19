@@ -191,19 +191,13 @@ Separately, every locale page rendered HTML head with no `og:image` and no `twit
 
 **Lesson for the audit playbook**: probing arbitrary not-found paths per locale belongs in the routine HTML sweep. The default 404 page looks fine if you only probe `/`, `/scan` etc. — only "rare" paths reveal it.
 
-### `/icon.png` and `/apple-icon.png` return 404 in production despite existing in `src/app/` (May 2026 round 3)
+### `/icon.png` and `/apple-icon.png` returned 404 in production despite existing in `src/app/` (May 2026 round 3 — resolved by PR #40)
 
-**Symptom**: HTML head correctly references `<link rel="icon" href="/icon.png?<hash>"/>` (Next.js App Router auto-generates this from `src/app/icon.png`), but the URL itself returns HTTP 404. Every browser tab therefore shows the default browser icon instead of the Shinny logo.
+**Symptom**: HTML head correctly referenced `<link rel="icon" href="/icon.png?<hash>"/>` (Next.js App Router auto-generates this from `src/app/icon.png`), but the URL itself returned HTTP 404. Every browser tab showed the default browser icon instead of the Shinny logo.
 
-**Suspected cause**: the icon files are 418KB each. The OpenNext-on-Cloudflare-Pages adapter likely has a size threshold for assets it serves via the App Router convention (vs assets that should be in `/public/`). Files this large weren't designed to be served as favicons anyway — standard tab icons are 16×16/32×32 PNGs under 50KB.
+**Root cause**: same OpenNext-on-Cloudflare-Pages adapter quirk that broke `/sitemap.xml` (PRs #34→#38). The App Router file convention (`src/app/icon.png` → `/icon.png`) doesn't survive the adapter's route compilation. The 418KB file size probably made it worse but wasn't the root cause — the routing itself never registered.
 
-**Workaround until fixed**: leave as-is. Browser default icon is mildly ugly but not user-blocking. The newly-added PWA manifest references the same paths, so it inherits the same 404 — install-as-app flows will show the default icon too.
-
-**Fix path** (separate PR):
-1. Generate proper-sized icons (16, 32, 192, 512px PNGs + a maskable variant) — needs image tooling not available in this session.
-2. Move them to `/public/` (predictable serving, no App Router convention) and reference explicitly from `metadata.icons` in `app/[locale]/layout.tsx`.
-3. Update `app/manifest.ts` to point at the new paths.
-4. Delete the 418KB PNGs in `src/app/`.
+**Fix** (PR #40): apply the rule the session derived through the sitemap iterations — convention fails → move to `/public/*`. Shipped a 1KB hand-written `public/favicon.svg` (brand mark) and made `app/[locale]/layout.tsx` reference it explicitly via `metadata.icons`. The 418KB PNGs are deleted. Browser tabs now show the Shinny "S" mark.
 
 ### Content-Security-Policy not yet set on HTML responses (May 2026 round 3 follow-up)
 

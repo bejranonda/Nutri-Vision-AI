@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!--
+    Shinny Guide favicon. Brand-primary-400 (#ec7064) rounded square
+    with a white capital S in the centre.
+
+    Why SVG (and not a binary .ico)?
+      - Scales to every browser tab size without aliasing.
+      - ~1KB on the wire vs the previous 418KB src/app/icon.png that
+        OpenNext-on-Pages couldn't serve at /icon.png at all.
+      - Edits stay text-diffable in PRs.
+
+    If a designer eventually replaces this with a Shinny-mascot mark,
+    keep:
+      - viewBox="0 0 256 256" (apple-touch-icon expects square)
+      - rounded corners (matches iOS/Android app-icon convention)
+      - brand-primary-400 background (#ec7064 — see globals.css)
+  -->
+  <rect width="256" height="256" rx="48" fill="#ec7064"/>
+  <text x="128" y="186"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="180"
+        font-weight="700"
+        text-anchor="middle"
+        fill="white">S</text>
+</svg>

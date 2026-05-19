@@ -34,14 +34,16 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#ec7064', // brand-primary-400 — matches the scan-button gradient
     background_color: '#fff5f5', // brand-primary-50 — matches the auth-card background
     categories: ['food', 'health', 'lifestyle', 'medical'],
-    // Icons reference the App Router-managed `src/app/icon.png` and
-    // `src/app/apple-icon.png`. NOTE: those files currently return
-    // 404 in production — tracked as a separate issue. The manifest
-    // is still useful as documentation of intended icon sizes and
-    // unlocks PWA install flows once the icon serving is fixed.
+    // Icons reference files that actually serve from /public/. The
+    // earlier /icon.png + /apple-icon.png (App Router convention from
+    // src/app/) 404'd in production — PR #40 swapped those for paths
+    // Cloudflare Pages serves reliably. `/favicon.svg` is the 1KB
+    // brand mark; `/images/shinny_avatar.png` is the 640×640 raster
+    // already used as the og:image (proven to serve correctly).
     icons: [
-      { src: '/icon.png', sizes: '640x640', type: 'image/png' },
-      { src: '/apple-icon.png', sizes: '640x640', type: 'image/png', purpose: 'maskable' },
+      { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+      { src: '/images/shinny_avatar.png', sizes: '640x640', type: 'image/png' },
+      { src: '/images/shinny_avatar.png', sizes: '640x640', type: 'image/png', purpose: 'maskable' },
     ],
   };
 }
