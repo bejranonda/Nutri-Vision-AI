@@ -118,3 +118,9 @@ Initial/
 !frontend/public/sitemap.xml
 reference.txt
 .claude/settings.local.json
+
+# Playwright e2e artefacts — generated per-run, not source.
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/

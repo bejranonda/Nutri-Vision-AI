@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Playwright e2e suite + hreflang alternates on every locale page
+
+UX-audit round 5 introduced a new test layer: **Playwright e2e against production**. Until now the test suite was Vitest source-level invariants only — `npm run check:all` was fast (~2s) but couldn't catch bugs that only appear in a real browser (DOM after hydration, network-layer 404s on referenced assets, console errors). 28 e2e tests now sit alongside the 163 unit tests.
+
+Within the first run, Playwright caught **a real bug** the unit suite missed:
+
+🐛 **No `<link rel="alternate" hreflang>` tags on any rendered HTML page**. The sitemap (`/sitemap.xml`) carries the locale alternates, but the per-page metadata didn't — so a crawler visiting `/th` couldn't see that `/en`, `/de`, `/da` are translations of the same content. `og:locale:alternate` covers Open Graph but not search-engine canonicalisation, which specifically needs the `rel=alternate` links.
+
+**Fix**: `app/[locale]/layout.tsx → metadata.alternates`:
+```ts
+alternates: {
+  canonical: '/th',
+  languages: {
+    th: '/th', en: '/en', de: '/de', da: '/da',
+    'x-default': '/th',   // primary launch locale
+  },
+}
+```
+
+`metadataBase` from PR #35 makes Next.js serialise these as absolute URLs.
+
+Other touches:
+- **`playwright.config.ts`** (new): `baseURL` defaults to production; mobile viewport (414×896, iPhone 11 Pro); Thai locale via `Accept-Language`; `ignoreHTTPSErrors: true` for sandbox containers that lack the public CA bundle (Node `request` works without it; Chromium needs the flag). NOT wired into `check:all` — too slow + needs network. Invoke explicitly via `npm run test:e2e`.
+- **`tests/e2e/smoke.spec.ts`** (new): 17 cases pinning every architectural fix this session has shipped — homepage renders without console errors across all 4 locales; favicon + apple-touch-icon resolve; og:image absolute URL; locale-aware 404 with native headlines (`หาหน้านี้ไม่พบ`, `Couldn't find that page`, …); sitemap.xml well-formed; security headers (X-Frame, Referrer-Policy); Cache-Control on every API route; `/api/health.deployment.shaShort` shape; zod 400 on `/api/auth/login`; scan page renders.
+- **`tests/e2e/ui-ux.spec.ts`** (new): 11 cases for surfaces the unit suite can't reach — locale-switcher round-trip; nav links resolve; `<img>` alt-text after hydration; zero broken images post-load; manifest icons all serve 200; login form empty-submit doesn't navigate to `/dashboard`; robots.txt has body; **canonical/hreflang present** (the failing test that surfaced the bug above).
+- **`package.json`**: new scripts `test:e2e` and `test:e2e:report`. `@playwright/test` ^1.60.0 in devDependencies.
+- **`.gitignore`**: Playwright artefact dirs (`test-results/`, `playwright-report/`, `playwright/.cache/`).
+
+**Pattern**: e2e is the layer that catches "fix shipped but doesn't render correctly" — exactly the class of bug that took 4 PRs (#34→#38) to nail down the sitemap. Future architectural changes get an e2e probe BEFORE the deploy validation cycle, so the next 4-iteration spiral takes 1 iteration instead.
+
+Project tests: **163 unit + 28 e2e = 191 total** (was 163).
+
 ### Fixed — Browser tab icon was the default browser glyph because `src/app/icon.png` never served
 
 UX-audit round 3 documented this in `KNOWN_ISSUES.md` but didn't fix it: `/icon.png` and `/apple-icon.png` both 404'd in production. The 418KB PNG files lived in `src/app/` (App Router convention), but the OpenNext-on-Pages adapter never served them — likely the same convention-vs-static-asset split that bit `/sitemap.xml`.
