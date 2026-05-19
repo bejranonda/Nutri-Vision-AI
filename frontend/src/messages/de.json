@@ -22,7 +22,9 @@
     "recipes": "Rezepte",
     "learn": "Lernen",
     "profile": "Profil",
-    "pricing": "Preise"
+    "pricing": "Preise",
+    "open_menu": "Menü öffnen",
+    "close_menu": "Menü schließen"
   },
   "home": {
     "title": "Shinny Guide",
@@ -419,7 +421,8 @@
       "wrong_scope": "Dieser Code kann nicht für neue Konten verwendet werden.",
       "rate_limited": "Zu viele Prüfungen — bitte kurz warten und neu versuchen.",
       "check_failed": "Der Code konnte gerade nicht geprüft werden. Bitte später erneut versuchen."
-    }
+    },
+    "toggle_password_visibility": "Passwort anzeigen"
   },
   "pricing": {
     "title": "Wähle deinen Plan",
