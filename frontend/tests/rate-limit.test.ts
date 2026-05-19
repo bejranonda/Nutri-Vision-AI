@@ -217,4 +217,16 @@ describe('tooManyResponse', () => {
     expect(body.error).toBe('Too many requests');
     expect(body.retryAfterSeconds).toBe(42);
   });
+
+  it('sets cache-control: no-store on 429 responses', () => {
+    // Round 5 e2e caught that 429 responses were missing
+    // `cache-control: no-store` — every other /api/* response sets
+    // it via `jsonResponse`, but `tooManyResponse` bypasses that
+    // helper because rate-limit runs before the route's main
+    // try/catch. The same "personalised, never cache" contract still
+    // applies. Locking it here so a future contributor who copies
+    // tooManyResponse for a new error type doesn't drop the header.
+    const res = tooManyResponse({ allowed: false, count: 5, limit: 3, retryAfterSeconds: 10 });
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  });
 });
