@@ -199,6 +199,16 @@ function rateLimitInner(
 /**
  * Build a uniform 429 response from a RateLimitResult. All routes use
  * this so the shape stays consistent for the client.
+ *
+ * `cache-control: no-store` is required, NOT cosmetic. PR #33 made
+ * every `/api/*` response default to `no-store` via the `jsonResponse`
+ * helper. This function bypasses that helper because the rate-limit
+ * call sits BEFORE the route's main try/catch and must not throw —
+ * but the same "responses are personalised + must not be cached" rule
+ * still applies. Bug-hunt May 2026 round 5 caught the omission: an
+ * e2e probe that burned the voucher-check rate-limit then read the
+ * 429 headers found no `cache-control` at all, the only API response
+ * shape in production missing it.
  */
 export function tooManyResponse(result: RateLimitResult): Response {
   return new Response(
@@ -210,6 +220,7 @@ export function tooManyResponse(result: RateLimitResult): Response {
       status: 429,
       headers: {
         'content-type': 'application/json',
+        'cache-control': 'no-store',
         'retry-after': String(result.retryAfterSeconds),
         'x-ratelimit-limit': String(result.limit),
         'x-ratelimit-remaining': '0',

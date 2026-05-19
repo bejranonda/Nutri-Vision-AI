@@ -252,6 +252,12 @@ export default function LoginPage() {
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                                    // autoComplete="email" is broader than "username" — works on
+                                    // both login + register tabs without per-mode switching. iOS
+                                    // Keychain and 1Password both surface saved credentials based
+                                    // on this attribute; missing it means saved logins won't
+                                    // appear (e2e round-5 caught the gap on /th/login).
+                                    autoComplete="email"
                                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                     placeholder="you@example.com"
                                 />
@@ -265,6 +271,13 @@ export default function LoginPage() {
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                                    // Mode-aware autoComplete so password managers don't try to
+                                    // prefill saved credentials into the *register* form (which
+                                    // would silently use them) or offer to save the placeholder
+                                    // text on register-success. "current-password" surfaces saved
+                                    // logins; "new-password" prompts the manager to generate +
+                                    // remember a fresh one (e2e round-5 caught the missing attr).
+                                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                                     className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                     placeholder="••••••"
                                 />
@@ -282,6 +295,7 @@ export default function LoginPage() {
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                        autoComplete="new-password"
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                         placeholder="••••••"
                                     />
