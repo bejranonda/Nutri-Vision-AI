@@ -172,7 +172,8 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **163** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **164** |
+| E2e (Playwright, opt-in via `npm run test:e2e`) | Playwright + Chromium | `frontend/tests/e2e/*.spec.ts` (5 files: smoke, ui-ux, deep-probes, a11y, responsive-perf) | **79** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -246,6 +247,21 @@ Expected: every locale has an `og:image` and `twitter:image` tag; the 404 title 
 Trade-off across all five: convention buys typed return values; explicit handler buys typed route handler; static file buys nothing but reliability. For URLs that must be at a fixed path (sitemap, robots, well-known JSON files), reliability beats every other concern.
 
 Same lesson for nested `not-found.tsx` in dynamic segments: OpenNext-on-Pages short-circuits to a static 404 fallback before the layout chain runs. Add a catch-all `[...slug]/page.tsx` in the segment that calls `notFound()` to force the chain to execute. See PR #36 + `KNOWN_ISSUES.md → Next.js App Router file conventions are unreliable on OpenNext-on-Cloudflare-Pages`.
+
+### Run e2e BEFORE the deploy-validate cycle for any public-surface change
+
+Bug-hunt round 6 introduced Playwright as an opt-in second test layer (`npm run test:e2e`). It catches a class of bug the Vitest unit suite never can: things visible only in the rendered DOM (icon-button accessible names, label/input associations, hreflang link tags, og:image absolute URLs) and things visible only in HTTP responses (Cache-Control on 429s, payload sizes, third-party script sources).
+
+**Rule**: any PR changing the public surface — HTML metadata, form structure, API response shape, layout components, manifest, sitemap, robots — runs `npm run test:e2e` against the local dev server or production deploy **before** merge. The e2e suite has ~25 s runtime; it's not in `check:all` (too slow for every commit) but it IS the gate before the deploy-validate cycle.
+
+Why this matters: PRs #34→#38 took 4 iterations to fix `/sitemap.xml` because each attempt's behavioural validation only happened post-deploy. With e2e in front of the deploy, the same class of bug shows up locally in seconds, and the loop reaches 1 iteration instead of 4.
+
+```bash
+# Add this to your pre-merge checklist for any public-surface PR:
+npm run test:e2e
+# Failures → fix locally → re-run. No deploy round-trips needed
+# until the suite is green.
+```
 
 ### Client timeouts MUST exceed server budgets
 

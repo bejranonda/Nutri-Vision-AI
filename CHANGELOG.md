@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 6 (e2e loop) — 10 iterations of probe → fix → ship → verify
+
+Introduced Playwright as a second test layer (28 e2e cases initially → 79 across 5 spec files by the end) and ran a structured iteration loop. Each iteration: write/expand the e2e suite → run against live deploy → triage findings → ship fixes → wait for deploy → re-verify. Coverage converged after 10 iterations.
+
+| Iter | Probe | Real bugs caught | Fixed in |
+|------|-------|-----------------:|----------|
+| 1 | First Playwright run | Sandbox cert chain rejected | Config-only (`ignoreHTTPSErrors`) |
+| 2 | Smoke re-run | 0 — 17/17 green | — |
+| 3 | UI/UX suite | 1 — no hreflang alternates on any locale page | PR #41 |
+| 4 | Post-deploy verify | 0 | — |
+| 5 | Deep probes | 3 — email + password missing `autoComplete`; 429 responses missing `Cache-Control` | PR #42 |
+| 6 | Post-deploy verify | 0 | — |
+| 7 | A11y probes | 4 — hamburger + eye toggle missing `aria-label`; 5 inputs missing `htmlFor`/`id` linkage; no `color-scheme` declared | PR #43 |
+| 8 | Post-deploy verify | 1 — second voucher-like input (promo redeem) still unlabeled | PR #44 |
+| 9 | Responsive + perf | 1 — Cloudflare Insights script not whitelisted (legitimate; needed explicit acknowledgement) | PR #44 |
+| 10 | Full-suite verify | 0 — coverage converged | — |
+
+**10 real bugs caught by the e2e layer that the 164-case Vitest unit suite never could:**
+- Per-page `<link rel="alternate" hreflang>` missing (sitemap had them, page metadata didn't)
+- Login inputs without `autoComplete` (iOS Keychain / 1Password silently failed to fill)
+- 429 responses bypassing `jsonResponse` so `Cache-Control` dropped
+- Icon-only buttons (hamburger, eye-toggle) without accessible names
+- 5 visible `<label>` elements not programmatically linked to their inputs via `htmlFor`/`id`
+- Promo-redeem input on `/th/login` with no label association at all
+- No `color-scheme` declaration → native widgets clashed with brand palette on system-dark
+- CF Insights beacon flying under the third-party-script radar
+
+**Test totals**: 164 unit + 79 e2e = **243 total tests**. Unit suite stays in `npm run check:all` (~2s); Playwright is opt-in via `npm run test:e2e` (~25s, needs network).
+
+**Touched (across PRs #41–#44)**:
+- `playwright.config.ts` — new file. mobile viewport, `ignoreHTTPSErrors`, baseURL → prod.
+- `tests/e2e/smoke.spec.ts` — 17 cases pinning every architectural fix from PRs #21–#40.
+- `tests/e2e/ui-ux.spec.ts` — 11 cases for DOM-only surfaces.
+- `tests/e2e/deep-probes.spec.ts` — 20 cases for headers, headings, autocomplete, payload size, rate-limit behaviour.
+- `tests/e2e/a11y.spec.ts` — 9 cases for keyboard nav, icon-button names, focus indicators, label associations, lang attribute, color-scheme.
+- `tests/e2e/responsive-perf.spec.ts` — 12 cases for viewport breakpoints, payload caps, LCP preload, third-party script whitelist.
+- `src/app/[locale]/layout.tsx` — `metadata.alternates.languages` + `viewport.colorScheme: 'light'`.
+- `src/app/[locale]/login/page.tsx` — 6 inputs gained `id` + matching `htmlFor` on labels; `autoComplete` per mode; `aria-label` on eye toggle and promo input.
+- `src/app/[locale]/page.tsx` — hamburger gained `aria-label` + `aria-expanded`.
+- `src/lib/rate-limit.ts` — `tooManyResponse()` now sets `Cache-Control: no-store`.
+- `src/messages/{th,en,de,da}.json` — 3 new keys (`nav.open_menu`, `nav.close_menu`, `auth.toggle_password_visibility`) × 4 locales.
+- `package.json` — new scripts `test:e2e` + `test:e2e:report`; `@playwright/test` ^1.60.0.
+- `.gitignore` — Playwright artefact directories.
+
+**Pattern**: e2e is the layer that catches **"fix shipped but doesn't render correctly"** + **"surface exists but assistive tech can't use it"**. Unit tests pin source-code invariants (cheap); e2e pins rendered behaviour (medium-cost, ~25s, opt-in). Both have their place. The session-derived rule: **add an e2e probe BEFORE the next deploy cycle** when shipping any architectural change to the public surface — saves the 4-iteration spiral that PRs #34–#38 needed for the sitemap.
+
 ### Added — Playwright e2e suite + hreflang alternates on every locale page
 
 UX-audit round 5 introduced a new test layer: **Playwright e2e against production**. Until now the test suite was Vitest source-level invariants only — `npm run check:all` was fast (~2s) but couldn't catch bugs that only appear in a real browser (DOM after hydration, network-layer 404s on referenced assets, console errors). 28 e2e tests now sit alongside the 163 unit tests.

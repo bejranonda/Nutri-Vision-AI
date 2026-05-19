@@ -73,7 +73,7 @@ To ensure the high accuracy of the Dual-Provider architecture, we maintain a sta
 The static safety net runs on every commit via `npm run check:all`:
 
 1. **Zod request validation** — every `/api/*` route parses its JSON body through a schema in `frontend/src/lib/schemas.ts` before touching the DB or AI. Wrong types, oversize strings, non-data-URI images all die at the edge with a uniform `{ error, fields: { name: issueCode } }` shape. See `GUIDELINE.md → Request-body validation` for the contract.
-2. **Vitest test suite** — **163 tests** under `frontend/tests/` lock the PRs #6–#34 security, prompt, AI-fallback, rate-limit, health-shape, API-response, and SEO/PWA contracts: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
+2. **Vitest test suite** — **164 unit + 79 e2e = 243 tests** under `frontend/tests/` lock the PRs #6–#34 security, prompt, AI-fallback, rate-limit, health-shape, API-response, and SEO/PWA contracts: PBKDF2 + constant-time compare, legacy-hash fallback, `validateMultiDishResponse` normalisation, `buildCollageInstruction` preamble + final reminder, Thai anti-romanization rule, all four zod schemas, the `GEMINI_VISION_MODELS` cascade invariants (every entry `^gemini-`, no `gemma`, no `-latest$`, route iterates the constant, response surfaces `primaryProviderError`, Gemini-before-CF source order, CF image format `Array.from(decodeBase64ToBytes(...))`, Llama 5016 auto-accept), and the rate-limit **enforcement contract** (same-IP exhaustion blocks, distinct-IP isolation, distinct-route isolation, sustained-flood non-DoS).
 3. **i18n drift check** — `scripts/check-i18n-keys.mjs` extracts every `useTranslations('ns') + <var>('key')` call in the codebase (handling the `tNav` / `tBrand` / `tGamify` multi-namespace pattern) and verifies each key exists in every locale JSON. Prevented class: the `scan.dishes_found` literal-string regression.
 
 Failing any of these blocks the push. See `ITERATION_PROCESS.md` for the full gate order.
@@ -109,6 +109,22 @@ Headers apply to every non-`/api/*` route. API routes don't render HTML, and the
 - `src/app/sitemap.ts` is served at `/sitemap.xml`. Auto-generated entries for `/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login` × 4 locales with `hreflang` alternates pointing across all 4. Tells search engines that `/th/scan` and `/en/scan` are translations of the same page, not duplicate-content competitors.
 
 Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) are deliberately excluded from the sitemap — indexing them would point search users at a redirect-to-login experience.
+
+### Playwright e2e suite (`frontend/tests/e2e/`)
+
+UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit suite. Five spec files, 79 cases, run via `npm run test:e2e` (opt-in — needs network + Chromium browser, takes ~25s).
+
+| File | Pin |
+|---|---|
+| `smoke.spec.ts` | Every architectural fix this session has shipped: homepage renders × 4 locales, favicon + apple-touch-icon resolve, og:image absolute URL, locale-aware 404 with native headlines, sitemap.xml well-formed, security headers (X-Frame, Referrer-Policy), `Cache-Control: no-store` on every API route, `/api/health.deployment.shaShort` shape, zod 400 on `/api/auth/login`, scan page hydrates |
+| `ui-ux.spec.ts` | DOM-only surfaces: locale-switcher round-trip, nav links resolve, `<img>` alt-text after hydration, zero broken images, manifest icons all serve 200, empty login submit doesn't navigate to `/dashboard`, robots.txt reachable, canonical/hreflang present |
+| `deep-probes.spec.ts` | Per-locale 404 security headers, full hreflang graph (`th/en/de/da/x-default`), titles + meta description sizes, viewport meta, autocomplete on form inputs, exactly one `<h1>` per page, lang on sub-pages, static asset payloads (`favicon.svg < 4KB`, `manifest < 1KB`), sequential voucher probes engage rate-limit |
+| `a11y.spec.ts` | Tab focus reaches interactive elements, icon-only buttons have accessible names, focus indicators visible, every input has a label or aria-label, lang on sub-pages, color-scheme declared |
+| `responsive-perf.spec.ts` | Homepage renders without horizontal overflow at 414/768/1280, scan page upload affordance visible at every viewport, `/th` HTML response under 100 KB, manifest under 1 KB, favicon under 4 KB, LCP candidate (Shinny avatar) preloaded as image, no non-whitelisted external scripts |
+
+Config (`playwright.config.ts`): `baseURL` defaults to production. Mobile viewport (414×896, iPhone 11 Pro). Thai locale via `Accept-Language`. `ignoreHTTPSErrors: true` for sandbox containers that lack the public CA bundle.
+
+The e2e suite caught **10 real bugs** unit tests never could over 10 iterations of the audit loop (PRs #41–#44): per-page hreflang, autocomplete on login inputs, Cache-Control on 429s, icon-only-button accessible names, 6 label/input associations, color-scheme, CF Insights script source.
 
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 
