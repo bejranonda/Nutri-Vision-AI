@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Check, Star, Gift, ChevronRight, Building } from 'lucide-react';
+import { Check, Star, Gift, ChevronRight, Building } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_PRICING } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function PricingPage() {
     const t = useTranslations('pricing');
@@ -92,10 +92,7 @@ export default function PricingPage() {
 
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-50">
                 <div className="flex items-center justify-between">
-                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                    </Link>
-                    <LanguageSwitcher currentLocale={locale} />
+                    <SiteHeader locale={locale} />
                 </div>
             </div>
 

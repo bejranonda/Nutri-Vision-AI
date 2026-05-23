@@ -317,7 +317,9 @@
       "diabetic_friendly": "Diabetesvenlig",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Bedste spiserækkefølge for denne opskrift"
+    "sequence_hint": "Bedste spiserækkefølge for denne opskrift",
+    "placeholder_title": "Opskrifter er på vej",
+    "placeholder_body": "Shinny er ved at samle sunde thailandske opskrifter til dig. Vil du scanne dagens måltid imens?"
   },
   "gamification": {
     "points": "Point",

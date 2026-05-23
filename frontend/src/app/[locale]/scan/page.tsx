@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Cpu } from 'lucide-react';
+import { Scan, Cpu } from 'lucide-react';
 
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_LIMITS } from '@/lib/tier-config';
@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 import { type ScanMode } from '@/lib/ai-prompt';
 
 // Components
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 import ScanModeSelector from '@/components/scan/ScanModeSelector';
 import DishCard from '@/components/scan/DishCard';
 import MealOverview from '@/components/scan/MealOverview';
@@ -120,17 +120,14 @@ export default function ScanPage() {
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
 
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-50">
-                <div className="flex items-center justify-between">
-                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                    </Link>
+                <SiteHeader locale={locale} />
+                <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-3">
                         {isAuthenticated && (
                             <div className="text-sm text-gray-500">
                                 {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{activeTier === 'premium' || activeTier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
                             </div>
                         )}
-                        <LanguageSwitcher currentLocale={locale} />
                     </div>
                 </div>
             </div>

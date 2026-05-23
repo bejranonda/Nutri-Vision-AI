@@ -8,6 +8,7 @@ import { ArrowLeft, UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, C
 import { useAuthStore } from '@/lib/auth-store';
 import { logger } from '@/lib/logger';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
@@ -184,10 +185,7 @@ export default function LoginPage() {
 
             {/* Back button + Language */}
             <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
-                <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                    <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                </Link>
-                <LanguageSwitcher currentLocale={locale} />
+                <SiteHeader locale={locale} />
             </div>
 
             {/* Success state */}

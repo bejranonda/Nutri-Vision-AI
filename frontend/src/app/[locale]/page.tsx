@@ -1,21 +1,17 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Utensils, Award, Flame, Menu, X } from 'lucide-react';
+import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Award, Flame, Utensils } from 'lucide-react';
 import { logger } from '@/lib/logger';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function HomePage() {
   const t = useTranslations('home');
-  const tNav = useTranslations('nav');
-  const tAuth = useTranslations('auth');
-  const tBrand = useTranslations('brand');
   const tMascot = useTranslations('mascot');
   const tGamify = useTranslations('gamification');
   const locale = useLocale();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     logger.trackFeature('Landing Page', 'success', { locale });
@@ -28,77 +24,14 @@ export default function HomePage() {
       <div className="absolute top-1/4 -right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
       <div className="absolute -bottom-1/4 left-1/4 w-1/2 h-1/2 bg-brand-accent-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '4s' }}></div>
 
-      {/* Header */}
-      <header className="container mx-auto px-4 py-4 md:py-6 relative z-50 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-2xl flex items-center justify-center shadow-brand transform hover:rotate-6 transition-transform">
-              <Utensils className="text-white w-5 h-5 md:w-6 md:h-6" />
-            </div>
-            <div>
-              <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500">{tBrand('name')}</span>
-              <p className="text-xs text-brand-neutral/60 font-medium hidden sm:block">{tBrand('tagline')}</p>
-            </div>
-          </div>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors">
-              {tNav('dashboard')}
-            </Link>
-            <Link href={`/${locale}/recipes`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors">
-              {tNav('recipes')}
-            </Link>
-
-            {/* Language Switcher */}
-            <LanguageSwitcher currentLocale={locale} />
-
-            <Link
-              href={`/${locale}/login`}
-              className="group relative px-6 py-2.5 font-semibold text-white rounded-xl overflow-hidden shadow-brand hover:shadow-brand-lg transition-shadow"
-            >
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-brand-primary-400 via-brand-secondary-400 to-brand-accent-400"></span>
-              <span className="absolute bottom-0 right-0 block w-64 h-64 mb-32 mr-4 transition duration-500 origin-bottom-left transform rotate-45 translate-x-24 bg-white opacity-10 group-hover:rotate-90 ease"></span>
-              <span className="relative">{tAuth('login')}</span>
-            </Link>
-          </div>
-
-          {/* Mobile Hamburger */}
-          <div className="flex md:hidden items-center gap-2">
-            <LanguageSwitcher currentLocale={locale} />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              // Icon-only button — screen readers need an accessible
-              // name. aria-expanded keeps assistive tech in sync with
-              // the disclosure widget state. Caught by e2e iter 7.
-              aria-label={mobileMenuOpen ? tNav('close_menu') : tNav('open_menu')}
-              aria-expanded={mobileMenuOpen}
-              className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
-            </button>
-          </div>
-        </nav>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 border-t border-gray-200/50 flex flex-col gap-3 animate-slide-up">
-            <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              {tNav('dashboard')}
-            </Link>
-            <Link href={`/${locale}/recipes`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              {tNav('recipes')}
-            </Link>
-            <Link
-              href={`/${locale}/login`}
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-center px-6 py-2.5 font-semibold text-white rounded-xl bg-gradient-to-r from-brand-primary-400 via-brand-secondary-400 to-brand-accent-400 shadow-brand"
-            >
-              {tAuth('login')}
-            </Link>
-          </div>
-        )}
-      </header>
+      {/*
+        Header extracted into <SiteHeader/> in iter 3 so every page
+        gets the same nav. The inline JSX that used to live here
+        moved verbatim into `src/components/SiteHeader.tsx`; this
+        line keeps the homepage looking identical while sharing the
+        component with /scan, /login, /pricing, /demo, /recipes.
+      */}
+      <SiteHeader locale={locale} />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center relative z-10">
