@@ -66,7 +66,8 @@
         "title": "Gamified Health",
         "description": "Earn points, maintain streaks, and level up your eating habits"
       }
-    }
+    },
+    "free_no_signup": "Free · No signup needed to try"
   },
   "scan": {
     "title": "Scan Your Food",
@@ -198,7 +199,8 @@
     "dishes_found": "Dishes found",
     "score_label": "Score",
     "not_food_title": "Hmm, I don't see food here",
-    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!"
+    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!",
+    "privacy_note": "🔒 Your photo is used only for this analysis. Not stored. Not used to train AI."
   },
   "demo": {
     "title": "How Shinny Guide Works",

@@ -140,6 +140,16 @@ export default function HomePage() {
             {t('demo')}
           </Link>
         </div>
+        {/*
+          Fresh-user reassurance — addresses the "is this free? do I
+          need to sign up?" question that the May 2026 UX-audit
+          subagents flagged as the homepage's biggest unspoken
+          objection. Sits right under the primary CTA so the answer
+          arrives at the moment the user is deciding whether to click.
+        */}
+        <p className="mt-4 text-sm text-gray-600">
+          {t('free_no_signup')}
+        </p>
       </section>
 
       {/* Concept Section: อร่อย ตาม ลำดับ */}

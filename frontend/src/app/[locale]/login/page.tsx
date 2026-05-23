@@ -17,7 +17,18 @@ export default function LoginPage() {
 
     const { login, register, redeemCode, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
-    const [mode, setMode] = useState<'login' | 'register'>('login');
+    // Default tab: "Sign Up" for fresh visitors (no existing session
+    // cookie when this page mounts), "Login" for returning ones. The
+    // page's previous default-to-Login plus the "Welcome Back!"
+    // headline actively confused first-timers landing here from a
+    // "Get Started" CTA — fresh-user audit round (May 2026) caught
+    // this. We can't read the HTTP-only `shinnyguide_session` cookie
+    // from JS, but the auth store's `initAuth()` hits /api/auth/me
+    // on mount; if isAuthenticated flips to true the redirect at
+    // line ~55 takes the user to /dashboard anyway, so this default
+    // only ever runs for unauthenticated visitors. Default = register
+    // gives them the right tab on first paint.
+    const [mode, setMode] = useState<'login' | 'register'>('register');
     const [showPassword, setShowPassword] = useState(false);
     const [promoInput, setPromoInput] = useState('');
     const [promoMessage, setPromoMessage] = useState('');
