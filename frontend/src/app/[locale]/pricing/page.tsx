@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Check, Star, Gift, ChevronRight, Building } from 'lucide-react';
+import { Check, Star, Gift, ChevronRight, Building, Activity } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_PRICING } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
@@ -13,6 +13,7 @@ export default function PricingPage() {
     const t = useTranslations('pricing');
     const tCommon = useTranslations('common');
     const tAuth = useTranslations('auth');
+    const tScores = useTranslations('scan.scores');
     const locale = useLocale();
     const { isAuthenticated, user, redeemCode } = useAuthStore();
 
@@ -174,6 +175,46 @@ export default function PricingPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* 8-dimension score disclosure — fresh-user audit iter 5:
+                    "Full 8-dimension scoring" is opaque jargon unless we
+                    show what's measured. A single details block below the
+                    tier cards lists all 8 with one-line explanations.
+                    Free tier covers 3 (blood-sugar, gut-health, overall)
+                    so we badge those. */}
+                <details className="group max-w-3xl mx-auto mb-10 backdrop-blur-md bg-white/80 rounded-3xl border border-gray-200 shadow-glass">
+                    <summary className="cursor-pointer p-5 md:p-6 list-none flex items-center justify-between gap-3 hover:text-brand-primary-500 transition-colors">
+                        <span className="flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 flex items-center justify-center shadow-brand">
+                                <Activity className="w-5 h-5 text-white" />
+                            </span>
+                            <span className="text-left">
+                                <span className="block font-bold text-gray-800">{t('score_breakdown.title')}</span>
+                                <span className="block text-sm text-gray-500">{t('score_breakdown.intro')}</span>
+                            </span>
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-open:rotate-90 transition-transform flex-shrink-0" />
+                    </summary>
+                    <ul className="px-5 md:px-6 pb-5 md:pb-6 grid sm:grid-cols-2 gap-3">
+                        {['blood_sugar', 'gut_health', 'inflammation', 'nutrient_density', 'processing', 'protein_quality', 'micronutrient', 'overall'].map((key) => {
+                            const isFree = key === 'blood_sugar' || key === 'gut_health' || key === 'overall';
+                            return (
+                                <li key={key} className="flex items-start gap-2 text-sm">
+                                    <Check className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <span className="font-semibold text-gray-800">{tScores(key)}</span>
+                                        {isFree && (
+                                            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-700 align-middle">
+                                                {t('score_breakdown.free_badge')}
+                                            </span>
+                                        )}
+                                        <p className="text-gray-500 text-xs mt-0.5">{t(`score_breakdown.dimensions.${key}`)}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </details>
 
                 {/* Enterprise CTA */}
                 <div className="backdrop-blur-md bg-gradient-to-r from-gray-50 to-brand-secondary-50 rounded-3xl p-8 max-w-3xl mx-auto shadow-glass text-center mb-10">

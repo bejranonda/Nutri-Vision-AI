@@ -485,6 +485,21 @@
       "cta": "Kontaktieren Sie uns"
     },
     "promo_code": "Hast du einen Promotioncode?",
+    "score_breakdown": {
+      "title": "Was ist der 8-dimensionale Gesundheitsscore?",
+      "intro": "Jeder Scan bewertet deine Mahlzeit in diesen 8 Dimensionen. Free schaltet 3 frei, Premium und Family alle 8.",
+      "free_badge": "Free",
+      "dimensions": {
+        "blood_sugar": "Wie schnell diese Mahlzeit deinen Blutzucker erhöht (glykämische Last).",
+        "gut_health": "Ballaststoffe, fermentierte Lebensmittel und Mikrobiom-Unterstützung.",
+        "inflammation": "Balance zwischen entzündungsfördernden und entzündungshemmenden Zutaten.",
+        "nutrient_density": "Vitamine und Mineralstoffe pro Kalorie.",
+        "processing": "Wie weit entfernt von unverarbeiteten Lebensmitteln (NOVA-Klassifikation).",
+        "protein_quality": "Vollständigkeit der Aminosäuren und Verdaulichkeit.",
+        "micronutrient": "Spezifische Vitamin- und Mineralstoff-Abdeckung.",
+        "overall": "Gewichteter Durchschnitt — dein einziger Score auf einen Blick."
+      }
+    },
     "faq": {
       "title": "Häufig gestellte Fragen",
       "q1": "Kann ich Premium kostenlos testen?",

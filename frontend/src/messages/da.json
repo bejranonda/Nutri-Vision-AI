@@ -485,6 +485,21 @@
       "cta": "Kontakt Os"
     },
     "promo_code": "Har du en kampagnekode?",
+    "score_breakdown": {
+      "title": "Hvad er den 8-dimensionelle sundhedsscore?",
+      "intro": "Hvert scan vurderer dit måltid på disse 8 dimensioner. Free låser 3 op; Premium og Family låser alle 8 op.",
+      "free_badge": "Free",
+      "dimensions": {
+        "blood_sugar": "Hvor hurtigt dette måltid hæver dit blodsukker (glykæmisk belastning).",
+        "gut_health": "Fibre, fermenteret mad og støtte til tarmens mikrobiom.",
+        "inflammation": "Balance mellem betændelsesfremmende og -hæmmende ingredienser.",
+        "nutrient_density": "Vitaminer og mineraler pr. kalorie.",
+        "processing": "Hvor langt fra ren mad (NOVA-klassifikation).",
+        "protein_quality": "Komplethed af aminosyrer og fordøjelighed.",
+        "micronutrient": "Specifik vitamin- og mineraldækning.",
+        "overall": "Vægtet gennemsnit — din ene score på et blik."
+      }
+    },
     "faq": {
       "title": "Ofte Stillede Spørgsmål",
       "q1": "Kan jeg prøve Premium gratis?",
