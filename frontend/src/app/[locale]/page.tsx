@@ -101,6 +101,18 @@ export default function HomePage() {
             <p className="text-sm text-brand-success font-semibold mt-2">
               📉 {t('concept.spike_reduction')}
             </p>
+            {/*
+              UX-audit iter 9: "Up to 70% spike reduction" used to
+              float as a headline number with zero source. Honest fix:
+              keep the punchy number (it's real — Shukla et al., 2015,
+              Weill Cornell, T2D patients) but show the citation right
+              under it so fresh readers know it's grounded, not just
+              marketing copy. Asterisk + small gray footnote keeps the
+              hero visual hierarchy intact.
+            */}
+            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+              {t('concept.spike_reduction_source')}
+            </p>
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">

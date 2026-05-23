@@ -37,7 +37,8 @@
       "title": "Wie isst man ohne zu altern?",
       "description": "Unsere KI zählt nicht nur Kalorien — sie hilft dir, deine Mahlzeiten optimal zu sequenzieren:",
       "sequence_short": "Gemüse → Protein → Kohlenhydrate → Süßes",
-      "spike_reduction": "Bis zu 70% weniger Blutzuckerspitzen",
+      "spike_reduction": "Bis zu 70% weniger Blutzuckerspitzen*",
+      "spike_reduction_source": "*Basierend auf einer Studie des Weill Cornell Medical Center (Shukla et al., 2015) mit Typ-2-Diabetes-Patienten. Individuelle Ergebnisse variieren.",
       "steps": {
         "fiber": "1. Gemüse",
         "fiber_desc": "Ballaststoffe beschichten den Darm und verlangsamen die Zuckeraufnahme",

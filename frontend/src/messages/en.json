@@ -37,7 +37,8 @@
       "title": "How to Eat Without Aging?",
       "description": "Our AI doesn't just count calories — it helps you sequence your meals for maximum health benefits:",
       "sequence_short": "Veggies → Protein → Carbs → Sweets",
-      "spike_reduction": "Up to 70% blood sugar spike reduction",
+      "spike_reduction": "Up to 70% blood sugar spike reduction*",
+      "spike_reduction_source": "*Based on a Weill Cornell Medical Center study (Shukla et al., 2015) in type-2 diabetes patients. Individual results vary.",
       "steps": {
         "fiber": "1. Vegetables",
         "fiber_desc": "Fiber coats your gut and slows sugar absorption",

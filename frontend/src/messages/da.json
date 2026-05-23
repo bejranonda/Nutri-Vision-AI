@@ -37,7 +37,8 @@
       "title": "Hvordan spiser man uden at ældes?",
       "description": "Vores AI tæller ikke bare kalorier — den hjælper dig med at sekvensere dine måltider for maksimal sundhedsfordel:",
       "sequence_short": "Grøntsager → Protein → Kulhydrater → Sødt",
-      "spike_reduction": "Op til 70% blodsukkerreduktion",
+      "spike_reduction": "Op til 70% blodsukkerreduktion*",
+      "spike_reduction_source": "*Baseret på en undersøgelse fra Weill Cornell Medical Center (Shukla et al., 2015) hos type 2-diabetespatienter. Individuelle resultater varierer.",
       "steps": {
         "fiber": "1. Grøntsager",
         "fiber_desc": "Fibre coater tarmen og bremser sukkeroptagelsen",
