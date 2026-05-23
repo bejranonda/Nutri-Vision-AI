@@ -5,9 +5,14 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ## 🐛 Open Bugs
 
 ### 1. Placeholder Content
-- **Current Status**: Several pages (Scan, Dashboard, Recipes) are currently implemented as "Coming Soon" placeholders.
-- **Priority**: High (Functional Roadmap).
-- **Target**: v1.1.0 and v1.2.0.
+- **Current Status**: Scan + Dashboard are fully wired (May 2026). `/recipes` remains a placeholder but now ships a Shinny-voiced empty state with a Scan CTA (UX-audit Round 7 iter 4, PR #48) instead of a bare "coming soon" stub. Real recipe content is the remaining gap.
+- **Priority**: Medium (recipes left).
+- **Target**: v1.2.0.
+
+### 1a. Social login (Google / LINE) — UI placeholder, no OAuth
+- **Current Status**: The login page renders Google + LINE buttons styled as disabled with a visible "Soon" badge (UX-audit Round 7 iter 6, PR #50). No OAuth backend wired yet.
+- **Priority**: Medium (convenience feature; email+password + voucher signup flows fully cover the user need today).
+- **Target**: v1.3.0.
 
 ### 2. Nutrition Scoring Data Gaps
 - **Current Status**: Many foods in the nutrition database lack specific values for micronutrients like Vitamin D or Omega-3:6 ratios, resulting in a default middle score (50).

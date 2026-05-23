@@ -126,6 +126,26 @@ Config (`playwright.config.ts`): `baseURL` defaults to production. Mobile viewpo
 
 The e2e suite caught **10 real bugs** unit tests never could over 10 iterations of the audit loop (PRs #41–#44): per-page hreflang, autocomplete on login inputs, Cache-Control on 429s, icon-only-button accessible names, 6 label/input associations, color-scheme, CF Insights script source.
 
+### Fresh-user audit loop (Round 7, May 2026, PRs #46–#53)
+
+A third testing lens, complementary to unit and e2e: a human/AI walks through the product with zero context and surfaces editorial / IA / honesty issues no automated probe catches. Round 7 ran 9 iterations and shipped 9 distinct fixes in 8 PRs (one PR bundled two iterations).
+
+Bugs caught and shipped:
+
+| Iter | Fix | PR |
+|------|-----|----|
+| 1 | Register default + free-tier reassurance + scan privacy note | #46 |
+| 2 | Canonical primary CTA across all pages ("Start your scan") | #47 |
+| 3 | Persistent `<SiteHeader/>` on every page (replaces 5 "Back to home" stubs) | #48 |
+| 4 | Shinny-voiced empty state on `/recipes` (was bare "coming soon") | #48 |
+| 5 | Expandable "8-dimension health score" disclosure on `/pricing` | #49 |
+| 6 | Disabled + badged "Soon" treatment for Google/LINE social buttons | #50 |
+| 7 | Removed duplicate promo input from login page | #51 |
+| 8 | Preload `shinny_avatar.png` to fix late-pop on hero pill | #52 |
+| 9 | Cited the source of the "Up to 70%" spike-reduction claim | #53 |
+
+Round 7 pattern → unit + e2e + fresh-user audit form the three-leg stool. See `docs/GUIDELINE.md` → "The fresh-user audit lens" for the practical recipe.
+
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 
 Sliding-window limiter applied to every public POST surface that does expensive or sensitive work:

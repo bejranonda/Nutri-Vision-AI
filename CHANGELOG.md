@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 7 (fresh-user loop) — 9 iterations focused on first-impression UX
+
+Round 6 was machine-driven (e2e probes catching machine-readable bugs: missing `htmlFor`, dropped headers, etc.). Round 7 inverted the lens: view the app as a first-time visitor with zero context — what looks broken, dishonest, or jargon-heavy? The 79-case e2e suite couldn't catch any of these because they're product/copy/IA decisions, not invariants.
+
+| Iter | Fresh-user pain | Shipped in |
+|------|------------------|-----------|
+| 1 | Login defaulted to *Log in* but most landing visitors haven't registered. Homepage didn't say "free / no signup". Scan didn't promise privacy. | PR #46 |
+| 2 | Three different primary CTAs across pages ("Start Scanning" / "Try Scan" / "Scan Now") read like a janky portfolio of half-finished features. | PR #47 |
+| 3 | Only the homepage had a real nav. Every other page degraded to a "Back to home" link — navigation predictability evaporated. | PR #48 |
+| 4 | `/recipes` was a bare "coming soon" stub with no Shinny voice and no escape route — read like a 503. | PR #48 |
+| 5 | "Full 8-dimension scoring" on the Premium card is opaque jargon. Fresh users have no way to know what's measured or where the free cutoff lands. | PR #49 |
+| 6 | Google/LINE social-login buttons LOOKED live but threw "coming soon" toasts on click — visual promise breaking from behaviour. | PR #50 |
+| 7 | Login page had TWO code-entry inputs visible at once (voucher + promo). Fresh users had no idea which one to use. | PR #51 |
+| 8 | Shinny avatar (40KB PNG) popped in late on every page that uses it — hero greeting visibly stuttered on mobile. | PR #52 |
+| 9 | Headline claim "Up to 70% blood sugar spike reduction" had no source. To a skeptical first-timer, indistinguishable from marketing fabrication. | PR #53 |
+
+**9 first-impression bugs caught by viewing the site as a fresh user that no automated suite could:**
+- Login flow defaulting to the wrong tab (`mode: 'login'` → `'register'`)
+- Unspoken objections: "is this free?" "do I need to sign up?" "what happens to my photo?"
+- Inconsistent CTAs across pages signaling product immaturity
+- Header-less secondary pages with no consistent navigation
+- Stub pages with no voice and no recovery
+- Jargon ("8-dimension scoring") presented without context
+- Fake/dishonest affordances (clickable but non-functional buttons)
+- Duplicate / competing input fields on the same screen
+- Unsubstantiated headline claims without citation
+- Late-loading mascot creating perceived performance issues
+
+**Pattern that emerged**: unit tests pin code invariants, e2e tests pin rendered behaviour, but neither lens catches *editorial* problems — copy that doesn't reflect what the product actually does, IA that confuses first-timers, claims that need citation. Those need a human (or AI) walking through the product with fresh eyes and the freedom to be brutal about what's broken.
+
 ### UX-audit Round 6 (e2e loop) — 10 iterations of probe → fix → ship → verify
 
 Introduced Playwright as a second test layer (28 e2e cases initially → 79 across 5 spec files by the end) and ran a structured iteration loop. Each iteration: write/expand the e2e suite → run against live deploy → triage findings → ship fixes → wait for deploy → re-verify. Coverage converged after 10 iterations.
