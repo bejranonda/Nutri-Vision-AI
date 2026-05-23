@@ -317,7 +317,9 @@
       "diabetic_friendly": "Diabetic Friendly",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Best eating order for this recipe"
+    "sequence_hint": "Best eating order for this recipe",
+    "placeholder_title": "Recipes are on the way",
+    "placeholder_body": "Shinny's curating healthy Thai recipes for you. While we cook those up, want to scan today's meal?"
   },
   "gamification": {
     "points": "Points",

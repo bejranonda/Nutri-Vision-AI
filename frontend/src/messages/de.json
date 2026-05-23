@@ -317,7 +317,9 @@
       "diabetic_friendly": "Diabetikerfreundlich",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Beste Essreihenfolge für dieses Rezept"
+    "sequence_hint": "Beste Essreihenfolge für dieses Rezept",
+    "placeholder_title": "Rezepte kommen bald",
+    "placeholder_body": "Shinny stellt gerade gesunde Thai-Rezepte für dich zusammen. Möchtest du in der Zwischenzeit deine heutige Mahlzeit scannen?"
   },
   "gamification": {
     "points": "Punkte",
