@@ -304,6 +304,21 @@ Mandatory before merging any change to `/api/analyze`, `lib/ai-providers.ts`, `G
 
 Three PRs (#21, #22, #23) shipped in Apr–May 2026 for the same underlying class of bug because each round's "validation" only proved the route returned 200 on a non-food image. The rule above exists to break that cycle.
 
+### The fresh-user audit lens (Round 7, May 2026)
+
+Unit tests pin code invariants. E2e tests pin rendered behaviour. Neither lens catches **editorial** problems — copy that doesn't reflect what the product does, IA that confuses first-timers, claims that need citation, dishonest affordances (buttons that look live but aren't). Those need a human (or AI) walking through the product with fresh eyes and the freedom to be brutal.
+
+**Practical recipe** for running a fresh-user audit when you suspect a UX gap:
+
+1. **Reset your mental model**. Open the site in an incognito window, log out, clear cookies. Start at the homepage. You have zero context about the product.
+2. **Read every visible string out loud**. If it uses jargon ("8-dimension scoring", "GLP-1 hormone", "NOVA classification"), flag it.
+3. **Click every interactive thing you see**. If a button looks live but isn't (e.g., shows a "coming soon" toast), the visual promise is breaking the contract — fix the visual, not the behaviour.
+4. **Count code-entry inputs per page**. Two on one page → confusion. One per page → clarity.
+5. **Look for headline claims** ("Up to X%", "Backed by science"). Each one needs a source link or qualifier.
+6. **Check that every primary CTA across pages says the same thing**. Three different "scan" verbs across three pages reads like a janky portfolio of half-finished features.
+
+Round-7 caught 9 fresh-user bugs across 9 iterations. None were caught by the 164-case unit suite or 79-case e2e suite. Pattern: this lens is the third leg of the testing stool. Run it whenever the product changes its first-impression surface.
+
 ### Where to add a new check
 
 | Class of check | Lives in | How to extend |
