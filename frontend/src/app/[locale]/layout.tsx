@@ -112,6 +112,17 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${inter.variable} ${prompt.variable} ${jakarta.variable}`}>
+      <head>
+        {/*
+          Preload the Shinny mascot avatar. UX-audit round 7 iter 8:
+          the avatar pops in late on every page that uses SiteHeader
+          + a mascot greeting (home, scan, demo). A high-priority
+          preload starts the fetch alongside the HTML so the image
+          is in cache by the time React mounts the <img>. Costs ~40KB
+          on first load — negligible vs the LCP win on slow mobile.
+        */}
+        <link rel="preload" as="image" href="/images/shinny_avatar.png" fetchPriority="high" />
+      </head>
       <body className={`${inter.className} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
