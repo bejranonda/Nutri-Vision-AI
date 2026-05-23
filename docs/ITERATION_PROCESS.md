@@ -106,6 +106,8 @@ Then, on the CF preview:
 
 For PRs that touch `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code, also run the **headless probe** documented in `GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`. Record the `modelUsed` value the cascade landed on in the PR description.
 
+**For PRs that change the first-impression surface** (homepage copy, CTAs visible above the fold, nav structure, headline claims, login affordances, pricing tier labels, anything a fresh visitor sees in their first 30 seconds), also run the **fresh-user audit lens** (Round 7, May 2026). 6-step recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: open in an incognito window, log out, clear cookies, read every visible string out loud, click everything that looks interactive, count code-entry inputs per page, audit every headline claim for citation, verify the primary CTA is the same string across pages. Round 7 ran this lens 9 iterations and shipped 9 fixes (PRs #46–#54) that the 164-case unit suite + 79-case e2e suite both missed.
+
 For PRs that touch `lib/rate-limit.ts` or wire new routes into `rateLimit()`, run a **sequential** burst against the configured limit + 5:
 
 ```bash
@@ -229,3 +231,21 @@ The project has four layers of static validation:
 
 New checks should be wired into `npm run check:all` so they run as part
 of the per-commit loop, not just CI.
+
+## 9. The three-leg testing stool (added Round 7, May 2026)
+
+Correctness has three orthogonal lenses; the project relies on all three because each one catches bugs the others don't.
+
+| Lens | Tool | What it pins | What it misses |
+|------|------|-------------|----------------|
+| **Unit** | Vitest (`npm test`) — 164 cases | Code invariants: crypto, zod, prompt-builder, cascade structure | Anything that requires real DOM, network, or human judgment |
+| **e2e** | Playwright (`npm run test:e2e`) — 79 cases | Rendered DOM behaviour: hreflang, og:image, accessible names, label associations, payload caps, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care |
+| **Fresh-user audit** | Human / AI walking through the product with zero context | First-impression UX: dishonest affordances, jargon without context, duplicate inputs, unsubstantiated claims, late-loading assets, inconsistent CTAs | Anything that needs >10s of investigation per claim |
+
+**Cadence**:
+- Unit + e2e run on every commit-loop and PR.
+- Fresh-user audit runs in **rounds** (each ~10 iterations, ship-fix-verify), triggered when the product changes its first-impression surface or when ~3 months have passed since the last round.
+
+**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — which is what the unit suite would have asked. e2e would have caught it in one iteration. Same lesson Round 7 re-learned: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial, not behavioural.
+
+See `docs/GUIDELINE.md → The fresh-user audit lens` for the six-step recipe the next contributor should follow.

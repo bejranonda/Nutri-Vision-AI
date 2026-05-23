@@ -267,6 +267,21 @@ components. Targets:
 **When to add a test**: any time a user reports a bug that our static
 checks missed. See `ITERATION_PROCESS.md §6` ("Iterate until zero-error").
 
+### Fresh-user audit lens (for PRs that change first-impression surface)
+
+If your PR touches anything a first-time visitor sees in their first 30 seconds — homepage copy, primary CTAs, nav structure, login affordances, pricing tier labels, headline claims, social-login buttons, mascot placement, etc. — also walk through the product with the fresh-user audit lens before declaring done. This is the third leg of the testing stool (alongside Vitest unit and Playwright e2e); Round 7 (May 2026) caught 9 bugs across 9 iterations that 164 unit tests + 79 e2e tests both missed.
+
+**Six-step recipe** (full version in `docs/GUIDELINE.md → The fresh-user audit lens`):
+
+1. Open the deploy preview in an incognito window. Log out, clear cookies. You have **zero context** about the product.
+2. **Read every visible string out loud**. Flag jargon ("8-dimension scoring", "GLP-1 hormone", "NOVA classification") that a stranger wouldn't decode.
+3. **Click every interactive element**. A button that *looks* live but throws "coming soon" is a visual lie — fix the visual, not the behaviour.
+4. **Count code-entry inputs per page**. Two on one page → confusion. One → clarity.
+5. **Audit every headline claim** ("Up to X%", "Backed by science"). Each one needs a source link or a qualifier visible to a first-time reader.
+6. **Verify the primary CTA is the same string across pages**. Three different "scan" verbs across three pages reads like a janky portfolio.
+
+Round 7's 9 shipped fixes (PRs #46–#53) are listed in `CHANGELOG.md → UX-audit Round 7`. Read the table before doing a Round 8 — pattern-matching against the previous round is faster than rediscovering the same bug class twice.
+
 ### AI-pipeline real-food validation (mandatory before merging)
 
 Static checks cannot verify provider-side breakage — a retired model alias, a `limit: 0` free-tier quota, or a Cloudflare AI model that's rejecting your image format all look identical to a code bug from the user's seat. **For any PR that touches `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code**, run a headless probe against the live deploy with a real food image before declaring done:

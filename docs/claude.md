@@ -18,6 +18,8 @@ EatInOrder (previously Nutri-Vision AI) is a **food sequencing app** that helps 
 3. **Promotion code system**: TRIAL, DISCOUNT, FANCLUB, REFERRAL types
 4. **Feature gating**: `tier-config.ts` maps features to subscription tiers
 5. **Mascot "Shinny"**: AI coaching persona throughout the app
+6. **Shared `<SiteHeader/>`** (`src/components/SiteHeader.tsx`, added Round 7 iter 3): every page renders the same nav — brand mark + Scan/Recipes/Pricing + LanguageSwitcher + auth-aware Login/Dashboard CTA + mobile hamburger. Don't reintroduce per-page back-to-home stubs.
+7. **Canonical primary CTA**: every "go scan" entry-point reads *Start your scan* / *เริ่มสแกนเลย* / *Scan starten* / *Start dit scan* (Round 7 iter 2, `home.cta`). Three different scan verbs across three pages was the previous bug — don't restore it.
 
 ## File Structure
 ```
@@ -55,6 +57,12 @@ frontend/src/
 3. Confirm `isFood: true` and a populated `dishes` array. A 200 with `isFood: false` only proves the rejection branch works.
 
 Full procedure: `docs/GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`.
+
+## When changing first-impression UX (homepage, CTAs, nav, login, pricing)
+
+Run the **fresh-user audit lens** (third leg of the testing stool, added Round 7). Unit + e2e suites can't see editorial / IA / honesty bugs — they only check code invariants + DOM behaviour. Recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: incognito window, log out, read every visible string out loud, click everything that looks live, count code-entry inputs per page, audit headline claims for citation, verify the primary CTA is the same string across pages.
+
+Round 7 (PRs #46–#53) shipped 9 fixes from this lens — read `CHANGELOG.md → UX-audit Round 7` before doing another round to avoid rediscovering the same bug classes.
 
 ## Current Status (May 2026)
 - ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
