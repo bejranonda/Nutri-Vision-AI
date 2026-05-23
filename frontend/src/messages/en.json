@@ -239,7 +239,7 @@
     "try_it": {
       "title": "Try It Yourself!",
       "description": "Scan your next meal and let Shinny guide you through the optimal eating order.",
-      "cta_scan": "Scan Your Food Now",
+      "cta_scan": "Start your scan",
       "cta_register": "Create Free Account"
     }
   },
@@ -510,7 +510,7 @@
     "challenge_reward": "+50 points",
     "upgrade_cta": "Unlock all features with Premium",
     "trial_expires": "Trial expires in {days} days",
-    "scan_now": "Scan Food Now",
+    "scan_now": "Start your scan",
     "chat_card_title": "Coach Shinny",
     "chat_card_subtitle": "Ask anything about food"
   },
