@@ -239,7 +239,7 @@
     "try_it": {
       "title": "Prøv Det Selv!",
       "description": "Scan dit næste måltid og lad Shinny guide dig gennem den optimale spiserækkefølge.",
-      "cta_scan": "Scan Din Mad Nu",
+      "cta_scan": "Start dit scan",
       "cta_register": "Opret Gratis Konto"
     }
   },
@@ -510,7 +510,7 @@
     "challenge_reward": "+50 point",
     "upgrade_cta": "Lås alle funktioner op med Premium",
     "trial_expires": "Prøveperiode udløber om {days} dage",
-    "scan_now": "Scan Mad Nu",
+    "scan_now": "Start dit scan",
     "chat_card_title": "Coach Shinny",
     "chat_card_subtitle": "Spørg om alt om mad"
   },

@@ -239,7 +239,7 @@
     "try_it": {
       "title": "Probier es selbst!",
       "description": "Scanne deine nächste Mahlzeit und lass Shinny dich durch die optimale Essreihenfolge führen.",
-      "cta_scan": "Jetzt Essen scannen",
+      "cta_scan": "Scan starten",
       "cta_register": "Kostenloses Konto erstellen"
     }
   },
@@ -510,7 +510,7 @@
     "challenge_reward": "+50 Punkte",
     "upgrade_cta": "Alle Funktionen mit Premium freischalten",
     "trial_expires": "Testversion läuft in {days} Tagen ab",
-    "scan_now": "Jetzt Essen scannen",
+    "scan_now": "Scan starten",
     "chat_card_title": "Coach Shinny",
     "chat_card_subtitle": "Frag alles über Essen"
   },
