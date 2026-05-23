@@ -1,3 +1,39 @@
+# 👀 UX-audit Round 7 — fresh-user loop, May 2026
+
+> 9 iterations, 9 shipped fixes, 8 PRs (#46–#54). Same iterate-until-zero
+> cadence as Round 6 (the e2e loop), but with a different lens: view the
+> app as a first-time visitor with **zero context** and surface
+> editorial / IA / honesty bugs that no automated probe can catch.
+
+## What we caught the unit + e2e suites couldn't
+
+| Pain a fresh visitor would feel | Fix | PR |
+|---|---|---|
+| Login defaulted to *Log in* but most landing visitors haven't registered. Homepage didn't say "free / no signup". Scan didn't promise privacy. | Register-default + free-tier tagline + scan privacy note | #46 |
+| Three different primary CTAs across pages (*Start Scanning* / *Try Scan* / *Scan Now*) read like a janky portfolio of half-finished features. | Canonicalized to *Start your scan* everywhere | #47 |
+| Only the homepage had a real nav. Every other page degraded to a "Back to home" link — navigation predictability evaporated. | New `<SiteHeader/>` extracted and reused on all 6 pages, auth-aware right CTA | #48 |
+| `/recipes` was a bare "coming soon" stub with no Shinny voice and no escape route — read like a 503. | Shinny-voiced empty state + Scan CTA | #48 |
+| "Full 8-dimension scoring" on the Premium card is opaque jargon. Fresh users have no way to know what's measured or where the free cutoff lands. | Expandable disclosure listing all 8 dimensions with one-line explanations + Free badges on the 3 the Free tier unlocks | #49 |
+| Google/LINE social-login buttons LOOKED live but threw "coming soon" toasts on click — visual promise breaking from behaviour. | Disabled styling + visible "Soon" badge + `aria-disabled` | #50 |
+| Login page had TWO code-entry inputs visible at once (voucher in form + promo-redeem below) — fresh users had no idea which to use. | Removed the standalone promo input from login (still lives on `/pricing` for logged-in users) | #51 |
+| Shinny avatar (40KB PNG) popped in late on every page using it — hero greeting visibly stuttered on mobile. | `<link rel="preload" as="image" fetchPriority="high">` in locale layout | #52 |
+| Headline claim "Up to 70% blood sugar spike reduction" had no source — indistinguishable from marketing fabrication to a skeptical first-timer. | Citation footnote (Shukla et al., 2015, Weill Cornell, T2D patients) + asterisk on the badge, all 4 locales | #53 |
+| Methodology not documented — next person picking up the project couldn't repeat the audit. | Captured in CHANGELOG + KNOWN_ISSUES + GUIDELINE + KNOWLEDGE_BASE; six-step recipe in `docs/GUIDELINE.md → The fresh-user audit lens` | #54 |
+
+## The pattern that emerged
+
+Unit tests pin **code invariants**. e2e tests pin **rendered behaviour**. Neither lens catches **editorial problems** — copy that doesn't reflect what the product does, IA that confuses first-timers, claims that need citation, dishonest affordances (buttons that look live but aren't), duplicate / competing inputs on the same screen, jargon presented without context.
+
+→ **Three-leg testing stool**: `vitest` + `playwright` + fresh-user audit. Different lenses, different bugs, different cadences. Run all three. Round 6 found 10 bugs the unit suite missed; Round 7 found 9 bugs the unit + e2e combo missed.
+
+## Test posture
+
+- **164/164 unit tests** still green
+- **79/79 e2e tests** still green
+- 4/4 locales (th/en/de/da) at 100% key coverage throughout the round
+
+---
+
 # 🛠️ Platform hardening — April 2026
 
 > Internal-quality release series covering PRs #6 – #9. No user-visible

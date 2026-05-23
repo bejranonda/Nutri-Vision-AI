@@ -9,7 +9,9 @@
 
 ## What is Shinny Guide?
 
-Shinny Guide is an AI-powered food sequencing app that helps you eat Thai food (and any cuisine) in the right order to reduce blood sugar spikes by up to **70%**. Based on real science — eat **Veggies → Protein → Carbs → Sweets**.
+Shinny Guide is an AI-powered food sequencing app that helps you eat Thai food (and any cuisine) in the right order to reduce blood sugar spikes by up to **70%**\* . Based on real science — eat **Veggies → Protein → Carbs → Sweets**.
+
+<sub>\*Based on a Weill Cornell Medical Center study (Shukla et al., 2015) in type-2 diabetes patients. Individual results vary. Citation surfaced inline on the homepage so first-time visitors don't have to wonder where the number came from — see UX-audit Round 7 iter 9 (PR #53).</sub>
 
 Meet **Shinny** (ชินนี่), your AI food coach who guides you through every meal!
 
@@ -28,15 +30,20 @@ Meet **Shinny** (ชินนี่), your AI food coach who guides you through 
 | Data Export | — | ✓ | ✓ |
 
 ### 📱 App Pages
-- **Home** — Landing page with concept explanation & features
-- **Scan** — AI food analysis with 3 dynamic modes (Meal, Menu, Drink/Snack), sequence visualization & 8-dimension scoring. Features an advanced Debug UI.
-- **Demo** — Interactive walkthrough of food sequencing with blood sugar curves
-- **Login** — Authentication with email, Google, LINE, and promo code redemption
-- **Dashboard** — Member stats, streak tracking, daily challenges, gamification
-- **Pricing** — Tier comparison with monthly/annual toggle and FAQ
-- **Recipes** — Thai recipe collection with dietary filters
+
+Every page shares the same `<SiteHeader/>` (brand mark + Scan/Recipes/Pricing nav + LanguageSwitcher + auth-aware Login/Dashboard CTA + mobile hamburger drawer). Added in UX-audit Round 7 iter 3 (PR #48) to replace the inconsistent per-page "Back to home" stubs that fresh users hit before — see [`docs/KNOWLEDGE_BASE.md`](docs/KNOWLEDGE_BASE.md) → *Fresh-user audit loop*.
+
+- **Home** — Landing page with concept explanation, features, "free / no signup needed" reassurance, and the canonical primary CTA (*Start your scan*).
+- **Scan** — AI food analysis with 3 dynamic modes (Meal, Menu, Drink/Snack), sequence visualization & 8-dimension scoring. Surfaces a small privacy note under the upload zone ("photos analyzed in real time, never stored on a server unless you save them"). Features an advanced Debug UI via `?debug=1`.
+- **Demo** — Interactive walkthrough of food sequencing with blood sugar curves.
+- **Login** — Email + password authentication, voucher field in the register form, and a register-as-default tab for fresh visitors. Google + LINE social-login buttons are rendered as **disabled with a visible "Soon" badge** (Round 7 iter 6, PR #50) — the buttons signal a future feature without lying about current state. OAuth backend not yet wired (tracked in [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) item 1a).
+- **Dashboard** — Member stats, streak tracking, daily challenges, gamification.
+- **Pricing** — Tier comparison with monthly/annual toggle, FAQ, and an **expandable disclosure listing all 8 health-score dimensions** with one-line explanations and badges marking the 3 the Free tier unlocks (Round 7 iter 5, PR #49). Lets fresh visitors evaluate "is the 8-dim score worth upgrading?" without signing up and scanning a meal first.
+- **Recipes** — Placeholder while the real recipe catalogue ships. The page used to be a bare "coming soon" stub; Round 7 iter 4 (PR #48) replaced that with a Shinny-voiced empty state and a Scan CTA so users don't dead-end.
 - **Chat** (`/[locale]/chat`, login-required) — AI Coach Shinny. Conversational nutrition coaching backed by a free-tier provider cascade: Groq Llama 3.3 70B (primary, sub-300ms) → Gemini 1.5 Flash → Cloudflare Workers AI safety net. Tier-quota gated (`aiQuestionsPerDay`: free=3, premium=∞). Locale-aware persona that bakes the brand's three rules: never forbid food, warm older-sister tone, stay in food/nutrition scope. See [Tech Stack](#-tech-stack) for the provider chain.
 - **Admin** (`/[locale]/admin`, restricted) — operator console: quick-stat overview, user management (toggle admin, flip subscription tier), promo-code CRUD, and a health-check view. Gated server-side by the `isAdmin` column on `users`; non-admins are silently redirected to `/login`. See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to create the first admin via `wrangler` (the schema ships with zero admins — no accidental admin via public sign-up).
+
+> **First-impression UX:** Round 7 (May 2026) ran a 9-iteration fresh-user audit over PRs #46–#54 — viewing the site with zero context to surface editorial / IA / honesty bugs that no automated probe could catch. CTAs were canonicalized across pages (always *Start your scan*), the Shinny mascot avatar is now preloaded, the homepage "70%" claim carries a citation footnote, and every page shares one nav. See `CHANGELOG.md → UX-audit Round 7` and `docs/KNOWLEDGE_BASE.md → Fresh-user audit loop` for the full pass.
 
 ### 🎟️ Voucher & Promotion System
 
@@ -94,6 +101,7 @@ The analysis pipeline is built for **Edge Reliability**:
 12. **Multi-locale sitemap** at `/sitemap.xml` via `src/app/sitemap.ts` — covers `/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login` across all 4 locales with `hreflang` alternates so search engines understand `/th/scan` and `/en/scan` are translations of the same page, not duplicate content. Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) deliberately excluded — indexing them would point search users at a redirect-to-login.
 13. **Share-preview metadata + locale-aware 404 page**: `og:image` + `twitter:image` ensure social shares render a preview card (Shinny avatar via `metadataBase`-resolved absolute URLs). `src/app/[locale]/not-found.tsx` localizes the 404 experience across all 4 locales with a `not_found` message namespace, plus two CTAs (Home + Scan) so users don't dead-end.
 14. **Playwright e2e suite** at `frontend/tests/e2e/` — 79 cases across 5 spec files (`smoke`, `ui-ux`, `deep-probes`, `a11y`, `responsive-perf`) running against the live production URL. Pins everything Vitest unit tests can't reach: `<link rel="alternate" hreflang>`, `og:image`/`twitter:image`, locale-aware 404 body, sitemap XML, Cache-Control on every API response, deployment SHA exposure, schema-failure shapes, icon-only-button accessible names, `htmlFor`/`id` label associations, color-scheme declaration, viewport breakpoints, payload caps, LCP preload, third-party-script whitelist. Opt-in via `npm run test:e2e` (needs `@playwright/test` + Chromium browser).
+15. **Three-leg testing stool** (added Round 7, May 2026): the project treats correctness as having three orthogonal lenses — **unit** (`vitest`, code invariants), **e2e** (`playwright`, rendered DOM behaviour), and **fresh-user audit** (human/AI walking through the product with zero context, catching editorial / honesty / IA bugs no automated probe can see). Round 6 found 10 bugs the unit suite missed; Round 7 found 9 bugs the unit + e2e combo missed. Methodology recipe lives in [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *The fresh-user audit lens*.
 
 ## 🛠 Tech Stack
 
