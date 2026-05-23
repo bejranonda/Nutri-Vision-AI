@@ -485,6 +485,21 @@
       "cta": "Contact Us"
     },
     "promo_code": "Have a promotion code?",
+    "score_breakdown": {
+      "title": "What's the 8-dimension health score?",
+      "intro": "Every scan rates your meal across these 8 dimensions. Free unlocks 3; Premium and Family unlock all 8.",
+      "free_badge": "Free",
+      "dimensions": {
+        "blood_sugar": "How fast this meal raises your blood glucose (glycemic load).",
+        "gut_health": "Fiber, fermented foods, and microbiome support.",
+        "inflammation": "Balance of pro- vs anti-inflammatory ingredients.",
+        "nutrient_density": "Vitamins and minerals per calorie.",
+        "processing": "How far from whole food (NOVA classification).",
+        "protein_quality": "Complete amino-acid profile and digestibility.",
+        "micronutrient": "Specific vitamin and mineral coverage.",
+        "overall": "Weighted average — your single at-a-glance score."
+      }
+    },
     "faq": {
       "title": "Frequently Asked Questions",
       "q1": "Can I try Premium for free?",
