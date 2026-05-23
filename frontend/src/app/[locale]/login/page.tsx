@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, ChevronRight } from 'lucide-react';
+import { UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { logger } from '@/lib/logger';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -16,7 +16,7 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { login, register, redeemCode, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+    const { login, register, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
     // Default tab: "Sign Up" for fresh visitors (no existing session
     // cookie when this page mounts), "Login" for returning ones. The
@@ -31,9 +31,6 @@ export default function LoginPage() {
     // gives them the right tab on first paint.
     const [mode, setMode] = useState<'login' | 'register'>('register');
     const [showPassword, setShowPassword] = useState(false);
-    const [promoInput, setPromoInput] = useState('');
-    const [promoMessage, setPromoMessage] = useState('');
-    const [promoSuccess, setPromoSuccess] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
 
     // Form fields
@@ -168,13 +165,6 @@ export default function LoginPage() {
             success = await register(displayName, email, password, voucherCode);
             if (success) setSuccessMsg(t('register_success'));
         }
-    }
-
-    async function handlePromoRedeem() {
-        if (!promoInput.trim()) return;
-        const result = await redeemCode(promoInput);
-        setPromoSuccess(result.success);
-        setPromoMessage(result.message);
     }
 
     return (
@@ -449,36 +439,14 @@ export default function LoginPage() {
                         <p className="mt-3 text-center text-xs text-gray-400">{t('social_coming_soon')}</p>
                     </div>
 
-                    {/* Promo code section */}
-                    <div className="mt-6 pt-6 border-t border-gray-100">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Gift className="w-4 h-4 text-brand-accent-500" />
-                            <span className="text-sm font-medium text-gray-600">{t('promo_section')}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <input
-                                // The promo-section header reads `t('promo_section')` —
-                                // wire that as the accessible name for SR users so the
-                                // input is announced as "Promo code, text field" instead
-                                // of the silent placeholder.
-                                aria-label={t('promo_section')}
-                                type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                                placeholder={t('promo_placeholder')}
-                                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
-                            />
-                            <button
-                                onClick={handlePromoRedeem}
-                                className="px-4 py-2.5 bg-gradient-to-r from-brand-accent-400 to-brand-accent-500 text-white text-sm font-semibold rounded-xl hover:shadow-warning transition-all whitespace-nowrap"
-                            >
-                                {t('promo_apply')}
-                            </button>
-                        </div>
-                        {promoMessage && (
-                            <p className={`text-sm mt-2 ${promoSuccess ? 'text-green-600' : 'text-red-500'}`}>
-                                {promoMessage}
-                            </p>
-                        )}
-                    </div>
+                    {/*
+                      Iter 7: the standalone "Have a promotion code?" input
+                      that used to live here was a duplicate code-entry
+                      slot — register-mode users already have a voucher
+                      field IN the form, and logged-in users redeem promos
+                      on /pricing. Two code inputs on one page confused
+                      fresh users ("which one do I use?"). Removed.
+                    */}
 
                     {/* Switch mode */}
                     <p className="text-center text-sm text-gray-500 mt-4">
