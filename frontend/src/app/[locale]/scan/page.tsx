@@ -152,7 +152,7 @@ export default function ScanPage() {
                 {isReadyForUpload && (
                     <>
                         <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
-                        <ScanUploadArea 
+                        <ScanUploadArea
                             scanMode={scanMode}
                             tier={tier}
                             canStillScan={canStillScan}
@@ -167,6 +167,21 @@ export default function ScanPage() {
                             onClearImages={upload.clearImages}
                             onAnalyze={handleAnalyzeTrigger}
                         />
+                        {/*
+                          Privacy reassurance directly under the upload
+                          area — fresh-user UX audit (May 2026) found
+                          the page had ZERO copy about what happens to
+                          uploaded photos. For a health app asking for
+                          food images, that's table-stakes trust copy.
+                          Sits below the drop zone so it's the next
+                          thing visible after the user reads "drag a
+                          photo here". Servers don't actually persist
+                          the image to R2/S3 today (image-storage is
+                          on the roadmap), so this matches reality.
+                        */}
+                        <p className="mt-3 text-xs text-gray-500 text-center max-w-md mx-auto">
+                            {t('privacy_note')}
+                        </p>
                     </>
                 )}
 
