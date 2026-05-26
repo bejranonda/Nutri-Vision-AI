@@ -1,8 +1,19 @@
 /** @type {import('next').NextConfig} */
 const withNextIntl = require('next-intl/plugin')('./src/i18n.ts');
 
+// Single source of truth for the displayed app version. Inlined at
+// build time so both the client footer and the /api/health endpoint
+// read the same string and can't drift from package.json. Previously
+// the footer hardcoded "Version 2.1.7" while package.json had moved to
+// 2.1.9, and /api/health reported "unknown" because
+// process.env.npm_package_version isn't set in the Cloudflare runtime.
+const pkg = require('./package.json');
+
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+  },
   images: {
     domains: ['localhost'],
     formats: ['image/avif', 'image/webp'],

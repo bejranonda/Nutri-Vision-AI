@@ -209,7 +209,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center justify-center gap-2">
           <p className="text-sm text-gray-500 font-medium">© {new Date().getFullYear()} Shinny Guide. All rights reserved.</p>
           <span className="text-xs font-mono text-gray-500 bg-white/80 px-3 py-1 rounded-full border border-gray-200 shadow-sm hover:text-brand-primary-500 transition-colors cursor-default">
-            Version 2.1.7
+            Version {process.env.NEXT_PUBLIC_APP_VERSION}
           </span>
         </div>
       </footer>

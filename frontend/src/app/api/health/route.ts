@@ -74,7 +74,11 @@ export async function GET(req: Request) {
                 branch,
                 pagesUrl,
             },
-            version: process.env.npm_package_version || 'unknown',
+            // NEXT_PUBLIC_APP_VERSION is inlined from package.json at build
+            // time (next.config.js); npm_package_version is only set when
+            // running via npm scripts, which isn't the case in the
+            // Cloudflare runtime — hence the previous "unknown".
+            version: process.env.NEXT_PUBLIC_APP_VERSION || process.env.npm_package_version || 'unknown',
         };
 
         // Verbose mode: include safe env keys for debugging deploy issues
