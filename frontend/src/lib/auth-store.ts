@@ -44,9 +44,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     initAuth: async () => {
         try {
+            // /api/auth/me answers 200 { authenticated, user } for both the
+            // logged-in and anonymous cases (it's a probe, not a gate), so
+            // key off `data.user` rather than the status code. Still falls
+            // through to the unauthenticated branch if a non-2xx ever slips
+            // back in (defensive against a future route regression).
             const res = await fetch('/api/auth/me');
-            if (res.ok) {
-                const data = await res.json();
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.user) {
                 set({ user: data.user, isAuthenticated: true, isLoading: false, error: null });
             } else {
                 set({ user: null, isAuthenticated: false, isLoading: false });

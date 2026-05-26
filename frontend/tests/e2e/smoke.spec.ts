@@ -114,6 +114,20 @@ test.describe('HTML security headers + Cache-Control on API responses', () => {
       expect(res.headers()['cache-control'], `${path} missing no-store`).toContain('no-store');
     }
   });
+
+  test('anonymous /api/auth/me is a 200 probe, not a 401', async ({ request }) => {
+    // Regression guard: SiteHeader runs initAuth() → /api/auth/me on
+    // EVERY page mount. When this returned 401 for logged-out visitors,
+    // the browser logged "Failed to load resource: 401" to the console
+    // on every anonymous page load (caught as a console error in the
+    // homepage smoke across all 4 locales). A session probe with no
+    // session is a valid answer (nobody), not an error.
+    const res = await request.get('/api/auth/me');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.authenticated).toBe(false);
+    expect(body.user).toBeNull();
+  });
 });
 
 test.describe('/api/health exposes deployment metadata', () => {
