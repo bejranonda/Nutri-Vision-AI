@@ -18,6 +18,13 @@ export interface User {
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
+    // `authChecked` is false until initAuth() has resolved at least once.
+    // Auth-gated pages MUST gate their redirects on this — `isAuthenticated`
+    // starts false (auth lives in HttpOnly cookies, not Zustand persist),
+    // so a guard that redirects on `!isAuthenticated` alone fires during the
+    // pre-probe window and bounces users who ARE logged in. /chat was
+    // unreachable on hard-load/refresh because of exactly this race.
+    authChecked: boolean;
     isLoading: boolean;
     error: string | null;
 
@@ -33,6 +40,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
+    authChecked: false,
     // `isLoading` is true only while an async action (login, register,
     // redeem, session-probe) is in flight. We start at FALSE — nothing
     // calls initAuth() during the module-evaluation phase, so starting
@@ -52,12 +60,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const res = await fetch('/api/auth/me');
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.user) {
-                set({ user: data.user, isAuthenticated: true, isLoading: false, error: null });
+                set({ user: data.user, isAuthenticated: true, authChecked: true, isLoading: false, error: null });
             } else {
-                set({ user: null, isAuthenticated: false, isLoading: false });
+                set({ user: null, isAuthenticated: false, authChecked: true, isLoading: false });
             }
         } catch (e) {
-            set({ user: null, isAuthenticated: false, isLoading: false });
+            set({ user: null, isAuthenticated: false, authChecked: true, isLoading: false });
         }
     },
 
@@ -73,7 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Login failed');
 
-            set({ user: data.user, isAuthenticated: true, isLoading: false });
+            set({ user: data.user, isAuthenticated: true, authChecked: true, isLoading: false });
             return true;
         } catch (e: any) {
             set({ error: e.message, isLoading: false });
@@ -99,7 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-            set({ user: data.user, isAuthenticated: true, isLoading: false });
+            set({ user: data.user, isAuthenticated: true, authChecked: true, isLoading: false });
             return true;
         } catch (e: any) {
             set({ error: e.message, isLoading: false });
@@ -113,7 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await fetch('/api/auth/logout', { method: 'POST' });
         } finally {
             // Clear state regardless of API success to ensure client logs out
-            set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+            set({ user: null, isAuthenticated: false, authChecked: true, isLoading: false, error: null });
         }
     },
 

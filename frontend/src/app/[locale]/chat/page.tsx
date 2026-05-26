@@ -70,7 +70,7 @@ export default function ChatPage() {
   const locale = useLocale();
   const router = useRouter();
 
-  const { user, isAuthenticated, initAuth } = useAuthStore();
+  const { user, isAuthenticated, authChecked, initAuth } = useAuthStore();
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
@@ -89,12 +89,16 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated === false && !sending) {
-      // We can be here in the brief window before initAuth resolves;
-      // the !sending guard prevents a redirect mid-request.
+    // Only redirect once initAuth has actually resolved (authChecked).
+    // isAuthenticated starts false before the probe completes, so
+    // redirecting on `=== false` alone bounced logged-in users who
+    // hard-loaded /chat → /login → /dashboard, making the page
+    // unreachable on refresh/bookmark. The !sending guard additionally
+    // prevents a redirect mid-request.
+    if (authChecked && !isAuthenticated && !sending) {
       router.push(`/${locale}/login`);
     }
-  }, [isAuthenticated, sending, locale, router]);
+  }, [authChecked, isAuthenticated, sending, locale, router]);
 
   // Hydrate history from localStorage (client-only).
   useEffect(() => {
@@ -220,6 +224,17 @@ export default function ChatPage() {
       e.preventDefault();
       sendMessage(draft);
     }
+  }
+
+  // Until the session probe resolves, show a spinner rather than the
+  // chat UI — avoids flashing the full interface to an anonymous
+  // visitor for the split-second before the redirect-to-login fires.
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50">
+        <div className="w-8 h-8 border-3 border-brand-primary-400/30 border-t-brand-primary-400 rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (

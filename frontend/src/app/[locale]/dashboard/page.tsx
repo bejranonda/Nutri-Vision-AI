@@ -17,13 +17,25 @@ export default function DashboardPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { user, isAuthenticated, logout } = useAuthStore();
+    const { user, isAuthenticated, authChecked, initAuth, logout } = useAuthStore();
+
+    // Probe the session on mount. The dashboard used to have no SiteHeader
+    // and never called initAuth itself, so a hard-load relied on bouncing
+    // through /login to populate auth state — a fragile detour and the
+    // root of the /chat-unreachable race. Probing here makes the page
+    // self-sufficient.
+    useEffect(() => {
+        initAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        if (!isAuthenticated) {
+        // Only redirect once the probe has resolved (authChecked); acting
+        // on the initial isAuthenticated=false would bounce logged-in users.
+        if (authChecked && !isAuthenticated) {
             router.push(`/${locale}/login`);
         }
-    }, [isAuthenticated, locale, router]);
+    }, [authChecked, isAuthenticated, locale, router]);
 
     useEffect(() => {
         logger.trackFeature('Dashboard', 'loading', { locale });
