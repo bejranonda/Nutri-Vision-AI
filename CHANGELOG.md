@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 8 (end-user + professional-tester loop) — live-deploy verification
+
+Round 7 was a static fresh-user reading of the app. Round 8 ran the app for real: drove Playwright against the **live deploy**, completed a real-photo scan end-to-end, and audited the authenticated surfaces (dashboard, chat) with a session cookie — surfaces the anonymous walkthrough couldn't reach. This caught one live regression that had been shipped for several PRs, plus latent bugs.
+
+| Bug | Severity | How caught | PR |
+|-----|----------|-----------|----|
+| Anonymous visitors hit a `401` console error on **every** page (`SiteHeader` → `initAuth` → `/api/auth/me`, introduced by the Round-7 iter-3 header extraction) | Medium | Playwright e2e vs live deploy (4 failures) | #56 |
+| Homepage hero CTA said "Start Scanning" while dashboard/demo said "Start your scan" in EN/DE/DA — iter-2's canonicalization was left half-done | Low–Med | Fresh-user walkthrough | #57 |
+| Footer hardcoded "Version 2.1.7" vs `package.json` 2.1.9; `/api/health` reported "unknown" | Low | Version audit | #58 |
+| Locale-aware 404's anti-dead-end CTAs **dead-ended** — bare `/scan` 404s again, bare `/` drops the locale | Medium | Internal-link audit | #59 |
+| `/api/analyze` real-food probe ✓ (no bug — verified `gemini-2.5-flash` correctly IDs the dish, returns 8 dimensions + sequence) | — | AI-pipeline validation gate | — |
+| Flaky live rate-limit e2e (per-instance `Map` + CF request-spreading) | — | The 80-test run itself | #60 |
+| **`/chat` unreachable on hard-load/refresh/bookmark** for logged-in users — redirect race fired on the pre-probe `isAuthenticated === false`, bouncing `/chat → /login → /dashboard` | **High** (feature unreachable) | Authed walkthrough with session cookie | #61 |
+
+**Key lesson (stated bluntly in the round's own notes):** the `401` and the chat-unreachable bugs were both shipped because earlier rounds verified with "compiles + unit-green + string looks right" rather than running the e2e suite + walking the rendered/authed app. The moment Round 8 actually ran Playwright against the deploy and drove the authed surfaces, both surfaced immediately. **Running e2e against the deploy is a hard gate, not optional** — it's already in `ITERATION_PROCESS.md`; it just wasn't being honored on the Round-7 PRs.
+
+New regression guards: `tests/auth-store.test.ts` (5 cases pinning the `authChecked` probe lifecycle), e2e assertions for the anonymous `/api/auth/me` 200-probe contract and the in-locale 404 CTAs, and a de-flaked rate-limit probe.
+
 ### UX-audit Round 7 (fresh-user loop) — 9 iterations focused on first-impression UX
 
 Round 6 was machine-driven (e2e probes catching machine-readable bugs: missing `htmlFor`, dropped headers, etc.). Round 7 inverted the lens: view the app as a first-time visitor with zero context — what looks broken, dishonest, or jargon-heavy? The 79-case e2e suite couldn't catch any of these because they're product/copy/IA decisions, not invariants.

@@ -146,6 +146,16 @@ Bugs caught and shipped:
 
 Round 7 pattern → unit + e2e + fresh-user audit form the three-leg stool. See `docs/GUIDELINE.md` → "The fresh-user audit lens" for the practical recipe.
 
+### Live-deploy + authed-surface audit (Round 8, May 2026, PRs #56–#61)
+
+Round 7 was a static reading; Round 8 ran the app for real — Playwright vs the live deploy, a real-photo scan end-to-end, and the authenticated surfaces driven with a session cookie. Two important patterns:
+
+1. **Auth-gate redirect race.** The client auth store has no Zustand persist (auth lives in HttpOnly cookies), so `isAuthenticated` starts `false` on every fresh load. Any page that redirects on `!isAuthenticated` *before* `initAuth()` resolves will bounce logged-in users. `/dashboard` masked it (the `/login` bounce landed back on dashboard); `/chat` was rendered **unreachable** on hard-load (`/chat → /login → /dashboard`). Fix: the store now exposes **`authChecked`** (false until the probe resolves); gated pages redirect only on `authChecked && !isAuthenticated`, and self-probe with `initAuth()` on mount rather than relying on a `/login` detour. Locked by `tests/auth-store.test.ts`.
+
+2. **`/api/auth/me` is a probe, not a gate.** It returns `200 { authenticated:false, user:null }` for anonymous callers (was 401). `SiteHeader` calls it on every page mount, so a 401 logged a console error on every anonymous load. `initAuth()` keys off `data.user`, not the status code.
+
+Also: the homepage footer + `/api/health` version now derive from `package.json` via `NEXT_PUBLIC_APP_VERSION` (next.config.js) — no more hand-edited version literals that drift.
+
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 
 Sliding-window limiter applied to every public POST surface that does expensive or sensitive work:
