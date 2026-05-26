@@ -76,6 +76,21 @@ test.describe('locale-aware 404 page', () => {
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       await expect(page.locator('body')).toContainText(headline);
     });
+
+    test(`/${locale} 404 CTAs stay in-locale (no dead-end)`, async ({ page }) => {
+      // The 404 page's whole purpose is "don't dead-end the user". Its
+      // two CTAs used to link to bare `/` and `/scan` — but the i18n
+      // middleware matcher (`['/', '/(th|en|de|da)/:path*']`) doesn't
+      // match `/scan`, so it 404'd AGAIN, and `/` dropped a non-default
+      // locale back to Thai. Both hrefs must carry the locale prefix.
+      await page.goto(`/${locale}/no-such-path-e2e-probe`);
+      const hrefs = await page.locator('a').evaluateAll((els) =>
+        els.map((e) => (e as HTMLAnchorElement).getAttribute('href'))
+      );
+      expect(hrefs).toContain(`/${locale}`);
+      expect(hrefs).toContain(`/${locale}/scan`);
+      expect(hrefs).not.toContain('/scan');
+    });
   }
 });
 

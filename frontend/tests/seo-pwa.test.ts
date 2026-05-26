@@ -199,8 +199,16 @@ describe('locale-aware 404 page', () => {
     // A 404 page that only says "page not found" without a CTA is a
     // dead-end. We give the user two paths back into the app —
     // home for general recovery, scan for the primary feature.
-    expect(source).toMatch(/href=\"\/\"/);
-    expect(source).toMatch(/href=\"\/scan\"/);
+    //
+    // Both hrefs MUST carry the locale prefix. Bare `/scan` doesn't
+    // match the i18n middleware matcher (`['/', '/(th|en|de|da)/:path*']`)
+    // so it 404'd again — turning the anti-dead-end page INTO a
+    // dead-end. Bare `/` dropped a non-default locale back to Thai.
+    expect(source).toMatch(/href=\{`\/\$\{locale\}`\}/);
+    expect(source).toMatch(/href=\{`\/\$\{locale\}\/scan`\}/);
+    // Guard against the bare (locale-less) forms creeping back in.
+    expect(source).not.toMatch(/href=\"\/scan\"/);
+    expect(source).not.toMatch(/href=\"\/\"/);
   });
 });
 

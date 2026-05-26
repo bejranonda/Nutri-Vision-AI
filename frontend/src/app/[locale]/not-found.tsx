@@ -20,12 +20,13 @@
  * give the user something to do rather than dead-end.
  */
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import Image from 'next/image';
 import { Home, Scan } from 'lucide-react';
 
 export default function NotFound() {
   const t = useTranslations('not_found');
+  const locale = useLocale();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-brand-primary-50 to-white px-6 py-12">
@@ -49,14 +50,14 @@ export default function NotFound() {
         </p>
         <div className="flex flex-col gap-3">
           <Link
-            href="/"
+            href={`/${locale}`}
             className="w-full py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all inline-flex items-center justify-center gap-2"
           >
             <Home className="w-5 h-5" />
             {t('back_to_home')}
           </Link>
           <Link
-            href="/scan"
+            href={`/${locale}/scan`}
             className="w-full py-3 bg-white border-2 border-brand-primary-400 text-brand-primary-500 font-bold rounded-xl hover:bg-brand-primary-50 transition-all inline-flex items-center justify-center gap-2"
           >
             <Scan className="w-5 h-5" />
