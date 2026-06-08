@@ -1,8 +1,7 @@
 {
   "brand": {
     "name": "Shinny Guide",
-    "tagline": "Lækker i den rigtige rækkefølge",
-    "tagline_thai": "อร่อย ตาม ลำดับ"
+    "tagline": "Lækker i den rigtige rækkefølge"
   },
   "mascot": {
     "name": "Shinny",
@@ -89,7 +88,6 @@
     "fiber_g": "Fibre",
     "try_again": "Scan Igen",
     "error_title": "Undskyld! 🙏",
-    "error_oops": "Hovsa!",
     "error_message": "Shinny kunne ikke analysere dette billede",
     "timeout_message": "Analysen tager for lang tid. Prøv igen med et enklere foto.",
     "low_confidence": {
@@ -101,13 +99,7 @@
     "sequence": {
       "title": "Optimal Spiserækkefølge",
       "subtitle": "Følg denne sekvens for at reducere blodsukkertoppe",
-      "spike_reduction": "Estimeret top-reduktion",
-      "current_step": "Nuværende trin",
-      "completed": "Sekvens fuldført!",
-      "eat_first": "Spis Først",
-      "eat_second": "Spis som Nummer To",
-      "eat_third": "Spis som Nummer Tre",
-      "eat_last": "Spis Sidst"
+      "spike_reduction": "Estimeret top-reduktion"
     },
     "scores": {
       "blood_sugar": "Blodsukker-Påvirkning",
@@ -118,17 +110,6 @@
       "protein_quality": "Proteinkvalitet",
       "micronutrient": "Vitaminer & Mineraler",
       "overall": "Samlet Score"
-    },
-    "suggestions": {
-      "add_fiber": "Tilføj grøntsager for at reducere blodsukkertoppen",
-      "great_balance": "Flot balance! Dette måltid har alle komponenter."
-    },
-    "mock_foods": {
-      "pad_thai": "Pad Thai",
-      "som_tam": "Som Tam (Papayasalat)",
-      "tom_yum": "Tom Yum Kung",
-      "green_curry": "Grøn Curry med Ris",
-      "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
       "stitching": "Samler fotos...",
@@ -177,7 +158,6 @@
       "items_found": "Fundne menupunkter",
       "items_label": "punkter",
       "scanned_label": "Menu scannet",
-      "health_rating": "Sundhedsvurdering",
       "recommendations": "Shinny anbefaler",
       "combo_title": "Bedste kombination",
       "scenarios": {
@@ -386,9 +366,6 @@
     "confirm_password": "Bekræft adgangskode",
     "display_name": "Visningsnavn",
     "or": "eller",
-    "login_with_google": "Log ind med Google",
-    "login_with_line": "Log ind med Line",
-    "forgot_password": "Glemt adgangskode?",
     "no_account": "Har du ikke en konto?",
     "has_account": "Har du allerede en konto?",
     "register_here": "Tilmeld dig her",
@@ -409,11 +386,8 @@
     },
     "social_coming_soon": "Social login kommer snart!",
     "social_badge_soon": "Snart",
-    "promo_section": "Har du en kampagnekode?",
     "promo_placeholder": "Indtast kode (f.eks. SHINNY2024)",
     "promo_apply": "Indløs kode",
-    "promo_success": "Kode indløst!",
-    "promo_error": "Ugyldig eller udløbet kode",
     "voucher_label": "Gavekort-kode",
     "voucher_placeholder": "BETA-CHULA-01",
     "voucher_help": "Påkrævet i pilotperioden. Spørg den person der inviterede dig.",
@@ -442,7 +416,6 @@
     "current_plan": "Nuværende Plan",
     "get_started": "Start Gratis",
     "upgrade_now": "Opgrader Nu",
-    "contact_sales": "Kontakt Salg",
     "free_tier": {
       "name": "Starter",
       "description": "Kom i gang med grundlæggende madscanning",
@@ -521,7 +494,6 @@
     "scans_used": "Brugte Scans",
     "streak": "Daglig Streak",
     "points": "Samlede Point",
-    "tier_badge": "Din Plan",
     "recent_scans": "Seneste Scans",
     "no_scans": "Ingen scans endnu. Prøv at scanne dit første måltid!",
     "daily_challenge": "Dagens Udfordring",
@@ -552,8 +524,7 @@
     "free": "Gratis",
     "premium": "Premium",
     "family": "Familie",
-    "unlimited": "Ubegrænset",
-    "coming_soon_feature": "Kommer snart!"
+    "unlimited": "Ubegrænset"
   },
   "coming_soon": {
     "scan": "Dette feature kommer snart! Vores AI lærer stadig de optimale spiserækkefølger.",

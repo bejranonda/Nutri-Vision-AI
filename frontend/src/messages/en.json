@@ -1,8 +1,7 @@
 {
   "brand": {
     "name": "Shinny Guide",
-    "tagline": "Delicious in Order",
-    "tagline_thai": "อร่อย ตาม ลำดับ"
+    "tagline": "Delicious in Order"
   },
   "mascot": {
     "name": "Shinny",
@@ -89,7 +88,6 @@
     "fiber_g": "Fiber",
     "try_again": "Scan Another",
     "error_title": "Sorry! 🙏",
-    "error_oops": "Oops!",
     "error_message": "Shinny couldn't analyze this image",
     "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
     "low_confidence": {
@@ -101,13 +99,7 @@
     "sequence": {
       "title": "Optimal Eating Order",
       "subtitle": "Follow this sequence to reduce blood sugar spike",
-      "spike_reduction": "Estimated spike reduction",
-      "current_step": "Current step",
-      "completed": "Sequence completed!",
-      "eat_first": "Eat First",
-      "eat_second": "Eat Second",
-      "eat_third": "Eat Third",
-      "eat_last": "Eat Last"
+      "spike_reduction": "Estimated spike reduction"
     },
     "scores": {
       "blood_sugar": "Blood Sugar Impact",
@@ -118,17 +110,6 @@
       "protein_quality": "Protein Quality",
       "micronutrient": "Vitamins & Minerals",
       "overall": "Overall Score"
-    },
-    "suggestions": {
-      "add_fiber": "Add some vegetables to reduce the blood sugar spike",
-      "great_balance": "Great balance! This meal has all components."
-    },
-    "mock_foods": {
-      "pad_thai": "Pad Thai",
-      "som_tam": "Som Tam (Papaya Salad)",
-      "tom_yum": "Tom Yum Kung",
-      "green_curry": "Green Curry with Rice",
-      "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
       "stitching": "Stitching photos...",
@@ -177,7 +158,6 @@
       "items_found": "Menu Items Found",
       "items_label": "items",
       "scanned_label": "Menu Scanned",
-      "health_rating": "Health Rating",
       "recommendations": "Shinny Recommends",
       "combo_title": "Best Combo",
       "scenarios": {
@@ -386,9 +366,6 @@
     "confirm_password": "Confirm Password",
     "display_name": "Display Name",
     "or": "or",
-    "login_with_google": "Login with Google",
-    "login_with_line": "Login with Line",
-    "forgot_password": "Forgot password?",
     "no_account": "Don't have an account?",
     "has_account": "Already have an account?",
     "register_here": "Register here",
@@ -409,11 +386,8 @@
     },
     "social_coming_soon": "Social login coming soon!",
     "social_badge_soon": "Soon",
-    "promo_section": "Have a promotion code?",
     "promo_placeholder": "Enter code (e.g., SHINNY2024)",
     "promo_apply": "Apply Code",
-    "promo_success": "Code redeemed successfully!",
-    "promo_error": "Invalid or expired code",
     "voucher_label": "Voucher code",
     "voucher_placeholder": "BETA-CHULA-01",
     "voucher_help": "Required during the pilot. Ask your invite for a code.",
@@ -442,7 +416,6 @@
     "current_plan": "Current Plan",
     "get_started": "Get Started Free",
     "upgrade_now": "Upgrade Now",
-    "contact_sales": "Contact Sales",
     "free_tier": {
       "name": "Starter",
       "description": "Get started with basic food scanning",
@@ -521,7 +494,6 @@
     "scans_used": "Scans Used",
     "streak": "Day Streak",
     "points": "Total Points",
-    "tier_badge": "Your Plan",
     "recent_scans": "Recent Scans",
     "no_scans": "No scans yet. Try scanning your first meal!",
     "daily_challenge": "Today's Challenge",
@@ -552,8 +524,7 @@
     "free": "Free",
     "premium": "Premium",
     "family": "Family",
-    "unlimited": "Unlimited",
-    "coming_soon_feature": "Coming soon!"
+    "unlimited": "Unlimited"
   },
   "coming_soon": {
     "scan": "This feature is coming soon! Our AI is still learning the optimal eating orders.",

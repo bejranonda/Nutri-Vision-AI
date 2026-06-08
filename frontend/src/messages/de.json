@@ -1,8 +1,7 @@
 {
   "brand": {
     "name": "Shinny Guide",
-    "tagline": "Lecker in der richtigen Reihenfolge",
-    "tagline_thai": "อร่อย ตาม ลำดับ"
+    "tagline": "Lecker in der richtigen Reihenfolge"
   },
   "mascot": {
     "name": "Shinny",
@@ -89,7 +88,6 @@
     "fiber_g": "Ballaststoffe",
     "try_again": "Erneut scannen",
     "error_title": "Entschuldigung! 🙏",
-    "error_oops": "Hoppla!",
     "error_message": "Shinny konnte dieses Bild nicht analysieren",
     "timeout_message": "Die Analyse dauert zu lange. Bitte versuche es erneut mit einem einfacheren Foto.",
     "low_confidence": {
@@ -101,13 +99,7 @@
     "sequence": {
       "title": "Optimale Essreihenfolge",
       "subtitle": "Folge dieser Sequenz, um Blutzuckerspitzen zu reduzieren",
-      "spike_reduction": "Geschätzte Spitzenreduktion",
-      "current_step": "Aktueller Schritt",
-      "completed": "Sequenz abgeschlossen!",
-      "eat_first": "Zuerst essen",
-      "eat_second": "Als Zweites essen",
-      "eat_third": "Als Drittes essen",
-      "eat_last": "Zuletzt essen"
+      "spike_reduction": "Geschätzte Spitzenreduktion"
     },
     "scores": {
       "blood_sugar": "Blutzucker-Auswirkung",
@@ -118,17 +110,6 @@
       "protein_quality": "Proteinqualität",
       "micronutrient": "Vitamine & Minerale",
       "overall": "Gesamtscore"
-    },
-    "suggestions": {
-      "add_fiber": "Füge Gemüse hinzu, um Blutzuckerspitzen zu reduzieren",
-      "great_balance": "Tolle Balance! Diese Mahlzeit hat alle Komponenten."
-    },
-    "mock_foods": {
-      "pad_thai": "Pad Thai",
-      "som_tam": "Som Tam (Papayasalat)",
-      "tom_yum": "Tom Yum Kung",
-      "green_curry": "Grünes Curry mit Reis",
-      "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
       "stitching": "Fotos werden zusammengefügt...",
@@ -177,7 +158,6 @@
       "items_found": "Gefundene Menüeinträge",
       "items_label": "Einträge",
       "scanned_label": "Menü gescannt",
-      "health_rating": "Gesundheitsbewertung",
       "recommendations": "Shinny empfiehlt",
       "combo_title": "Beste Kombination",
       "scenarios": {
@@ -386,9 +366,6 @@
     "confirm_password": "Passwort bestätigen",
     "display_name": "Anzeigename",
     "or": "oder",
-    "login_with_google": "Mit Google anmelden",
-    "login_with_line": "Mit Line anmelden",
-    "forgot_password": "Passwort vergessen?",
     "no_account": "Noch kein Konto?",
     "has_account": "Bereits ein Konto?",
     "register_here": "Hier registrieren",
@@ -409,11 +386,8 @@
     },
     "social_coming_soon": "Social Login kommt bald!",
     "social_badge_soon": "Bald",
-    "promo_section": "Hast du einen Promotioncode?",
     "promo_placeholder": "Code eingeben (z.B. SHINNY2024)",
     "promo_apply": "Code einlösen",
-    "promo_success": "Code erfolgreich eingelöst!",
-    "promo_error": "Ungültiger oder abgelaufener Code",
     "voucher_label": "Gutscheincode",
     "voucher_placeholder": "BETA-CHULA-01",
     "voucher_help": "Während der Pilotphase erforderlich. Frage die Person, die dich eingeladen hat.",
@@ -442,7 +416,6 @@
     "current_plan": "Aktueller Plan",
     "get_started": "Kostenlos starten",
     "upgrade_now": "Jetzt upgraden",
-    "contact_sales": "Vertrieb kontaktieren",
     "free_tier": {
       "name": "Starter",
       "description": "Erste Schritte mit Food Scanning",
@@ -521,7 +494,6 @@
     "scans_used": "Verwendete Scans",
     "streak": "Tage-Streak",
     "points": "Gesamtpunkte",
-    "tier_badge": "Dein Plan",
     "recent_scans": "Letzte Scans",
     "no_scans": "Noch keine Scans. Probiere deinen ersten Scan!",
     "daily_challenge": "Heutige Herausforderung",
@@ -552,8 +524,7 @@
     "free": "Kostenlos",
     "premium": "Premium",
     "family": "Familie",
-    "unlimited": "Unbegrenzt",
-    "coming_soon_feature": "Kommt bald!"
+    "unlimited": "Unbegrenzt"
   },
   "coming_soon": {
     "scan": "Dieses Feature kommt bald! Unsere KI lernt noch die optimalen Essreihenfolgen.",

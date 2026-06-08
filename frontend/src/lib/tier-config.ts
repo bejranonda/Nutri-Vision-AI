@@ -111,22 +111,6 @@ export const SCORE_I18N_KEYS: Record<string, string> = {
     overall: 'overall',
 };
 
-export function isFeatureAvailable(tier: SubscriptionTier, feature: keyof TierLimits): boolean {
-    const limits = TIER_LIMITS[tier];
-    const value = limits[feature];
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value > 0;
-    return false;
-}
-
-export function canScan(tier: SubscriptionTier, currentMonthScans: number): boolean {
-    return currentMonthScans < TIER_LIMITS[tier].scansPerMonth;
-}
-
-export function canAskAI(tier: SubscriptionTier, todayQuestions: number): boolean {
-    return todayQuestions < TIER_LIMITS[tier].aiQuestionsPerDay;
-}
-
 export function canAddMorePhotos(tier: SubscriptionTier, currentPhotoCount: number): boolean {
     return currentPhotoCount < TIER_LIMITS[tier].maxPhotosPerScan;
 }
