@@ -112,18 +112,20 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${inter.variable} ${prompt.variable} ${jakarta.variable}`}>
-      <head>
-        {/*
-          Preload the Shinny mascot avatar. UX-audit round 7 iter 8:
-          the avatar pops in late on every page that uses SiteHeader
-          + a mascot greeting (home, scan, demo). A high-priority
-          preload starts the fetch alongside the HTML so the image
-          is in cache by the time React mounts the <img>. Costs ~40KB
-          on first load — negligible vs the LCP win on slow mobile.
-        */}
-        <link rel="preload" as="image" href="/images/shinny_avatar.png" fetchPriority="high" />
-      </head>
       <body className={`${inter.className} antialiased`}>
+        {/*
+          NB on the missing preload: PR #52 (Round 7 iter 8) added a
+          <link rel="preload" as="image" href="/images/shinny_avatar.png">
+          here, intending to fix a perceived "late pop" on the homepage
+          hero pill. In practice it generated a "preloaded but not used"
+          browser warning on every page that doesn't reference the base
+          avatar (most of them — scan/demo/chat use the *_explaining /
+          _celebrating variants instead). And the homepage's <img> has
+          no loading="lazy" and renders above-the-fold in source order,
+          so the browser fetches it eagerly without the hint. Net: the
+          preload helped one page marginally and hurt four with a real
+          warning. Removed (Round 10).
+        */}
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
