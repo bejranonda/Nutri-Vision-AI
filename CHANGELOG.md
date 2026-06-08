@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 9 (unwired-element audit) — frontend + backend dead-code sweep
+
+User asked: "no unwired function and element in frontend and backend." A static audit (export → import callers, t-key → source references, tier-flag → consumer queries, model → endpoint usage) found a cluster of dead code shipped across earlier rounds.
+
+| Finding | Where | PR |
+|---|---|---|
+| `GradientButton`, `GlassCard` — 0 callers; referenced a stale brand palette (`BrandOrange/Magenta/Violet`) that doesn't match the live tokens | `src/components/ui/` (whole dir) | #63 |
+| `cn()` helper + `clsx` + `tailwind-merge` deps — only used by the two deleted components | `src/lib/utils.ts`, `package.json` | #63 |
+| `isFeatureAvailable` (twice — standalone in tier-config + method on auth-store), `canScan`, `canAskAI` — all defined, zero callers (quota enforcement is server-side) | `tier-config.ts`, `auth-store.ts` | #63 |
+| 25 orphan i18n keys × 4 locales (~100 strings): PR #51 leftovers, never-wired aspirational labels, superseded duplicates, pre-AI-pipeline scan stubs | `messages/{th,en,de,da}.json` | #63 |
+| `FavoriteRecipe`, `DailyTip` SQLAlchemy models — defined but no endpoint queries them; back-refs on Recipe/User pointed at nothing | `backend/app/models/` | #64 |
+| `requirements.txt` pinned `python-cors==1.0.0` — package doesn't exist on PyPI; `pip install` failed outright (FastAPI's `CORSMiddleware` is already used) | `backend/requirements.txt` | #65 |
+| passlib 1.7.4 vs bcrypt 4.x incompatibility — `AttributeError: module 'bcrypt' has no attribute '__about__'` broke 3/129 tests on fresh install | `backend/requirements.txt` | #65 |
+
+Deliberately **kept** (aspirational placeholders for documented roadmap features): `mascot.{encourage,celebrate,walking,upf_alert}`, `profile.*`, `gamification.achievements.*`, `recipes.dietary.*`, `learn.quiz`. They map to features in README + PROJECT_PLAN; removing them means re-translating later.
+
+**Final test posture this round:**
+- Frontend unit: 169/169 ✓
+- Backend unit: **129/129** (was 126/129 — bcrypt fix gained 3) ✓
+- Frontend e2e: 80/80 ✓
+- 4/4 locales aligned at 216 keys each (was 240 — net -24)
+- `pip install -r backend/requirements.txt` now succeeds from a clean checkout (was failing on the phantom python-cors)
+
+Released as **v2.1.11**.
+
 ### UX-audit Round 8 (end-user + professional-tester loop) — live-deploy verification
 
 Round 7 was a static fresh-user reading of the app. Round 8 ran the app for real: drove Playwright against the **live deploy**, completed a real-photo scan end-to-end, and audited the authenticated surfaces (dashboard, chat) with a session cookie — surfaces the anonymous walkthrough couldn't reach. This caught one live regression that had been shipped for several PRs, plus latent bugs.
