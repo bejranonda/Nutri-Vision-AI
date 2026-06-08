@@ -84,20 +84,26 @@ test.describe('payload signals — initial HTML size + critical CSS', () => {
   });
 });
 
-test.describe('no wasted-preload warning across the public page set', () => {
-  // PR #52 added a global <link rel="preload"> for shinny_avatar.png.
-  // PR #67 removed it because only the homepage actually renders that
-  // asset above-the-fold (other pages use *_explaining / _celebrating
-  // variants), and the browser kept logging "preloaded but not used"
-  // on every page that didn't reference the base avatar. This guard
-  // locks the new policy: NO global preload of that asset.
-  for (const url of ['/th', '/th/scan', '/th/pricing', '/th/login', '/th/recipes']) {
+test.describe('no wasted-preload warning on pages that do not use the base avatar', () => {
+  // PR #52 added a global <link rel="preload"> for shinny_avatar.png in
+  // the locale layout. PR #67 removed it because only the homepage
+  // actually renders that asset above-the-fold — other pages use the
+  // *_explaining / _celebrating / _confused / _analyzing variants —
+  // and the browser logged "preloaded but not used" on every page
+  // without the base asset.
+  //
+  // /th (homepage) is deliberately NOT in this list: Next.js itself
+  // injects a preload for the above-the-fold <img> there (an
+  // auto-LCP-optimisation that activates after hydration), which is
+  // legitimate because the asset IS used. Only the pages where the
+  // preload would be wasted are guarded.
+  for (const url of ['/th/scan', '/th/pricing', '/th/login', '/th/recipes']) {
     test(`${url} does NOT preload shinny_avatar.png (avoids browser warning)`, async ({ page }) => {
       await page.goto(url);
       const preload = await page
         .locator('link[rel="preload"][as="image"][href*="shinny_avatar.png"]')
         .count();
-      expect(preload, `${url} should not preload base avatar`).toBe(0);
+      expect(preload, `${url} should not preload base avatar — wasted bytes + browser warning`).toBe(0);
     });
   }
 });

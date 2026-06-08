@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 10 (mobile + perf hygiene) — driving the rendered UI
+
+After Round 9's static dead-code sweep, this round drove the actual rendered UI: a real-photo scan walkthrough through the upload affordance (not just probing `/api/analyze`), authed surfaces with a session cookie, and a 3×5 mobile-viewport matrix.
+
+| Finding | Where | PR |
+|---|---|---|
+| Global avatar preload fired on every page in the locale layout, but only the homepage uses the base `shinny_avatar.png` (other pages use `_explaining/_celebrating/_confused/_analyzing` variants) → browser logged "preloaded but not used" on 4 of 5 pages + wasted ~40KB per page | `app/[locale]/layout.tsx` | #67 |
+| `/pricing` "Apply Code" button overflowed iPhone-SE viewport by ~24px — the classic flex `min-width: auto` trap when an `<input>` sits next to a `whitespace-nowrap` button | `pricing/page.tsx` | #68 |
+| Stale e2e assertion that *required* the avatar preload (from before #67); needed inverting + correcting | `responsive-perf.spec.ts` | #68 + this PR |
+
+**Found but NOT a code bug:** during the UI scan walkthrough, `/api/analyze` returned the **Cloudflare Llama 3.2 11B fallback** result (score 50, "Shinny isn't sure!", zero-filled nutrition) instead of the higher-quality Gemini response — because Google Gemini was returning *503 "This model is currently experiencing high demand"* during the audit. External Google outage, not our code. The fallback chain *worked* (user gets *some* result rather than 503). Current UI copy ("AI analysis failed" on full exhaustion) is correct, just bland; leaving as-is.
+
+**Other audit observations (not bugs):**
+- Zero no-op `onClick` handlers, zero `href="#"` placeholders, zero TODO/FIXME/HACK comments in the source tree.
+- Only 2 `console.warn` calls — both in legitimate error catches.
+- Decorative `bg-brand-*-400/20` blobs on the homepage extend past the viewport, but the outer wrapper has `overflow-hidden` → clipped, no actual scroll.
+- 414px and 768px viewports show no overflow on any anonymous page.
+
+**Final test posture this round:**
+- Frontend unit: 169/169 ✓
+- Frontend e2e: **87/87** ✓ (was 80; +9 new guards: 4 mobile-overflow + 4 no-preload + 1 anonymous-probe)
+- Backend unit: 129/129 ✓
+
+Released as **v2.1.12**.
+
 ### UX-audit Round 9 (unwired-element audit) — frontend + backend dead-code sweep
 
 User asked: "no unwired function and element in frontend and backend." A static audit (export → import callers, t-key → source references, tier-flag → consumer queries, model → endpoint usage) found a cluster of dead code shipped across earlier rounds.
