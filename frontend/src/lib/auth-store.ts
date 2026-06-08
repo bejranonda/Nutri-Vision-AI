@@ -33,7 +33,6 @@ interface AuthState {
     register: (name: string, email: string, password: string, voucherCode?: string) => Promise<boolean>;
     logout: () => Promise<void>;
     redeemCode: (code: string) => Promise<{ success: boolean; message: string }>;
-    isFeatureAvailable: (featureKey: string) => boolean;
     clearError: () => void;
 }
 
@@ -146,17 +145,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({ error: e.message, isLoading: false });
             return { success: false, message: e.message };
         }
-    },
-
-    isFeatureAvailable: (featureKey) => {
-        // Client-side quick check, backend enforces actual limits
-        const { user, isAuthenticated } = get();
-        if (!isAuthenticated || !user) return false;
-
-        // Simplistic feature check for UI rendering (e.g. showing "Upgrade" buttons)
-        // Real logic runs on edge via tierFeatureLimits
-        if (user.subscriptionTier === 'free' && featureKey === 'fullScores') return false;
-        return true;
     },
 
     clearError: () => set({ error: null })
