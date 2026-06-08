@@ -236,7 +236,12 @@ export default function PricingPage() {
                         <input
                             type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                             placeholder={tAuth('promo_placeholder')}
-                            className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
+                            // min-w-0: flex items default to min-width:auto (= content
+                            // min-width). With the placeholder "Enter code (e.g., …)"
+                            // and the whitespace-nowrap button next to it, the row
+                            // overflowed by ~24px on iPhone-SE-class viewports (375px).
+                            // min-w-0 lets the input shrink so the row stays bounded.
+                            className="flex-1 min-w-0 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
                         />
                         <button onClick={handlePromo} className="px-5 py-3 bg-gradient-to-r from-brand-accent-400 to-brand-accent-500 text-white font-semibold rounded-xl hover:shadow-warning transition-all whitespace-nowrap">
                             {tAuth('promo_apply')}

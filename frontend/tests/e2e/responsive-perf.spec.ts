@@ -84,19 +84,52 @@ test.describe('payload signals — initial HTML size + critical CSS', () => {
   });
 });
 
-test.describe('LCP-candidate image is preloaded', () => {
-  test('/th preloads /images/shinny_avatar.png as the LCP image', async ({ page }) => {
-    // The homepage's Largest Contentful Paint candidate is the
-    // Shinny avatar (the largest above-the-fold image). It should
-    // be in a <link rel="preload" as="image"> for browser-level
-    // priority — without this it loads after the JS bundle and LCP
-    // shifts late.
-    await page.goto('/th');
-    const preload = await page
-      .locator('link[rel="preload"][as="image"][href*="shinny_avatar"]')
-      .count();
-    expect(preload, 'shinny_avatar.png not preloaded as image').toBeGreaterThan(0);
-  });
+test.describe('no wasted-preload warning across the public page set', () => {
+  // PR #52 added a global <link rel="preload"> for shinny_avatar.png.
+  // PR #67 removed it because only the homepage actually renders that
+  // asset above-the-fold (other pages use *_explaining / _celebrating
+  // variants), and the browser kept logging "preloaded but not used"
+  // on every page that didn't reference the base avatar. This guard
+  // locks the new policy: NO global preload of that asset.
+  for (const url of ['/th', '/th/scan', '/th/pricing', '/th/login', '/th/recipes']) {
+    test(`${url} does NOT preload shinny_avatar.png (avoids browser warning)`, async ({ page }) => {
+      await page.goto(url);
+      const preload = await page
+        .locator('link[rel="preload"][as="image"][href*="shinny_avatar.png"]')
+        .count();
+      expect(preload, `${url} should not preload base avatar`).toBe(0);
+    });
+  }
+});
+
+test.describe('iPhone-SE-class viewports (375px) have no element overflow on key pages', () => {
+  // Round-10 mobile audit found the /pricing promo "Apply Code"
+  // button overflowing the viewport by ~24px on a 375-wide screen —
+  // a flex-min-width:auto trap with whitespace-nowrap. Fix: min-w-0
+  // on the adjacent input. This guard locks the breakpoint.
+  for (const url of ['/en', '/en/scan', '/en/pricing', '/en/login']) {
+    test(`${url} @ 375×667 — no element extends past the viewport`, async ({ browser }) => {
+      const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } });
+      const page = await ctx.newPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(500);
+      const overflowing = await page.evaluate(() => {
+        const out: Array<{tag:string, w:number, cls:string}> = [];
+        document.querySelectorAll('*').forEach((el) => {
+          const r = (el as HTMLElement).getBoundingClientRect();
+          // Skip decorative absolutely-positioned blobs (clipped by overflow-hidden parents).
+          const style = getComputedStyle(el);
+          if (style.position === 'absolute') return;
+          if (r.right > window.innerWidth + 4 && r.width > 50) {
+            out.push({ tag: el.tagName, w: Math.round(r.right), cls: ((el as HTMLElement).className || '').toString().slice(0, 60) });
+          }
+        });
+        return out;
+      });
+      await ctx.close();
+      expect(overflowing, `${url}: ${overflowing.length} elements overflow → ${JSON.stringify(overflowing.slice(0,3))}`).toEqual([]);
+    });
+  }
 });
 
 test.describe('no <script> tags reference http:// or external CDN outside whitelisted hosts', () => {
