@@ -178,6 +178,7 @@ export default function LoginPage() {
                 <SiteHeader locale={locale} />
             </div>
 
+            <main className="w-full max-w-md mx-auto">
             {/* Success state */}
             {successMsg && (
                 <div className="z-10 backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-md w-full mx-auto shadow-glass text-center animate-bounce-in">
@@ -457,6 +458,7 @@ export default function LoginPage() {
                     </p>
                 </div>
             )}
+            </main>
         </div>
     );
 }

@@ -33,6 +33,9 @@ export default function HomePage() {
       */}
       <SiteHeader locale={locale} />
 
+      {/* Round-11 a11y: <main> landmark for screen readers — gives
+          assistive tech a "skip to content" target after the nav. */}
+      <main>
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center relative z-10">
         {/* Mascot Greeting */}
@@ -203,6 +206,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer / Version Display */}
       <footer className="container mx-auto px-4 py-8 relative z-10 text-center border-t border-gray-200/50 mt-10">

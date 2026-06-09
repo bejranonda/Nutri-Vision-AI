@@ -97,7 +97,7 @@ export default function PricingPage() {
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
+            <main className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
                 {/* Header */}
                 <div className="text-center mb-10">
                     <h1 className="text-3xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-3">{t('title')}</h1>
@@ -236,6 +236,10 @@ export default function PricingPage() {
                         <input
                             type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                             placeholder={tAuth('promo_placeholder')}
+                            // aria-label makes the input accessible to screen
+                            // readers — the visible "Have a promotion code?"
+                            // heading is not associated via htmlFor/id.
+                            aria-label={t('promo_code')}
                             // min-w-0: flex items default to min-width:auto (= content
                             // min-width). With the placeholder "Enter code (e.g., …)"
                             // and the whitespace-nowrap button next to it, the row
@@ -267,7 +271,7 @@ export default function PricingPage() {
                         ))}
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
