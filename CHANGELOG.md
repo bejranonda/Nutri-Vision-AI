@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 11 (comprehensive depth) — CI + Web Vitals + a11y + schema audit
+
+User asked to "try as much as iterations to validate and improve comprehensively." Hit 7 audit angles this round, shipped 5 PRs that turned up real wins.
+
+| # | Audit angle | Finding | PR |
+|---|---|---|---|
+| 1 | **CI workflow** | No GitHub Actions on the repo; backend went 6 weeks unverified (Round 9 found 3 latent failures). Resolved the "what is the backend for?" ambiguity I'd punted for two rounds: it's the canonical reference impl (`nutrition_scorer.py` is the 536-line algorithmic spec) — keep + add CI. | #70 |
+| 2 | **Web Vitals** | Homepage FCP at **2272ms** ⚠ and `/scan` at 2100ms ⚠ (threshold 1800ms). Root cause: `Prompt` (5 weights) + `Plus Jakarta Sans` Google fonts loaded on every page with **zero consumers** — no `font-display` / `font-thai` Tailwind class anywhere, no CSS-variable usage. Removed both. After: home FCP **620ms** (−73%), scan FCP **372ms** (−82%); total page bytes down ~110kB. | #71 |
+| 3 | **Deep a11y** | 5 of 6 public pages had no `<main>` landmark; scan/pricing had unlabeled inputs. WCAG 2.1 AA failure — screen-reader users had no "skip past nav to content" target on every page. Wrapped page content in `<main>`, added aria-label to hidden file inputs + the pricing promo input. New permanent suite guards (15/15 a11y tests pass). | #72 |
+| 4 | **WebKit/Safari** | All 6 pages render cleanly on WebKit/iPhone 13 — title, h1, zero console errors. **No findings.** | — |
+| 5 | **Interaction-time console** | Zero notable messages across 7 user-action stages (locale switch, nav, type credentials, switch tab, expand disclosure). **No findings.** | — |
+| 6 | **i18n quality** | 35 heuristic flags reviewed; all defensible (brand terms, marketing tier names, borrowed English in DE/DA). **No findings.** | — |
+| 7 | **Schema audit** | `users.language` was being hardcoded to `'th'` on register regardless of registration locale — latent (currently unread) but wrong data. Also flagged `users.healthInfo` + `users.usageTracking` as truly dead columns (no readers, no writers); documented in KNOWN_ISSUES for a future migration. | #73 |
+
+**Final test posture this round:**
+- Frontend unit: 171/171 ✓ (+2)
+- Frontend e2e: 93/93 ✓ (+6 — the new a11y main-landmark guards)
+- Backend unit: 129/129 ✓
+- CI runs on every PR going forward
+- Web Vitals: all 6 public pages now under "good" threshold for FCP
+
+Released as **v2.1.13**.
+
 ### UX-audit Round 10 (mobile + perf hygiene) — driving the rendered UI
 
 After Round 9's static dead-code sweep, this round drove the actual rendered UI: a real-photo scan walkthrough through the upload affordance (not just probing `/api/analyze`), authed surfaces with a session cookie, and a 3×5 mobile-viewport matrix.
