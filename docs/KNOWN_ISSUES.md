@@ -19,6 +19,12 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Priority**: Medium (Data Quality).
 - **Target**: Integration with a more comprehensive GI/Nutrition API.
 
+### 3. Dead Drizzle columns on `users` (Round-11 schema audit)
+- **Current Status**: `users.healthInfo` (JSON; intended for age/weight/height/goals) and `users.usageTracking` (JSON) are defined in `frontend/src/db/schema.ts` but have **zero readers and zero writers** anywhere in the app. They occupy a column on every production user row for features that don't exist.
+- **Why not removed in Round 11**: Dropping the columns requires a D1 migration + careful coordination with the live production DB. Code-only PRs in this round only fixed the BUG case (`users.language` was being hardcoded to `'th'` on register regardless of registration locale, PR #73). The dead columns are documented here so a future migration PR can address them.
+- **Priority**: Low (DB pollution, no functional impact).
+- **Target**: Bundle into the next schema migration when one is needed for another reason.
+
 ## 🚧 Technical Limitations
 
 ### 1. Cloudflare Functions Size Limit

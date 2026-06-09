@@ -83,6 +83,27 @@ describe('RegisterRequest', () => {
     expect(r.success).toBe(true);
   });
 
+  it('accepts an optional locale (used to persist users.language)', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+      locale: 'de',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.locale).toBe('de');
+  });
+
+  it('rejects an unknown locale at the schema boundary', () => {
+    const r = RegisterRequest.safeParse({
+      email: 'new@user.co',
+      password: 'atleast8chars',
+      displayName: 'Ada L.',
+      locale: 'es',
+    });
+    expect(r.success).toBe(false);
+  });
+
   it('rejects a malformed voucherCode (illegal chars)', () => {
     const r = RegisterRequest.safeParse({
       email: 'new@user.co',

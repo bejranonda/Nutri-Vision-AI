@@ -52,7 +52,10 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return jsonResponse(zodFailure(parsed.error), { status: 400 });
     }
-    const { email, password, displayName, voucherCode } = parsed.data;
+    const { email, password, displayName, voucherCode, locale } = parsed.data;
+    // Server-side default keeps backward compat with older clients
+    // (and the e2e-probe accounts the test harness creates).
+    const language = locale ?? 'th';
 
     const env = await getEnv();
     const db = getDb(env);
@@ -134,7 +137,7 @@ export async function POST(req: NextRequest) {
         subscriptionTier,
         trialExpiresAt,
         promoSource,
-        language: 'th',
+        language,
         scansThisMonth: 0,
         streakDays: 0,
         totalPoints: 0,

@@ -63,6 +63,13 @@ export const RegisterRequest = z.object({
     .max(64)
     .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, 0-9, - and _')
     .optional(),
+  /**
+   * Locale the user registered from. Persists into users.language so
+   * a German visitor doesn't silently land with language='th' in the
+   * DB. Optional with a server-side default to 'th' (the primary
+   * launch locale) so older clients without this field still register.
+   */
+  locale: LocaleField.optional(),
 });
 export type RegisterRequestBody = z.infer<typeof RegisterRequest>;
 
