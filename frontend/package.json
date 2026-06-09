@@ -9,7 +9,9 @@
     "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
     "deploy": "npm run pages:build && npx wrangler pages deploy ./.open-next/assets --project-name=eatinorder --commit-dirty=true",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.16.6",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
