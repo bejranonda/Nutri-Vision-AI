@@ -42,7 +42,7 @@ export default function DemoPage() {
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8 relative z-10 max-w-5xl">
+            <main className="container mx-auto px-4 py-8 relative z-10 max-w-5xl">
                 {/* Title */}
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary-100 rounded-full mb-4">
@@ -191,7 +191,7 @@ export default function DemoPage() {
                         </Link>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

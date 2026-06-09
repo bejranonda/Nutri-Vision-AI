@@ -132,9 +132,12 @@ export default function ScanPage() {
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
-                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
-                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" />
+            <main className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
+                {/* Hidden file inputs triggered programmatically by the visible
+                    Camera / Upload buttons. aria-label gives screen-reader users
+                    an accessible name even though no <label> is visible. */}
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" aria-label={t('take_photo')} />
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" aria-label={t('upload')} />
 
                 <div className="text-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
@@ -412,7 +415,7 @@ export default function ScanPage() {
                         onToggleDebug={debug.toggleDebug}
                     />
                 )}
-            </div>
+            </main>
         </div>
     );
 }
