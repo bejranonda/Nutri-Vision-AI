@@ -19,6 +19,12 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Priority**: Medium (Data Quality).
 - **Target**: Integration with a more comprehensive GI/Nutrition API.
 
+### 2a. Intermittent client error boundary on register response (Round-12 journey spec)
+- **Current Status**: While building `tests/e2e/user-journey.spec.ts` (June 2026), submitting the register form **twice** produced the Next.js client error boundary — the whole page replaced by "Application error: a client-side exception has occurred" — immediately after `/api/auth/register` returned. The server response was correct both times (400 with `reason: voucher_required`); the crash is in the client's handling of it (suspected: the auth-store error path or a render race in `login/page.tsx`). It stopped reproducing after the spec stabilised and has not recurred across 6+ subsequent full-suite runs.
+- **Detection**: phase 3 of the journey spec races the crash heading against the inline-error/success terminal states and fails with an explicit message if the boundary engages. If this test goes red with "Register form crashed…", this issue has recurred — capture the console output (`page.on('console')` is already wired) before anything else.
+- **Priority**: Medium (a crashed register form is a hard funnel-killer, but currently not reproducible).
+- **Target**: root-cause when the sentinel fires again with console capture in hand.
+
 ### 3. Dead Drizzle columns on `users` (Round-11 schema audit)
 - **Current Status**: `users.healthInfo` (JSON; intended for age/weight/height/goals) and `users.usageTracking` (JSON) are defined in `frontend/src/db/schema.ts` but have **zero readers and zero writers** anywhere in the app. They occupy a column on every production user row for features that don't exist.
 - **Why not removed in Round 11**: Dropping the columns requires a D1 migration + careful coordination with the live production DB. Code-only PRs in this round only fixed the BUG case (`users.language` was being hardcoded to `'th'` on register regardless of registration locale, PR #73). The dead columns are documented here so a future migration PR can address them.
@@ -43,6 +49,14 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ### 4. High-Resolution Canvas Memory Limits
 - **Current Status**: The Multi-Photo Collage Engine dynamically scales to 2048x2048 for up to 10 photos. Older mobile devices (e.g., older iOS Safari versions) may hit memory limitations when attempting to stitch and compress heavily.
 - **Mitigation**: Implemented an "Early Compression" pipeline (v2.1.9) that compresses incoming photos to 1200px max *before* holding them in React state. Also added **Dynamic Canvas Scaling** using the `navigator.deviceMemory` API to restrict max tile size to 500px for models with `< 4GB` of RAM, practically eliminating Safari Out-Of-Memory reloads.
+
+### 5. Known-benign console-error noise (documented, filtered in e2e)
+- **Current Status**: three console-error patterns appear in production that are *not* user-facing failures, and the e2e suites deliberately filter them (`user-journey.spec.ts → isBenignConsoleError()`):
+  1. **Next.js RSC-prefetch fallback** — "Failed to fetch RSC payload … Falling back to browser navigation". A `<Link>` prefetch races navigation (most visible under parallel e2e load); the router falls back to a normal browser navigation and the page renders fine. Cosmetic console noise from the framework.
+  2. **Scan logger instrumentation** — the unified logger reports handled cascade timeouts via `console.error` ("SCAN ERROR … category=timeout"). The scan UI absorbs the error (renders the retry card); the console line is telemetry, not a failure.
+  3. **Cold-start 404 resource lines** — occasional one-off asset 404s on a cold edge that succeed on retry.
+- **Why documented here**: anyone adding console-error assertions to a new spec should reuse the shared filter rather than rediscovering these three classes as "flakes". If a *new* pattern shows up, treat it as real until proven benign — don't extend the filter casually.
+- **Priority**: Low (cosmetic). A future pass could suppress pattern 1 by tuning Link prefetch and route pattern 2 through `console.warn`.
 
 ## 📋 Ongoing Investigations
 

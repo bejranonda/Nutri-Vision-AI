@@ -172,8 +172,8 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404) | Vitest | `frontend/tests/*.test.ts` (12 files) | **164** |
-| E2e (Playwright, opt-in via `npm run test:e2e`) | Playwright + Chromium | `frontend/tests/e2e/*.spec.ts` (5 files: smoke, ui-ux, deep-probes, a11y, responsive-perf) | **79** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404 + auth-store) | Vitest | `frontend/tests/*.test.ts` (14 files) | **171** |
+| E2e (Playwright, opt-in via `npm run test:e2e`) | Playwright + Chromium | `frontend/tests/e2e/*.spec.ts` (6 files: smoke, ui-ux, deep-probes, a11y, responsive-perf, user-journey) | **97** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -348,6 +348,30 @@ Even after the editorial lens (Round 7) and the live-deploy lens (Round 8), two 
 5. **Schema vs route field usage** — for every column on a `users`/`sessions`/etc. table, `grep` the codebase for read sites + write sites. Zero hits anywhere = dead column. Round 11 caught `users.language` being written but never read AND being hardcoded to `'th'` regardless of actual locale.
 
 Round 11 hit 7 audit angles and shipped 5 PRs with substantive wins (FCP −73%, `<main>` on every page, locale persistence bug fixed). 2 angles turned up nothing (WebKit, interaction console — good news).
+
+### The full user-journey lens (Round 12, June 2026)
+
+The per-surface e2e specs probe one thing at a time (a header, a tag, a payload size). The journey lens (`tests/e2e/user-journey.spec.ts`, PRs #76–#78) instead walks the whole product **in sequence, through the rendered UI** — set a file on the real `<input type=file>`, click the rendered Analyze CTA, fill and submit the actual register form — and asserts every flow reaches a **terminal UI state**. It catches integration-seam bugs the per-surface probes structurally can't: client timeout vs server budget mismatches, error-boundary engagement on a response the server got right, silent file rejection that leaves nothing on screen to probe.
+
+**Approach — the four rules that make a journey spec reliable:**
+
+1. **Assert terminal states, not happy paths.** An AI-backed flow has several *valid* endings (result rendered, not-food rejection, handled-error card with retry). The bug class to forbid is the flow that ends **nowhere** — a stuck spinner, a blank crash, a dead-end. Write the locator as a union of all valid terminals and give it the worst-case budget (the scan phase carries its own `test.setTimeout(180_000)` for cold Workers AI → Gemini cascades; the default 30s cuts the test off mid-analysis and reports a false failure).
+2. **Generate fixtures at runtime; respect client-side floors.** The upload fixture is a 256×256 PNG built in-memory — no binary in the repo. It must be **noise-filled**: a solid-colour tile deflates below the 500-byte `MIN_FILE_SIZE` floor in `useScanUpload.ts` and is **silently dropped** (only an `uploadError` state, no CTA ever renders, nothing for the test to find). Whenever an upload test "can't find the next button", check the client-side validation floors before blaming the selector.
+3. **Pin submit buttons by `type`, not text.** Tab-style mode switchers often share their label with the submit CTA (on `/login`, tab and submit are both "สมัครสมาชิก"). `getByRole('button', { name }) + .first()` clicks the tab and the form never submits — with no error, just a silent timeout on `waitForResponse`. `button[type="submit"]` is unambiguous.
+4. **Filter console noise by documented pattern, never blanket-ignore.** Keep a single `isBenignConsoleError()` helper whose every pattern carries a rationale (see `KNOWN_ISSUES.md → Known-benign console-error noise`). Two corollaries: a spec that's green standalone can flake inside the full parallel suite (RSC-prefetch races only appear under load — run the **whole suite twice** before declaring stable), and an app's own error-logging instrumentation will appear as `console.error` even when the UI handled the failure — filter the *instrumentation pattern*, keep asserting on everything else.
+
+**Method — phase independence + crash sentinels:**
+
+- Make each journey phase its own `test` (mode `default`, not `serial`) so a flake in the scan phase never masks an auth regression.
+- When a flow has a known historical crash mode, **race the crash signature against the valid terminals** and fail with a regression-friendly message naming it. Phase 3 races the Next.js error-boundary heading against the inline-error/success states because that exact crash appeared twice during development (see `KNOWN_ISSUES.md → Intermittent client error boundary`). A sentinel that names the failure turns "flaky test 🤷" into "that bug is back, here's where to look."
+- State the **side-effect budget** in the spec header (this spec: 1 vision call + 1 voucher-rejected registration per run, no cleanup needed). A journey spec hits production for real; the next contributor must be able to see the cost of running it before they put it in a loop.
+
+**When to run it**: before any release; after any change to the scan pipeline, auth flow, or routing/middleware; and as the automated stand-in for `ITERATION_PROCESS.md §3`'s manual checks 1, 3, 4 and 5 (the real-photo + multi-photo check 2 still needs the manual probe — the journey fixture is deliberately not food).
+
+```bash
+cd frontend && npx playwright test tests/e2e/user-journey.spec.ts
+# ~17s warm; up to ~2 min if the scan phase hits a cold cascade.
+```
 
 ### Where to add a new check
 

@@ -112,7 +112,7 @@ Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) are deliberately excluded 
 
 ### Playwright e2e suite (`frontend/tests/e2e/`)
 
-UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit suite. Five spec files, 79 cases, run via `npm run test:e2e` (opt-in — needs network + Chromium browser, takes ~25s).
+UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit suite. Six spec files, 97 cases (as of Round 12), run via `npm run test:e2e` (opt-in — needs network + Chromium browser, ~1.1 min full suite).
 
 | File | Pin |
 |---|---|
@@ -121,6 +121,7 @@ UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit 
 | `deep-probes.spec.ts` | Per-locale 404 security headers, full hreflang graph (`th/en/de/da/x-default`), titles + meta description sizes, viewport meta, autocomplete on form inputs, exactly one `<h1>` per page, lang on sub-pages, static asset payloads (`favicon.svg < 4KB`, `manifest < 1KB`), sequential voucher probes engage rate-limit |
 | `a11y.spec.ts` | Tab focus reaches interactive elements, icon-only buttons have accessible names, focus indicators visible, every input has a label or aria-label, lang on sub-pages, color-scheme declared |
 | `responsive-perf.spec.ts` | Homepage renders without horizontal overflow at 414/768/1280, scan page upload affordance visible at every viewport, `/th` HTML response under 100 KB, manifest under 1 KB, favicon under 4 KB, LCP candidate (Shinny avatar) preloaded as image, no non-whitelisted external scripts |
+| `user-journey.spec.ts` | Round 12 — the full real-user walkthrough: landing + locale switch (`/th` → `/en`, hreflang graph), scan flow (file set on the real `<input type=file>` → rendered Analyze CTA → terminal UI state, 180s cold-cascade budget), registration round-trip (live `voucher_required` contract + a sentinel that fails if the Next.js client error boundary engages), recipes/chat/dashboard hard-loads (own UI or clean auth-redirect, no fatal console errors) |
 
 Config (`playwright.config.ts`): `baseURL` defaults to production. Mobile viewport (414×896, iPhone 11 Pro). Thai locale via `Accept-Language`. `ignoreHTTPSErrors: true` for sandbox containers that lack the public CA bundle.
 
@@ -178,6 +179,20 @@ Hit 7 audit angles; 5 PRs shipped:
 - **a11y `<main>` landmark** on all 6 public pages (was 1 of 6) + aria-labels for previously-unlabeled inputs on `/scan` and `/pricing`. 6 new permanent guards in `a11y.spec.ts`.
 - **Schema audit**: `users.language` was hardcoded `'th'` on register regardless of locale (latent — currently unread, but wrong). Now persists actual locale; back-compat fallback to `'th'`. Two truly dead columns (`healthInfo`, `usageTracking`) flagged in KNOWN_ISSUES for a future D1 migration.
 - 2 angles found NOTHING actionable (good news): WebKit/Safari iPhone 13 smoke (6/6 clean), interaction-time console (0 notable messages across 7 user-action stages).
+
+### Full user-journey e2e (Round 12, June 2026, PRs #76–#78)
+
+A fifth testing lens: one Playwright spec (`tests/e2e/user-journey.spec.ts`) that walks production end-to-end the way a real user would — through the rendered UI, not API probes. Four independent phases (landing + locale switch, scan upload → analyze → terminal state, registration round-trip, recipes/chat/dashboard browse); a flake in one never masks the others.
+
+**Design decisions worth knowing before extending it:**
+
+1. **Terminal-state assertion, not happy-path assertion.** The scan phase accepts THREE valid endings: a rendered meal result, the not-food rejection card, or the handled-error card with a retry CTA. What it forbids is a stuck spinner or a crash. This makes the test robust to model nondeterminism (a noise PNG may classify as not-food or time out on a cold cascade) while still catching the bug class that matters — flows that dead-end the user. One run exercised the cold analyze-timeout path for real and confirmed the friendly Thai error card renders.
+2. **Generated fixture, no binary in the repo.** The upload image is a 256×256 PNG built in-memory (IHDR/IDAT/IEND + table-driven CRC-32). It's filled with LCG noise deliberately: a solid-colour tile deflates to ~250 bytes and gets **silently dropped** by `useScanUpload.ts → MIN_FILE_SIZE` (500 bytes) — no error card, no CTA, nothing for a test to find. Incompressible noise clears the floor.
+3. **Drive the hidden input, not the styled button.** The visible Upload button programmatically clicks `<input type="file" multiple>`. The spec calls `setInputFiles` on the input directly — same wire-level result, fewer DOM-shape assumptions.
+4. **Duplicate-text button trap.** On `/login` the register *tab* and the register *submit* carry the same label ("สมัครสมาชิก"), so `getByRole('button', { name }) + .first()` re-clicks the already-active tab and the form never submits. Pin to `button[type="submit"]`.
+5. **Shared benign-console filter** (`isBenignConsoleError()`): the anonymous `/api/auth/me` probe noise (fixed PR #56, kept as safety net) and the Next.js RSC-prefetch fallback ("Failed to fetch RSC payload … Falling back to browser navigation" — the router recovers; surfaced only under full-suite parallel load, #78). The scan phase additionally filters the logger's own `console.error` instrumentation for *handled* cascade timeouts — that line is telemetry about an error the UI absorbed, not a user-facing failure.
+6. **Crash sentinel in phase 3.** During spec development the register submit twice produced the Next.js error boundary ("Application error: a client-side exception has occurred") — server contract correct (400 `voucher_required`), client handling crashed. It stopped reproducing, but the phase races the crash heading against the inline-error/success terminals and **fails with a regression-friendly message** if the boundary ever engages again. See `KNOWN_ISSUES.md → Intermittent client error boundary on register response`.
+7. **Side-effect budget** (stated in the spec header): 1 vision call per run (noise PNG → `not_food` branch, input-token cost only) + 1 registration attempt that voucher gating rejects (no DB row, nothing to clean up).
 
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 

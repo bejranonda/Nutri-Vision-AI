@@ -70,6 +70,16 @@ Run the **Web Vitals + a11y inventory lens** (added Round 11). Recipe in `docs/G
 
 Round 11 caught homepage FCP at 2272ms (two never-applied Google Font families) and 5 of 6 public pages missing the `<main>` landmark — defects 251 tests didn't catch because the page renders and nothing throws. Permanent guards now live in `tests/e2e/responsive-perf.spec.ts` and `tests/e2e/a11y.spec.ts`.
 
+## When changing scan, auth, or routing — run the user-journey spec (added Round 12)
+
+`frontend/tests/e2e/user-journey.spec.ts` walks production end-to-end through the rendered UI (landing + locale switch → file upload → Analyze CTA → terminal result, register round-trip, recipes/chat/dashboard) and asserts every flow reaches a **terminal UI state** — never a stuck spinner or error boundary. ~17s warm, 4 independent phases. Run it before any release and after any scan/auth/routing change:
+
+```bash
+cd frontend && npx playwright test tests/e2e/user-journey.spec.ts
+```
+
+Four traps it already encodes (don't rediscover them): files under 500 bytes are **silently dropped** by `useScanUpload.ts` (generate noise-filled fixtures); the `/login` register tab and submit share the same Thai label (pin `button[type=submit]`); benign console noise must be filtered by documented pattern via `isBenignConsoleError()` (see `KNOWN_ISSUES.md → Known-benign console-error noise`); the scan phase needs its own 180s timeout for cold cascades. Full method: `docs/GUIDELINE.md → The full user-journey lens`. Phase 3 carries a crash sentinel for the intermittent register error-boundary bug (`KNOWN_ISSUES.md § 2a`) — if it fires, that bug is back.
+
 ## CI on every PR (added Round 11)
 
 `.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. If a local `npm run check:all` + `pytest -q` pass, CI will too. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.

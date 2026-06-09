@@ -1,3 +1,28 @@
+# 🧭 UX-audit Round 12 — full user-journey e2e, June 2026 (unreleased)
+
+> User asked: "can we test as a real user for the whole user journey." Added
+> the fifth testing lens: `frontend/tests/e2e/user-journey.spec.ts` (PRs
+> #76–#78) — one spec that walks production end-to-end through the rendered
+> UI in four phases: landing + locale switch, photo upload → AI analyze →
+> terminal result, registration round-trip, recipes/chat/dashboard browse.
+
+## What this round shipped
+
+| Item | Outcome |
+|------|---------|
+| **Journey spec** | 4 phases, all green against production. Every flow must reach a *terminal UI state* (result, handled-error card, or clean redirect) — never a stuck spinner or crash. Scan phase has its own 180s budget for cold-start Workers AI → Gemini cascades. |
+| **Self-contained fixture** | The upload image is a 256×256 LCG-noise PNG generated in-memory at runtime — no binary checked into the repo, sized to clear the 500-byte client-side floor in `useScanUpload.ts`. |
+| **Crash sentinel** | Phase 3 explicitly fails if the Next.js client error boundary engages after the register response — a crash observed twice during development (server contract was correct; client handling crashed). Tracked in `KNOWN_ISSUES.md`. |
+| **De-flake under load** | #78: phases 1–2 flaked only inside the full parallel suite (Next.js RSC-prefetch fallback noise). Shared `isBenignConsoleError()` filter with per-pattern rationale. |
+| **Cold-path validation** | One run exercised the analyze-timeout path end-to-end: the UI rendered the friendly handled-error card with a retry CTA. The error path is a *valid journey*, and it works. |
+
+## Final test posture after Round 12
+- Frontend unit: **171/171** ✓
+- Frontend e2e: **97/97** ✓ (+4 journey phases; full suite verified twice, ~1.1 min/run)
+- Backend unit: **129/129** ✓
+
+---
+
 # 🚀 UX-audit Round 11 — comprehensive depth, June 2026 (v2.1.13)
 
 > 7 audit angles, 5 PRs that turned up real wins (#70–#74). User asked to

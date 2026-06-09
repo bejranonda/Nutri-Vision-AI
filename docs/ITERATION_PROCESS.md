@@ -81,7 +81,13 @@ For any PR that changes the **public surface** (HTML metadata, form structure, A
 cd frontend && npm run test:e2e
 ```
 
-5 spec files (~79 cases, ~25s). Pins 10+ surfaces the unit suite can't reach. UX-audit round 6 ran this loop 10 iterations and caught 10 real bugs (PRs #41–#44) before they shipped. The e2e suite is the difference between a 1-iteration fix and a 4-iteration spiral (the `/sitemap.xml` saga, PRs #34→#38, predates this layer).
+6 spec files (97 cases, ~1.1 min). Pins 10+ surfaces the unit suite can't reach. UX-audit round 6 ran this loop 10 iterations and caught 10 real bugs (PRs #41–#44) before they shipped. The e2e suite is the difference between a 1-iteration fix and a 4-iteration spiral (the `/sitemap.xml` saga, PRs #34→#38, predates this layer).
+
+The `user-journey.spec.ts` file (Round 12) automates checks **1, 3, 4 and 5** of the manual list below against production — run it first; if it's green, the manual pass can focus on check 2 (multi-photo with real food) and anything specific to your diff:
+
+```bash
+npx playwright test tests/e2e/user-journey.spec.ts   # ~17s warm
+```
 
 Then, on the CF preview:
 
@@ -233,21 +239,23 @@ The project has four layers of static validation:
 New checks should be wired into `npm run check:all` so they run as part
 of the per-commit loop, not just CI.
 
-## 9. The four-lens testing posture (Rounds 7 → 11, May–June 2026)
+## 9. The five-lens testing posture (Rounds 7 → 12, May–June 2026)
 
-Correctness has four orthogonal lenses; the project relies on all four because each one catches a class of bug the others don't.
+Correctness has five orthogonal lenses; the project relies on all five because each one catches a class of bug the others don't.
 
 | Lens | Tool | What it pins | What it misses |
 |------|------|-------------|----------------|
 | **Unit** | Vitest (`npm test`) — 171 cases | Code invariants: crypto, zod, prompt-builder, cascade structure, auth-store `authChecked` lifecycle | Anything that requires real DOM, network, or human judgment |
-| **e2e** | Playwright (`npm run test:e2e`) — 93 cases | Rendered DOM behaviour against the live deploy: hreflang, og:image, accessible names, label associations, payload caps, `<main>` landmark on every public page, iPhone-SE 375px overflow guard, anonymous `/api/auth/me` 200-probe contract, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care |
+| **e2e (per-surface)** | Playwright (`npm run test:e2e`) — 97 cases total | Rendered DOM behaviour against the live deploy: hreflang, og:image, accessible names, label associations, payload caps, `<main>` landmark on every public page, iPhone-SE 375px overflow guard, anonymous `/api/auth/me` 200-probe contract, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care. And integration seams — each probe checks one surface in isolation |
 | **Fresh-user audit** | Human / AI walking through the product with zero context | First-impression UX: dishonest affordances, jargon without context, duplicate inputs, unsubstantiated claims, late-loading assets, inconsistent CTAs | Anything that needs >10s of investigation per claim |
 | **Web Vitals + a11y inventory** | Playwright + `performance.getEntriesByType` + DOM inspector | Perf regressions (FCP/LCP/CLS), font-payload bloat, missing `<main>`/landmarks, h1 hierarchy, unlabeled inputs, WebKit/Safari smoke | Schema correctness, business-logic invariants |
+| **Full user-journey** (Round 12) | Playwright — `tests/e2e/user-journey.spec.ts`, 4 phases | End-to-end flows through the rendered UI reaching *terminal states*: upload → analyze → result/handled-error (never a stuck spinner), register submit → inline error/success (never an error boundary), every nav target renders or redirects cleanly | Content quality of the AI result (the fixture is deliberately not food); multi-photo specifics; anything requiring a real session cookie |
 
 **Cadence**:
 - Unit + e2e run on every commit-loop. Unit runs in CI on every PR.
+- The journey spec runs before any release and after any change to scan, auth, or routing — it automates §3's manual checks 1, 3, 4, 5.
 - Fresh-user audit + Web Vitals + a11y inventory run in **rounds** (each ~5–10 iterations, ship-fix-verify), triggered when the product changes its first-impression surface, hits a perf threshold, or when ~3 months have passed since the last round.
 
-**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — what the unit suite would have asked. e2e would have caught it in one iteration. Round 7 re-learned the lesson: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial. Round 11 re-learned it again: 5 perf + a11y bugs that 251 tests couldn't see because they pass the green-light check (the page renders, nothing throws) but fail a quality bar (FCP > 1.8s, no `<main>`).
+**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — what the unit suite would have asked. e2e would have caught it in one iteration. Round 7 re-learned the lesson: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial. Round 11 re-learned it again: 5 perf + a11y bugs that 251 tests couldn't see because they pass the green-light check (the page renders, nothing throws) but fail a quality bar (FCP > 1.8s, no `<main>`). Round 12 closed a fourth gap: per-surface probes were green while building the journey spec still surfaced an intermittent register-form crash and a silent file-rejection floor — bugs that only appear when you chain the surfaces together the way a user does.
 
-See `docs/GUIDELINE.md → The fresh-user audit lens` and `→ The Web-Vitals + a11y inventory lens` for the practical recipes the next contributor should follow.
+See `docs/GUIDELINE.md → The fresh-user audit lens`, `→ The Web-Vitals + a11y inventory lens`, and `→ The full user-journey lens` for the practical recipes the next contributor should follow.

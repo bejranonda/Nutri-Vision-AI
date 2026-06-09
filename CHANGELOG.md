@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 12 (full user-journey e2e) — automated real-user walkthrough against production
+
+User asked: "can we test as a real user for the whole user journey." This round added a fifth testing lens: a single Playwright spec (`frontend/tests/e2e/user-journey.spec.ts`, PRs #76–#78) that drives the production app the way a real user would — through the rendered UI, not API probes — in four independent phases:
+
+| Phase | What it drives | Terminal assertion |
+|---|---|---|
+| 1. Landing + locale switch | `/th` → `/en` navigation, hreflang graph (4 locales + x-default) | `<html lang>` flips, zero fatal console errors |
+| 2. Scan flow | Sets a generated 256×256 PNG on the real `<input type=file>`, clicks the rendered "Analyze Now" CTA, waits for the Workers AI → Gemini cascade | Meal result, not-food card, **or** handled-error card visible — never a stuck spinner (own 180s budget for cold-start cascades) |
+| 3. Auth round-trip | Fills + submits the real register form with a fresh unique email, no voucher | Live `voucher_required` 400 contract pinned; **fails if the Next.js client error boundary engages** (crash observed twice during development) |
+| 4. Recipes / chat / dashboard | Hard-loads each route | Own UI or clean auth-redirect, zero fatal console errors |
+
+**What building the spec itself surfaced** (the journey lens earns its seat):
+- **Intermittent client-side crash after `/api/auth/register` response** — Next.js error boundary ("Application error: a client-side exception has occurred") engaged twice during spec development, then stopped reproducing. The server contract was correct each time (400 `voucher_required`); the client crashed handling it. Pinned by a sentinel assertion in phase 3; tracked in `KNOWN_ISSUES.md`.
+- **Silent sub-500-byte file rejection** — `useScanUpload.ts` drops files under `MIN_FILE_SIZE` with only an `uploadError` state, no analyze CTA ever appears. Correct behaviour, but invisible to a naive test (and to a user with a tiny image). The fixture is generated with LCG noise specifically to defeat deflate and clear the floor.
+- **Duplicate-text button trap on `/login`** — the register *tab* and register *submit* share the same Thai label ("สมัครสมาชิก"), so `getByRole('button', { name })` + `.first()` re-clicks the tab. The spec pins to `button[type=submit]`.
+- **Benign console-noise classes documented**: Next.js RSC-prefetch fallback under parallel load ("Failed to fetch RSC payload … Falling back to browser navigation" — router recovers), the scan logger's own `console.error` instrumentation for handled cascade timeouts, and cold-start 404 resource retries. Shared `isBenignConsoleError()` filter with rationale per pattern (#78 de-flaked phases 1–2 under full-suite parallel load after standalone runs were green).
+- **Cold-path validation**: one run exercised the full analyze-timeout path — the UI correctly rendered the friendly Thai handled-error card ("การวิเคราะห์ใช้เวลานานเกินไป") with a retry CTA rather than crashing.
+
+**Side-effect budget per run** (documented in the spec header): 1 vision-model call (the noise PNG routes to the `not_food` branch — input-token cost only) + 1 registration attempt rejected by voucher gating (no DB row, no cleanup).
+
+**Final test posture this round:**
+- Frontend unit: 171/171 ✓
+- Frontend e2e: **97/97** ✓ (+4 journey phases; full suite verified twice, ~1.1 min per run)
+- Backend unit: 129/129 ✓
+
 ### UX-audit Round 11 (comprehensive depth) — CI + Web Vitals + a11y + schema audit
 
 User asked to "try as much as iterations to validate and improve comprehensively." Hit 7 audit angles this round, shipped 5 PRs that turned up real wins.
