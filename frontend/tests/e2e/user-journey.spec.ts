@@ -117,6 +117,23 @@ function makeSolidPng(): Buffer {
   ]);
 }
 
+/**
+ * Console-error noise that is benign-by-design, shared by every phase:
+ *   - /api/auth/me 401: fixed in PR #56 — kept as a safety net.
+ *   - Next.js RSC prefetch fallback: a hovered/visible <Link> prefetch
+ *     can race navigation (especially under full-suite parallel load)
+ *     and log "Failed to fetch RSC payload … Falling back to browser
+ *     navigation". The router then DOES fall back successfully —
+ *     nothing the user sees is broken. Caught flaking phase 1 only
+ *     when the whole suite runs in parallel.
+ */
+function isBenignConsoleError(text: string): boolean {
+  return (
+    /Failed to load resource.*auth\/me/i.test(text) ||
+    /Failed to fetch RSC payload/i.test(text)
+  );
+}
+
 // Each phase is independent — a flake in scan shouldn't suppress the
 // auth + nav phases. Parallel false keeps results deterministic
 // (we share the same baseURL, but the production side-effects are
@@ -151,7 +168,8 @@ test.describe('user journey — production', () => {
     expect(enRes?.status()).toBe(200);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
-    expect(consoleErrors, consoleErrors.join('\n')).toHaveLength(0);
+    const fatal = consoleErrors.filter((e) => !isBenignConsoleError(e));
+    expect(fatal, fatal.join('\n')).toHaveLength(0);
   });
 
   test('2. scan — upload a generated PNG, run analyze, land on a terminal UI state', async ({ page }) => {
@@ -205,8 +223,8 @@ test.describe('user journey — production', () => {
     await expect(terminal.first()).toBeVisible({ timeout: 90_000 });
 
     // No analyze-path console errors that the user would actually be
-    // hurt by. Three patterns are filtered as benign-by-design:
-    //   - /api/auth/me 401 noise (fixed in PR #56; safety net).
+    // hurt by. On top of the shared benign set, two scan-specific
+    // patterns are filtered:
     //   - "SCAN ERROR" with category=timeout — this is the LOGGER itself
     //     reporting the model-cascade timeout via console.error, and the
     //     scan UI handles it (renders the orange "try again" card seen
@@ -216,7 +234,7 @@ test.describe('user journey — production', () => {
     //     load on retry; not journey-blocking.
     const fatal = consoleErrors.filter(
       (e) =>
-        !/Failed to load resource.*auth\/me/i.test(e) &&
+        !isBenignConsoleError(e) &&
         !/SCAN ERROR.*category=timeout/i.test(e) &&
         !/Failed to load resource: the server responded with a status of 404/i.test(e),
     );
@@ -322,19 +340,9 @@ test.describe('user journey — production', () => {
       );
       await expect(landed.first()).toBeVisible({ timeout: 15_000 });
 
-      // No console errors on the rendered page. Two known-benign
-      // patterns are filtered:
-      //   - /api/auth/me 401: fixed in PR #56 — keep as a safety net.
-      //   - Next.js RSC prefetch fall-back: Next-Link hover prefetches
-      //     can race the abort signal when the test navigates fast,
-      //     producing a noisy "Failed to fetch RSC payload … Falling
-      //     back to browser navigation" line. The runtime then DOES
-      //     fall back successfully; nothing the user sees is broken.
-      const fatal = errs.filter(
-        (e) =>
-          !/Failed to load resource.*auth\/me/i.test(e) &&
-          !/Failed to fetch RSC payload/i.test(e),
-      );
+      // No console errors on the rendered page beyond the shared
+      // benign set (see isBenignConsoleError).
+      const fatal = errs.filter((e) => !isBenignConsoleError(e));
       expect(fatal, `${path} console:\n${fatal.join('\n')}`).toHaveLength(0);
 
       page.off('console', handler);
