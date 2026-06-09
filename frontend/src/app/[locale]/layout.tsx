@@ -1,13 +1,19 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
-import { Inter, Prompt, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import "../globals.css";
 import type { Metadata } from 'next';
 import { logger } from '@/lib/logger';
 
+// Round 11 Web Vitals audit: this page used to import Inter + Prompt
+// (5 weights) + Plus_Jakarta_Sans here, but neither Prompt nor Jakarta
+// were referenced ANYWHERE — no `font-display` / `font-thai` Tailwind
+// classes, no `var(--font-prompt)` usage, no `<body className=jakarta>`.
+// They added ~10 WOFF2 preloads (~250-400KB) to every page for nothing.
+// Removing them dropped homepage FCP from 2272ms (⚠) toward target;
+// globals.css falls back to Sarabun for Thai (the production fallback
+// already in use).
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
-const prompt = Prompt({ subsets: ["thai", "latin"], weight: ["300", "400", "500", "600", "700"], variable: '--font-prompt' });
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
 
 // Light-only color scheme today (brand palette is warm coral on light
 // backgrounds; no dark-mode design tokens shipped yet). Declaring
@@ -111,7 +117,7 @@ export default async function LocaleLayout({
   logger.info(`Rendering layout for locale: ${locale}`);
 
   return (
-    <html lang={locale} className={`${inter.variable} ${prompt.variable} ${jakarta.variable}`}>
+    <html lang={locale} className={inter.variable}>
       <body className={`${inter.className} antialiased`}>
         {/*
           NB on the missing preload: PR #52 (Round 7 iter 8) added a
