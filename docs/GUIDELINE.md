@@ -319,6 +319,36 @@ Unit tests pin code invariants. E2e tests pin rendered behaviour. Neither lens c
 
 Round-7 caught 9 fresh-user bugs across 9 iterations. None were caught by the 164-case unit suite or 79-case e2e suite. Pattern: this lens is the third leg of the testing stool. Run it whenever the product changes its first-impression surface.
 
+### The live-deploy + authed-surface lens (Round 8, May 2026)
+
+Round 7 was a *static* fresh-user reading. Round 8 ran the app for real: Playwright against the live production URL, a real-photo scan end-to-end, and the authenticated surfaces driven with a session cookie. That caught:
+- A `401` console error firing on every anonymous page load (the SiteHeader extracted in Round 7 introduced an unconditional `initAuth` → `/api/auth/me`).
+- `/chat` being **completely unreachable on hard-load/refresh/bookmark** for logged-in users — a redirect race in the auth store where guards fired on the pre-probe `isAuthenticated === false`.
+- A footer `Version 2.1.7` literal that had drifted from `package.json` 2.1.9.
+- The locale-aware 404 page's "anti-dead-end" CTAs themselves dead-ending (bare `/scan` 404'd again, bare `/` dropped locale).
+
+**Practical recipe**:
+1. Run the **full Playwright e2e** against the live deploy URL (not localhost). Hidden regressions like the 401 console error only surface against a real network + edge runtime.
+2. **Register a throwaway account via the API**. Extract the session cookie (`shinnyguide_session`). Inject it into Playwright with `context.addCookies(...)`.
+3. **Drive the authenticated surfaces**: hard-load `/dashboard`, `/chat`, `/admin` (expect redirect for non-admins). Confirm each STAYS on its URL rather than bouncing through `/login`.
+4. **Drive the core feature end-to-end**: run a real-photo scan through the UI (not just probe `/api/analyze`). Confirm the upload affordance triggers the full flow.
+5. **Verify deploy SHA matches main HEAD** at each step (`curl /api/health | jq .deployment.shaShort`). If they diverge, your e2e is testing old code.
+
+### The Web-Vitals + a11y inventory lens (Round 11, June 2026)
+
+Even after the editorial lens (Round 7) and the live-deploy lens (Round 8), two more classes of defect remained invisible:
+- **Performance regressions**: the homepage was loading three Google Font families, but two of them were referenced by zero Tailwind classes and zero CSS variables — pure dead weight pushing FCP to **2272ms** (threshold 1800ms). Functional tests don't fail when fonts are wasted.
+- **Screen-reader-only failures**: 5 of 6 public pages were missing the `<main>` landmark. The page rendered fine, looked fine, passed every unit + e2e + fresh-user test — but a screen-reader user had no "skip past nav" target on every navigation.
+
+**Practical recipe**:
+1. **Web Vitals capture** — drive a fresh browser context per page (cold cache), call `performance.getEntriesByType('paint')` + `'largest-contentful-paint'` + a `PerformanceObserver` for `layout-shift`. Flag `FCP > 1800ms`, `LCP > 2500ms`, `CLS > 0.1`. Also count `content-length` per `content-type` (image/js/total) to spot bundle bloat.
+2. **Font-payload audit** — `grep -rcE "font-display|font-thai|var\(--font-\w+\)" src/` against the fonts imported in the layout. Zero hits = pure dead weight, delete.
+3. **Landmark + label inventory** — for each public page, evaluate `document.querySelectorAll('main, [role=main]').length` (expect 1), `h1` count (expect 1), and every `input/textarea/select` missing both a `label[for]` and `aria-label`. Round 11 added 6 permanent guards for this in `a11y.spec.ts`.
+4. **WebKit smoke** — run the smoke spec via `webkit.launch()` + `devices['iPhone 13']`. Catches Safari-specific bugs Chromium misses.
+5. **Schema vs route field usage** — for every column on a `users`/`sessions`/etc. table, `grep` the codebase for read sites + write sites. Zero hits anywhere = dead column. Round 11 caught `users.language` being written but never read AND being hardcoded to `'th'` regardless of actual locale.
+
+Round 11 hit 7 audit angles and shipped 5 PRs with substantive wins (FCP −73%, `<main>` on every page, locale persistence bug fixed). 2 angles turned up nothing (WebKit, interaction console — good news).
+
 ### Where to add a new check
 
 | Class of check | Lives in | How to extend |

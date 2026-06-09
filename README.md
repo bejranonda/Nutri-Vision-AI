@@ -6,6 +6,7 @@
 
 [![Cloudflare Pages](https://img.shields.io/badge/deploy-Cloudflare_Pages-F38020?logo=cloudflare)](https://nutri-vision-ai.pages.dev)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
+[![CI](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml)
 
 ## What is Shinny Guide?
 
@@ -43,7 +44,12 @@ Every page shares the same `<SiteHeader/>` (brand mark + Scan/Recipes/Pricing na
 - **Chat** (`/[locale]/chat`, login-required) — AI Coach Shinny. Conversational nutrition coaching backed by a free-tier provider cascade: Groq Llama 3.3 70B (primary, sub-300ms) → Gemini 1.5 Flash → Cloudflare Workers AI safety net. Tier-quota gated (`aiQuestionsPerDay`: free=3, premium=∞). Locale-aware persona that bakes the brand's three rules: never forbid food, warm older-sister tone, stay in food/nutrition scope. See [Tech Stack](#-tech-stack) for the provider chain.
 - **Admin** (`/[locale]/admin`, restricted) — operator console: quick-stat overview, user management (toggle admin, flip subscription tier), promo-code CRUD, and a health-check view. Gated server-side by the `isAdmin` column on `users`; non-admins are silently redirected to `/login`. See [`docs/ADMIN_BOOTSTRAP.md`](docs/ADMIN_BOOTSTRAP.md) for how to create the first admin via `wrangler` (the schema ships with zero admins — no accidental admin via public sign-up).
 
-> **First-impression UX:** Round 7 (May 2026) ran a 9-iteration fresh-user audit over PRs #46–#54 — viewing the site with zero context to surface editorial / IA / honesty bugs that no automated probe could catch. CTAs were canonicalized across pages (always *Start your scan*), the Shinny mascot avatar is now preloaded, the homepage "70%" claim carries a citation footnote, and every page shares one nav. See `CHANGELOG.md → UX-audit Round 7` and `docs/KNOWLEDGE_BASE.md → Fresh-user audit loop` for the full pass.
+> **First-impression UX + audit posture:** Rounds 7 → 11 (May–June 2026) iterated on the product through four lenses — fresh-user reading, live Playwright against the deploy, authed-surface walkthrough with a session cookie, and a Web-Vitals + accessibility inventory. The biggest deltas:
+> - **Round 7** canonicalized CTAs, added a citation footnote to the homepage "70%" claim, shipped a persistent `<SiteHeader/>` on every page.
+> - **Round 8** caught `/chat` being unreachable on hard-load for logged-in users (auth-store probe race) + a console-401 on every anonymous page load.
+> - **Rounds 9–10** swept 245 lines of unwired frontend code + 25 orphan i18n keys (× 4 locales) + two dead SQLAlchemy models, and fixed an iPhone-SE 375px overflow on `/pricing`.
+> - **Round 11** dropped homepage **FCP from 2272ms to 620ms (−73%)** by removing two never-applied Google Font families, added `<main>` landmarks across all public pages (WCAG 2.1 AA), and stood up the first CI workflow on the repo.
+> Full play-by-play in `CHANGELOG.md` and `docs/KNOWLEDGE_BASE.md → Fresh-user audit loop / Live-deploy + authed-surface audit / Backend role clarified`.
 
 ### 🎟️ Voucher & Promotion System
 
@@ -100,8 +106,14 @@ The analysis pipeline is built for **Edge Reliability**:
 11. **PWA install support** via `src/app/manifest.ts` — served at `/manifest.webmanifest`. Brand-coloured (theme `#ec7064`, background `#fff5f5`), standalone-portrait display for the mobile-first scan flow.
 12. **Multi-locale sitemap** at `/sitemap.xml` via `src/app/sitemap.ts` — covers `/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login` across all 4 locales with `hreflang` alternates so search engines understand `/th/scan` and `/en/scan` are translations of the same page, not duplicate content. Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) deliberately excluded — indexing them would point search users at a redirect-to-login.
 13. **Share-preview metadata + locale-aware 404 page**: `og:image` + `twitter:image` ensure social shares render a preview card (Shinny avatar via `metadataBase`-resolved absolute URLs). `src/app/[locale]/not-found.tsx` localizes the 404 experience across all 4 locales with a `not_found` message namespace, plus two CTAs (Home + Scan) so users don't dead-end.
-14. **Playwright e2e suite** at `frontend/tests/e2e/` — 79 cases across 5 spec files (`smoke`, `ui-ux`, `deep-probes`, `a11y`, `responsive-perf`) running against the live production URL. Pins everything Vitest unit tests can't reach: `<link rel="alternate" hreflang>`, `og:image`/`twitter:image`, locale-aware 404 body, sitemap XML, Cache-Control on every API response, deployment SHA exposure, schema-failure shapes, icon-only-button accessible names, `htmlFor`/`id` label associations, color-scheme declaration, viewport breakpoints, payload caps, LCP preload, third-party-script whitelist. Opt-in via `npm run test:e2e` (needs `@playwright/test` + Chromium browser).
-15. **Three-leg testing stool** (added Round 7, May 2026): the project treats correctness as having three orthogonal lenses — **unit** (`vitest`, code invariants), **e2e** (`playwright`, rendered DOM behaviour), and **fresh-user audit** (human/AI walking through the product with zero context, catching editorial / honesty / IA bugs no automated probe can see). Round 6 found 10 bugs the unit suite missed; Round 7 found 9 bugs the unit + e2e combo missed. Methodology recipe lives in [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *The fresh-user audit lens*.
+14. **Playwright e2e suite** at `frontend/tests/e2e/` — **93 cases** across 5 spec files (`smoke`, `ui-ux`, `deep-probes`, `a11y`, `responsive-perf`) running against the live production URL. Pins everything Vitest unit tests can't reach: `<link rel="alternate" hreflang>`, `og:image`/`twitter:image`, locale-aware 404 body, sitemap XML, `Cache-Control` on every API response, deployment SHA exposure, schema-failure shapes, icon-only-button accessible names, `htmlFor`/`id` label associations, color-scheme declaration, viewport breakpoints (incl. iPhone-SE 375px overflow), payload caps, `<main>` landmark on every public page (Round 11), no-wasted-preload guards, anonymous `/api/auth/me` 200-probe contract, third-party-script whitelist. Opt-in via `npm run test:e2e` (needs `@playwright/test` + Chromium browser).
+15. **Four-lens testing posture** (Rounds 7 → 11): the project treats correctness as having four orthogonal lenses, each catching a class of bug the others miss.
+    - **Unit** (`vitest`, code invariants) — 171 cases.
+    - **e2e** (`playwright`, rendered DOM behaviour against the live deploy) — 93 cases.
+    - **Fresh-user audit** (human/AI walking through with zero context, catching editorial / honesty / IA bugs) — 9 fixes in Round 7, 9 in Round 8, 5 in Round 10–11.
+    - **Web Vitals + accessibility inventory** (Round 11) — driving real browsers + axe-style DOM checks to catch perf regressions (FCP/LCP/CLS) and WCAG 2.1 AA gaps (`<main>`, h1 hierarchy, label associations) that don't show up as functional failures.
+    Recipes for all four live in [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *The fresh-user audit lens* and *The Web-Vitals + a11y inventory lens*.
+16. **GitHub Actions CI** at `.github/workflows/ci.yml` (added Round 11) — frontend `check:all` + backend `pytest` on every PR. Before this there was no CI at all; the standalone backend went 6 weeks unverified between Round 8 and Round 9, long enough that Round 9 found 3 latent bcrypt failures + a phantom `python-cors==1.0.0` dep that broke `pip install` outright. CI now catches that rot at PR time. The Playwright e2e suite stays opt-in (manual post-deploy step) so it doesn't false-positive against in-flight deploys.
 
 ## 🛠 Tech Stack
 
@@ -131,12 +143,13 @@ npm run deploy     # → Cloudflare Pages
 
 ## ✅ Quality gate
 
-Before every commit / PR, run the combined check suite. It catches the three
-classes of regression we've historically had:
+Before every commit / PR, run the combined check suite. It catches the classes
+of regression we've historically had, and CI re-runs the same on every PR
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 ```bash
 cd frontend
-npm run check:all      # = type-check + check:i18n + test
+npm run check:all      # = type-check + check:i18n + test (171/171)
 ```
 
 Individually:
@@ -144,15 +157,17 @@ Individually:
 | Script | Purpose |
 |--------|---------|
 | `npm run type-check` | Strict TypeScript (`tsc --noEmit`) across the whole frontend |
-| `npm run check:i18n` | Ensures every `t('…')` key used in code exists in **all 4 locale JSONs** (th/en/de/da) |
-| `npm test` | Vitest unit tests — crypto (PBKDF2 + constant-time compare), ai-prompt validators, zod schemas |
+| `npm run check:i18n` | Ensures every `t('…')` key used in code exists in **all 4 locale JSONs** (th/en/de/da) — 216 keys each |
+| `npm test` | Vitest unit tests — crypto (PBKDF2 + constant-time compare), ai-prompt validators, zod schemas, auth-store `authChecked` lifecycle |
+| `npm run test:e2e` | Playwright e2e against the live deploy — **93 cases** across `smoke`, `ui-ux`, `deep-probes`, `a11y`, `responsive-perf` (opt-in, needs Chromium + network) |
 | `npm run build` | Full Next.js production build, same thing Cloudflare Pages runs |
 
-Backend:
+Backend (reference impl, runs via CI; see [`docs/KNOWLEDGE_BASE.md`](docs/KNOWLEDGE_BASE.md) → *Backend (FastAPI) — strategic role clarified*):
 
 ```bash
 cd backend
-pytest -q              # 129 tests: security, scorer, gemini, config
+pip install -r requirements.txt
+PYTHONPATH=. pytest -q   # 129 tests: security, scorer, gemini, config
 ```
 
 See [`docs/ITERATION_PROCESS.md`](docs/ITERATION_PROCESS.md) for the

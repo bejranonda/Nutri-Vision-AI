@@ -223,13 +223,15 @@ export function ScoreCard({ score }: { score: NutritionScore }) {
 
 ```bash
 cd frontend
-npm run check:all       # = type-check + check:i18n + test
+npm run check:all       # = type-check + check:i18n + test (171/171)
 
 cd ../backend
-pytest -q
+PYTHONPATH=. python -m pytest -q   # 129/129
 ```
 
-If any of those fail, the commit isn't ready. See
+If any of those fail, the commit isn't ready. The same commands run on every
+PR in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (added Round 11),
+so a green local check should also produce a green CI. See
 [`docs/ITERATION_PROCESS.md`](docs/ITERATION_PROCESS.md) for the full
 zero-error-navigation workflow.
 
@@ -281,6 +283,20 @@ If your PR touches anything a first-time visitor sees in their first 30 seconds 
 6. **Verify the primary CTA is the same string across pages**. Three different "scan" verbs across three pages reads like a janky portfolio.
 
 Round 7's 9 shipped fixes (PRs #46–#53) are listed in `CHANGELOG.md → UX-audit Round 7`. Read the table before doing a Round 8 — pattern-matching against the previous round is faster than rediscovering the same bug class twice.
+
+### Web Vitals + a11y inventory lens (for PRs that change layout, fonts, large assets, or landmark structure)
+
+If your PR touches the locale layout, font imports, hero/above-the-fold imagery, page semantics (`<main>`, `<section>`, headings), or anything that affects what the browser is downloading on first paint, **also run the Web Vitals + a11y inventory lens** before declaring done. Added in Round 11 (June 2026) after the lens caught the homepage FCP at **2272ms** and 5 of 6 public pages missing the `<main>` landmark — defects that 169 unit tests + 80 e2e tests all passed.
+
+**Five-step recipe** (full version in `docs/GUIDELINE.md → The Web-Vitals + a11y inventory lens`):
+
+1. **Capture FCP / LCP / CLS per page** via Playwright (`performance.getEntriesByType('paint')` + a `PerformanceObserver` for `layout-shift`). Flag `FCP > 1800ms`, `LCP > 2500ms`, `CLS > 0.1`. Also sum `content-length` per `content-type` to spot bundle bloat.
+2. **Audit font payload** — `grep -rcE "font-display|font-thai|var\(--font-\w+\)" src/` against the families imported in the layout. Zero hits = pure dead weight, delete.
+3. **Landmark + label inventory** — count `<main>` (expect 1), `<h1>` (expect 1), and every `input/textarea/select` missing both a `label[for]` and `aria-label`. Pinned in `a11y.spec.ts`.
+4. **WebKit smoke** — run the smoke spec via `webkit.launch()` + `devices['iPhone 13']`. Catches Safari-specific bugs Chromium misses.
+5. **Schema vs route field usage** — for every column on the affected table, `grep` the codebase for read sites + write sites. Zero hits = dead column, document for migration.
+
+Round 11's wins are summarised in `CHANGELOG.md → UX-audit Round 11` and broken down by audit angle. Read it before running the lens yourself.
 
 ### AI-pipeline real-food validation (mandatory before merging)
 

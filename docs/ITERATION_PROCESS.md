@@ -63,6 +63,7 @@ When the PR branch is pushed:
 
 | Check | Must pass? | Purpose |
 |-------|-----------|---------|
+| **GitHub Actions CI** (`.github/workflows/ci.yml`) | ✅ yes | Frontend `check:all` (type-check + i18n key parity + Vitest unit) **and** backend `pytest`. Added Round 11; before this there was no CI at all and the backend went 6 weeks unverified between Round 8 → Round 9. |
 | **Cloudflare Pages** | ✅ yes | Produces the actual deploy preview. Fails on any Next.js build error or ESLint error. |
 | **GitGuardian** | ✅ yes | Secrets scan. Never commit API keys / `.env` contents. |
 | **CodeRabbit review** | ⚠ advisory | Reads the diff; comments on smells and reach-across-files concerns. Not a gate, but every critical/major comment must be addressed or explicitly dismissed with a reply. |
@@ -232,20 +233,21 @@ The project has four layers of static validation:
 New checks should be wired into `npm run check:all` so they run as part
 of the per-commit loop, not just CI.
 
-## 9. The three-leg testing stool (added Round 7, May 2026)
+## 9. The four-lens testing posture (Rounds 7 → 11, May–June 2026)
 
-Correctness has three orthogonal lenses; the project relies on all three because each one catches bugs the others don't.
+Correctness has four orthogonal lenses; the project relies on all four because each one catches a class of bug the others don't.
 
 | Lens | Tool | What it pins | What it misses |
 |------|------|-------------|----------------|
-| **Unit** | Vitest (`npm test`) — 164 cases | Code invariants: crypto, zod, prompt-builder, cascade structure | Anything that requires real DOM, network, or human judgment |
-| **e2e** | Playwright (`npm run test:e2e`) — 79 cases | Rendered DOM behaviour: hreflang, og:image, accessible names, label associations, payload caps, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care |
+| **Unit** | Vitest (`npm test`) — 171 cases | Code invariants: crypto, zod, prompt-builder, cascade structure, auth-store `authChecked` lifecycle | Anything that requires real DOM, network, or human judgment |
+| **e2e** | Playwright (`npm run test:e2e`) — 93 cases | Rendered DOM behaviour against the live deploy: hreflang, og:image, accessible names, label associations, payload caps, `<main>` landmark on every public page, iPhone-SE 375px overflow guard, anonymous `/api/auth/me` 200-probe contract, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care |
 | **Fresh-user audit** | Human / AI walking through the product with zero context | First-impression UX: dishonest affordances, jargon without context, duplicate inputs, unsubstantiated claims, late-loading assets, inconsistent CTAs | Anything that needs >10s of investigation per claim |
+| **Web Vitals + a11y inventory** | Playwright + `performance.getEntriesByType` + DOM inspector | Perf regressions (FCP/LCP/CLS), font-payload bloat, missing `<main>`/landmarks, h1 hierarchy, unlabeled inputs, WebKit/Safari smoke | Schema correctness, business-logic invariants |
 
 **Cadence**:
-- Unit + e2e run on every commit-loop and PR.
-- Fresh-user audit runs in **rounds** (each ~10 iterations, ship-fix-verify), triggered when the product changes its first-impression surface or when ~3 months have passed since the last round.
+- Unit + e2e run on every commit-loop. Unit runs in CI on every PR.
+- Fresh-user audit + Web Vitals + a11y inventory run in **rounds** (each ~5–10 iterations, ship-fix-verify), triggered when the product changes its first-impression surface, hits a perf threshold, or when ~3 months have passed since the last round.
 
-**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — which is what the unit suite would have asked. e2e would have caught it in one iteration. Same lesson Round 7 re-learned: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial, not behavioural.
+**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — what the unit suite would have asked. e2e would have caught it in one iteration. Round 7 re-learned the lesson: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial. Round 11 re-learned it again: 5 perf + a11y bugs that 251 tests couldn't see because they pass the green-light check (the page renders, nothing throws) but fail a quality bar (FCP > 1.8s, no `<main>`).
 
-See `docs/GUIDELINE.md → The fresh-user audit lens` for the six-step recipe the next contributor should follow.
+See `docs/GUIDELINE.md → The fresh-user audit lens` and `→ The Web-Vitals + a11y inventory lens` for the practical recipes the next contributor should follow.

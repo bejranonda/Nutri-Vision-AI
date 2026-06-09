@@ -65,9 +65,17 @@ Static checks cannot verify provider-side breakage. After deploy, run a real-foo
 
 ## When changing first-impression UX (homepage, CTAs, nav, login, pricing)
 
-Run the **fresh-user audit lens** (third leg of the testing stool, added Round 7). Unit + e2e suites can't see editorial / IA / honesty bugs — they only check code invariants + DOM behaviour. Recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: incognito window, log out, read every visible string out loud, click everything that looks live, count code-entry inputs per page, audit headline claims for citation, verify the primary CTA is the same string across pages.
+Run the **fresh-user audit lens**. Unit + e2e suites can't see editorial / IA / honesty bugs. Recipe in `docs/GUIDELINE.md → The fresh-user audit lens`.
 
-Round 7 (PRs #46–#53) shipped 9 fixes from this lens — read `CHANGELOG.md → UX-audit Round 7` before doing another round to avoid rediscovering the same bug classes.
+Round 7 shipped 9 fixes (PRs #46–#53); Round 8 shipped 6 (PRs #56–#61); Rounds 10–11 shipped 7 more (PRs #67–#74). Read the `CHANGELOG.md` tables before doing another round.
+
+## When changing layout, fonts, or page semantics
+
+Run the **Web Vitals + a11y inventory lens** (added Round 11). Quick version: capture FCP/LCP/CLS per page, audit font-payload consumers, count `<main>` + `<h1>` + unlabeled inputs per page, smoke on WebKit/iPhone 13. Recipe in `docs/GUIDELINE.md → The Web-Vitals + a11y inventory lens`.
+
+## CI on every PR (added Round 11)
+
+`.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.
 
 ## Current Status (May 2026)
 - ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
