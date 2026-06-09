@@ -30,7 +30,7 @@ interface AuthState {
 
     initAuth: () => Promise<void>;
     login: (email: string, password: string) => Promise<boolean>;
-    register: (name: string, email: string, password: string, voucherCode?: string) => Promise<boolean>;
+    register: (name: string, email: string, password: string, voucherCode?: string, locale?: string) => Promise<boolean>;
     logout: () => Promise<void>;
     redeemCode: (code: string) => Promise<{ success: boolean; message: string }>;
     clearError: () => void;
@@ -88,7 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
     },
 
-    register: async (name, email, password, voucherCode) => {
+    register: async (name, email, password, voucherCode, locale) => {
         set({ isLoading: true, error: null });
         try {
             // Only send `voucherCode` when it's non-empty. Omitting it lets
@@ -96,6 +96,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // rather than us guessing client-side.
             const body: Record<string, string> = { displayName: name, email, password };
             if (voucherCode && voucherCode.trim()) body.voucherCode = voucherCode.trim();
+            // Persists into users.language so the user's preferred UI
+            // language survives across sessions. Omitting it makes the
+            // server fall back to 'th' (the primary launch locale).
+            if (locale) body.locale = locale;
 
             const res = await fetch('/api/auth/register', {
                 method: 'POST',

@@ -162,7 +162,7 @@ export default function LoginPage() {
             // or not) and surface the error — don't second-guess client-side.
             if (voucherStatus === 'checking') return;
             if (voucherCode.trim() && voucherStatus === 'invalid') return;
-            success = await register(displayName, email, password, voucherCode);
+            success = await register(displayName, email, password, voucherCode, locale);
             if (success) setSuccessMsg(t('register_success'));
         }
     }
