@@ -54,11 +54,6 @@ htmlcov/
 .tox/
 .hypothesis/
 
-# Playwright
-test-results/
-playwright-report/
-.playwright/
-
 # Node.js / Next.js
 node_modules/
 .next/
@@ -125,6 +120,7 @@ reference.txt
 .claude/settings.local.json
 
 # Playwright e2e artefacts — generated per-run, not source.
+test-results/
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
