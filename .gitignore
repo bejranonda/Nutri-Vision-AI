@@ -54,6 +54,11 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Playwright
+test-results/
+playwright-report/
+.playwright/
+
 # Node.js / Next.js
 node_modules/
 .next/
