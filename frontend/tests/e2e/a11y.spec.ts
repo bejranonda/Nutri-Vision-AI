@@ -136,6 +136,50 @@ test.describe('lang attribute is on every locale-prefixed sub-page', () => {
   }
 });
 
+test.describe('every public page has a <main> landmark + one <h1>', () => {
+  // Round-11 a11y inventory found 5 of 6 public pages had no <main>
+  // landmark. Screen-reader users had no "skip past the nav to content"
+  // target. PR #72 added <main> + aria-labels on unlabeled inputs.
+  // This guard locks the contract.
+  for (const path of [
+    '/th',
+    '/th/scan',
+    '/th/pricing',
+    '/th/login',
+    '/th/recipes',
+    '/th/demo',
+  ]) {
+    test(`${path} — main landmark + single h1 + all inputs labeled`, async ({ page }) => {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      // Allow client-side hydration for pages that defer content (login,
+      // chat) before counting <main>.
+      await page.waitForTimeout(500);
+      const counts = await page.evaluate(() => ({
+        main: document.querySelectorAll('main, [role="main"]').length,
+        h1: document.querySelectorAll('h1').length,
+        unlabeledInputs: Array.from(
+          document.querySelectorAll('input, textarea, select'),
+        )
+          .filter((i: any) => i.getAttribute('type') !== 'hidden')
+          .filter((i: any) => {
+            const id = i.getAttribute('id');
+            const labelled =
+              id && document.querySelector('label[for="' + id + '"]');
+            const aria =
+              i.getAttribute('aria-label') || i.getAttribute('aria-labelledby');
+            return !labelled && !aria;
+          }).length,
+      }));
+      expect(counts.main, `${path} should have exactly one <main>`).toBe(1);
+      expect(counts.h1, `${path} should have exactly one <h1>`).toBe(1);
+      expect(
+        counts.unlabeledInputs,
+        `${path} has ${counts.unlabeledInputs} input(s) without label or aria-label`,
+      ).toBe(0);
+    });
+  }
+});
+
 test.describe('color-scheme meta declares light/dark support', () => {
   test('/th declares a color-scheme either via meta or :root CSS', async ({ page }) => {
     // Helps browsers pick the right native widget colors (scrollbar,
