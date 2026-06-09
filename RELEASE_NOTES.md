@@ -1,3 +1,91 @@
+# 🚀 UX-audit Round 11 — comprehensive depth, June 2026 (v2.1.13)
+
+> 7 audit angles, 5 PRs that turned up real wins (#70–#74). User asked to
+> "try as much as iterations to validate and improve comprehensively."
+
+## What this round shipped
+
+| Angle | Outcome |
+|-------|---------|
+| **CI workflow** | First GitHub Actions on the repo (frontend `check:all` + backend `pytest`). Resolved the long-running "what is the backend for?" ambiguity: it's the canonical reference impl (`nutrition_scorer.py` = the 536-line algorithmic spec). |
+| **Web Vitals** | Homepage FCP **2272ms → 620ms (−73%)**, Scan **2100ms → 372ms (−82%)**. Root cause was `Prompt` (5 weights) + `Plus Jakarta Sans` Google fonts loaded on every page with **zero consumers** — no `font-display` / `font-thai` class anywhere. |
+| **Deep a11y** | 5 of 6 public pages had no `<main>` landmark — WCAG 2.1 AA failure. Wrapped content in `<main>`, added `aria-label` to scan's hidden file inputs and pricing's promo input. 6 new permanent guards. |
+| **Schema audit** | `users.language` was hardcoded `'th'` on register regardless of locale. Latent (unread) but wrong; fixed. Two truly dead columns (`healthInfo`, `usageTracking`) documented in KNOWN_ISSUES for a future D1 migration. |
+| WebKit/Safari iPhone 13 smoke | 6/6 clean — no Safari-specific bugs |
+| Interaction-time console | 0 notable messages across 7 user-action stages |
+| i18n quality heuristic | 35 flags reviewed, all defensible (brand terms, marketing tier names) |
+
+## Final test posture after Round 11
+- Frontend unit: **171/171** ✓ (+2)
+- Frontend e2e: **93/93** ✓ (+6 a11y `<main>`-landmark guards)
+- Backend unit: **129/129** ✓
+- CI now runs on every PR
+- 6 of 6 public pages have `<main>` landmark (was 1 of 6)
+- 6 of 6 public pages under "good" FCP threshold
+
+---
+
+# 📱 UX-audit Round 10 — mobile + perf hygiene, June 2026 (v2.1.12)
+
+> Drove the rendered UI for real (not just `/api/analyze` probes) and surveyed
+> across 3 mobile widths × 5 pages.
+
+| Bug | Severity | PR |
+|---|---|---|
+| Global avatar preload fired on every page, but only the homepage uses the base `shinny_avatar.png` (other pages use variants); browser logged "preloaded but not used" on 4 of 5 pages + wasted ~40KB per page | Low | #67 |
+| `/pricing` "Apply Code" button overflowed iPhone-SE viewport by ~24px — flex `min-width: auto` trap with a `whitespace-nowrap` button | Low–Med | #68 |
+| **Found but NOT a code bug**: scan UI returned the Cloudflare Llama fallback (weaker) during the audit because Google Gemini was responding 503 "high demand". External outage. | — | — |
+
+Released as **v2.1.12**.
+
+---
+
+# 🧹 UX-audit Round 9 — unwired-element sweep, June 2026 (v2.1.11)
+
+> User asked: "no unwired function and element in frontend and backend." A
+> static audit (export → import callers, t-key → source references, tier-flag
+> → consumer queries, model → endpoint usage) found a cluster of dead code
+> shipped across earlier rounds.
+
+| Finding | Where | PR |
+|---|---|---|
+| `GradientButton`, `GlassCard` — 0 callers; referenced a stale brand palette (`BrandOrange/Magenta/Violet`) | `src/components/ui/` (whole dir deleted) | #63 |
+| `cn()` helper + `clsx` + `tailwind-merge` deps — only used by the two deleted components | `src/lib/utils.ts`, `package.json` | #63 |
+| `isFeatureAvailable` (×2), `canScan`, `canAskAI` — all defined, zero callers | `tier-config.ts`, `auth-store.ts` | #63 |
+| 25 orphan i18n keys × 4 locales (~100 strings) | `messages/{th,en,de,da}.json` | #63 |
+| `FavoriteRecipe`, `DailyTip` SQLAlchemy models — defined, never queried | `backend/app/models/` | #64 |
+| `requirements.txt` pinned `python-cors==1.0.0` — package doesn't exist on PyPI | `backend/requirements.txt` | #65 |
+| passlib 1.7.4 vs bcrypt 4.x incompat — broke 3/129 tests on fresh install | `backend/requirements.txt` | #65 |
+
+Released as **v2.1.11**.
+
+---
+
+# 🔐 UX-audit Round 8 — live-deploy + authed surfaces, May 2026 (v2.1.10)
+
+> Drove Playwright against the **live deploy** and the authenticated surfaces
+> with a session cookie. Caught one shipped-but-undetected regression plus
+> latent bugs.
+
+| Bug | Severity | PR |
+|---|---|---|
+| Anonymous visitors hit a **401 console error on every page** (`SiteHeader` → `initAuth` → `/api/auth/me`); introduced by the Round-7 iter-3 header extraction | Medium | #56 |
+| Homepage hero CTA said "Start Scanning" while dashboard/demo said "Start your scan" in EN/DE/DA — iter-2's canonicalization was left half-done | Low–Med | #57 |
+| Footer hardcoded "Version 2.1.7" vs `package.json` 2.1.9; `/api/health` reported "unknown" | Low | #58 |
+| Locale-aware 404's anti-dead-end CTAs **dead-ended** — bare `/scan` 404'd again, bare `/` dropped locale | Medium | #59 |
+| `/chat` **unreachable on hard-load** for logged-in users — redirect race fired on the pre-probe `isAuthenticated === false`, bouncing `/chat → /login → /dashboard` | **High** (feature unreachable) | #61 |
+| Flaky live rate-limit e2e (per-instance `Map` + CF request-spreading) | — | #60 |
+
+Pattern stated bluntly in the round's own notes: the `401` and the
+chat-unreachable bugs both shipped because earlier rounds verified with
+"compiles + unit-green + string looks right" instead of running the e2e suite
+against the live deploy. Lesson codified: **running e2e against the deploy is
+a hard gate, not optional**.
+
+Released as **v2.1.10** + **v2.1.11** (the version SSOT pin from #58 cascaded).
+
+---
+
 # 👀 UX-audit Round 7 — fresh-user loop, May 2026
 
 > 9 iterations, 9 shipped fixes, 8 PRs (#46–#54). Same iterate-until-zero

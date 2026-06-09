@@ -156,6 +156,29 @@ Round 7 was a static reading; Round 8 ran the app for real — Playwright vs the
 
 Also: the homepage footer + `/api/health` version now derive from `package.json` via `NEXT_PUBLIC_APP_VERSION` (next.config.js) — no more hand-edited version literals that drift.
 
+### Unwired-element sweep (Round 9, June 2026, PRs #63–#65)
+
+Static audit (`export → import callers`, `t-key → source references`, `tier-flag → consumer queries`, `model → endpoint usage`) found a cluster of dead code shipped across earlier rounds:
+- **Frontend**: `GradientButton`, `GlassCard` (whole `ui/` dir, referenced a stale brand palette); `cn()` helper + `clsx` + `tailwind-merge` deps; `isFeatureAvailable` (×2), `canScan`, `canAskAI` (server enforces quotas, not these); 25 orphan i18n keys × 4 locales.
+- **Backend**: `FavoriteRecipe`, `DailyTip` SQLAlchemy models (no endpoint queries them); `requirements.txt` pinned `python-cors==1.0.0` (package doesn't exist on PyPI → `pip install` failed); passlib 1.7.4 vs bcrypt 4.x incompat broke 3/129 tests on fresh install.
+
+Aspirational placeholders deliberately KEPT (~1KB across 4 locales): `mascot.{encourage,celebrate,walking,upf_alert}`, `profile.*`, `gamification.achievements.*`, `recipes.dietary.*`, `learn.quiz` — all map to documented roadmap features; removing now means re-translating later.
+
+### Mobile + perf hygiene (Round 10, June 2026, PRs #67–#68)
+
+Drove the real UI (not just `/api/analyze` probes) across 3 mobile widths × 5 pages.
+- Global avatar preload removed: was firing on every page but only homepage uses the base `shinny_avatar.png` (other pages use `_explaining/_celebrating/_confused/_analyzing` variants). Browser logged "preloaded but not used" on 4 of 5 pages.
+- `/pricing` "Apply Code" button overflowed iPhone-SE viewport by ~24px — classic flex `min-width:auto` trap with a `whitespace-nowrap` button. Fix: `min-w-0` on the input. New permanent 375px overflow guard in `responsive-perf.spec.ts`.
+
+### Comprehensive depth (Round 11, June 2026, PRs #70–#74)
+
+Hit 7 audit angles; 5 PRs shipped:
+- **CI workflow** (`.github/workflows/ci.yml`) — first GitHub Actions on the repo (frontend `check:all` + backend `pytest`). See `Backend (FastAPI) — strategic role clarified` below.
+- **Web Vitals**: home FCP **2272ms → 620ms (−73%)**, scan FCP **2100ms → 372ms (−82%)** by removing `Prompt` + `Plus Jakarta Sans` Google fonts (loaded but never applied — no `font-display` / `font-thai` Tailwind class anywhere).
+- **a11y `<main>` landmark** on all 6 public pages (was 1 of 6) + aria-labels for previously-unlabeled inputs on `/scan` and `/pricing`. 6 new permanent guards in `a11y.spec.ts`.
+- **Schema audit**: `users.language` was hardcoded `'th'` on register regardless of locale (latent — currently unread, but wrong). Now persists actual locale; back-compat fallback to `'th'`. Two truly dead columns (`healthInfo`, `usageTracking`) flagged in KNOWN_ISSUES for a future D1 migration.
+- 2 angles found NOTHING actionable (good news): WebKit/Safari iPhone 13 smoke (6/6 clean), interaction-time console (0 notable messages across 7 user-action stages).
+
 ### Per-IP rate limiting (`lib/rate-limit.ts`)
 
 Sliding-window limiter applied to every public POST surface that does expensive or sensitive work:

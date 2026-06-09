@@ -6,6 +6,7 @@
 
 [![Cloudflare Pages](https://img.shields.io/badge/deploy-Cloudflare_Pages-F38020?logo=cloudflare)](https://nutri-vision-ai.pages.dev)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
+[![CI](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml)
 
 ## Shinny Guide คืออะไร?
 
@@ -73,7 +74,13 @@ Nutri-Vision AI ใช้หลักการวิเคราะห์แบ�
 7. **การตรวจสอบคำขอด้วย Zod**: ทุก `/api/*` route ตรวจสอบ JSON body ด้วย schema ใน `frontend/src/lib/schemas.ts` ก่อนแตะฐานข้อมูลหรือเรียก AI เพื่อกันข้อมูลผิดรูปแบบตั้งแต่ที่ edge
 8. **ป้องกัน Promo Code ซ้ำที่ระดับฐานข้อมูล**: โค้ดโปรโมชันถูกบังคับให้ redeem ได้ครั้งเดียวต่อผู้ใช้ผ่าน `UNIQUE INDEX` บน `code_redemptions(user_id, code_id)` — แม้จะมีการยิง request พร้อมกันก็ไม่สามารถรับสิทธิ์ซ้ำได้
 9. **Per-IP Rate Limiting** (`lib/rate-limit.ts`): sliding-window throttle ทุก POST endpoint สาธารณะ — `/api/auth/login` (10/15นาที), `/api/auth/register` (3/15นาที), `/api/voucher/check` (30/นาที), `/api/chat` (20/นาที). Primary store เป็น `Map` ระดับ module (V8 heap, per-worker-instance) เปลี่ยนจาก `caches.default` หลังจาก bug-hunt พ.ค. 2026 พบว่า Workers Cache API ไม่ให้ same-millisecond consistency ใน OpenNext-on-Pages runtime — 40 parallel voucher probes ต่อ limit 30/นาที ตอบ 200 ทั้งหมด ทดสอบด้วย 5 enforcement test cases ที่พิสูจน์ว่า limit ทำงานจริง ไม่ใช่แค่ไม่ throw
-10. **เก้าอี้สามขาของการทดสอบ** (เพิ่มใน Round 7, พ.ค. 2026): โปรเจกต์มองว่าความถูกต้องมี 3 มุมที่อิสระจากกัน — **unit** (`vitest`, invariant ระดับโค้ด), **e2e** (`playwright`, พฤติกรรม DOM ที่ render จริง) และ **fresh-user audit** (มนุษย์/AI เดินดูสินค้าด้วยมุมมองคนที่ไม่รู้ context อะไรเลย เพื่อจับ bug ด้าน editorial / IA / ความซื่อตรงที่ probe อัตโนมัติจับไม่ได้) Round 6 จับได้ 10 bug ที่ unit ไม่เห็น; Round 7 จับได้อีก 9 bug ที่ unit + e2e ก็ยังจับไม่ได้ recipe การใช้งานอยู่ใน [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *The fresh-user audit lens*
+10. **เก้าอี้สี่ขาของการทดสอบ** (Rounds 7 → 11, พ.ค.–มิ.ย. 2026): โปรเจกต์มองว่าความถูกต้องมี 4 มุมที่อิสระจากกัน
+    - **unit** (`vitest`, invariant ระดับโค้ด) — 171 cases
+    - **e2e** (`playwright` ยิงตรงเข้า production URL) — 93 cases
+    - **fresh-user audit** (มนุษย์/AI เดินดูแอปด้วยมุมมองคนที่ไม่รู้ context — จับ bug ด้าน editorial / IA / ความซื่อตรงที่ automated probe จับไม่ได้)
+    - **Web Vitals + accessibility inventory** (เพิ่มใน Round 11) — ขับเบราว์เซอร์จริงและตรวจ DOM แบบ axe เพื่อจับ perf regressions (FCP/LCP/CLS) และช่องว่าง WCAG 2.1 AA (`<main>`, ลำดับ h1, การเชื่อม label)
+    Recipe ของทั้ง 4 มุมอยู่ใน [`docs/GUIDELINE.md`](docs/GUIDELINE.md) → *The fresh-user audit lens* และ *The Web-Vitals + a11y inventory lens*
+11. **GitHub Actions CI** (`.github/workflows/ci.yml`, เพิ่มใน Round 11) — รัน frontend `check:all` + backend `pytest` ทุก PR ก่อนหน้านี้ไม่มี CI เลย; standalone backend ขาดการตรวจสอบไป 6 สัปดาห์ระหว่าง Round 8–9 จน Round 9 พบ bcrypt บั๊ก 3 ตัว + `python-cors==1.0.0` ที่ไม่มีบน PyPI ทำให้ `pip install` ล้ม CI ตอนนี้จับ rot ชั้นนี้ที่ PR time ก่อนรวมเข้า main
 
 ## 🛠 เทคโนโลยี
 

@@ -60,9 +60,19 @@ Full procedure: `docs/GUIDELINE.md → Before declaring an AI-pipeline fix "ship
 
 ## When changing first-impression UX (homepage, CTAs, nav, login, pricing)
 
-Run the **fresh-user audit lens** (third leg of the testing stool, added Round 7). Unit + e2e suites can't see editorial / IA / honesty bugs — they only check code invariants + DOM behaviour. Recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: incognito window, log out, read every visible string out loud, click everything that looks live, count code-entry inputs per page, audit headline claims for citation, verify the primary CTA is the same string across pages.
+Run the **fresh-user audit lens**. Unit + e2e suites can't see editorial / IA / honesty bugs. Recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: incognito window, log out, read every visible string out loud, click everything that looks live, count code-entry inputs per page, audit headline claims for citation, verify the primary CTA is the same string across pages.
 
-Round 7 (PRs #46–#53) shipped 9 fixes from this lens — read `CHANGELOG.md → UX-audit Round 7` before doing another round to avoid rediscovering the same bug classes.
+Round 7 shipped 9 fixes from this lens (PRs #46–#53); Round 8 shipped 6 more (PRs #56–#61); Round 10 + 11 shipped 7 more (PRs #67–#74). Read the `CHANGELOG.md` tables before doing another round to avoid rediscovering the same bug classes.
+
+## When changing layout, fonts, hero imagery, or page semantics
+
+Run the **Web Vitals + a11y inventory lens** (added Round 11). Recipe in `docs/GUIDELINE.md → The Web-Vitals + a11y inventory lens`. Quick version: capture FCP/LCP/CLS per page via `performance.getEntriesByType`, audit font-payload consumers with `grep -rcE font-display|font-thai|var\(--font-...\)`, count `<main>` + `<h1>` + unlabeled inputs per page, smoke on WebKit/iPhone 13.
+
+Round 11 caught homepage FCP at 2272ms (two never-applied Google Font families) and 5 of 6 public pages missing the `<main>` landmark — defects 251 tests didn't catch because the page renders and nothing throws. Permanent guards now live in `tests/e2e/responsive-perf.spec.ts` and `tests/e2e/a11y.spec.ts`.
+
+## CI on every PR (added Round 11)
+
+`.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. If a local `npm run check:all` + `pytest -q` pass, CI will too. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.
 
 ## Current Status (May 2026)
 - ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
