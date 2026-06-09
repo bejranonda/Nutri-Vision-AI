@@ -199,10 +199,22 @@ The `ITERATION_PROCESS.md §5` post-merge verification now starts with this sing
 
 In local dev (no `CF_PAGES_*` env vars), all four `deployment` fields are `null` — that's the correct sentinel for "not running on Pages", not an error.
 
-### Backend (FastAPI)
--   **Async First**: All IO operations (DB, AI calls) are asynchronous.
--   **Pydantic Settings**: Environment-based configuration with strict validation.
--   **Structured Logging**: Every request, response, and internal service step is logged for transparency.
+### Backend (FastAPI) — strategic role clarified (Round 11)
+
+**The backend is the canonical reference implementation, not legacy dead code.** It deliberately runs alongside the production Cloudflare Edge stack and serves a specific purpose:
+
+- **`backend/app/services/nutrition_scorer.py`** is the 536-line deterministic scoring algorithm — the "proprietary scoring algorithm" referenced earlier in this doc. The production `/api/analyze` route currently delegates scoring to Gemini's JSON output (faster, but non-deterministic and harder to audit). The Python implementation is the *spec* against which any future port to TypeScript should be validated.
+- **`backend/app/services/gemini_service.py`** is the Gemini integration with the same prompt + parsing the edge uses. Useful for offline prompt-engineering experiments without touching prod.
+- 8 SQLAlchemy models (User, Recipe, Ingredient, FoodScan, MealPlan, ChatMessage, SubscriptionTier, ActivityLevel + enums) — schema reference for the entities. The Cloudflare D1 schema in `frontend/src/db/schema.ts` is the production source of truth; these mirror it in SQLAlchemy form for the parallel dev environment.
+
+**Round 11 changes:**
+- `.github/workflows/ci.yml` runs `pytest -q` on every PR. Before this, the backend went 6 weeks (Round 8 → Round 9) without verification — long enough that Round 9 found 3 latent bcrypt failures + a phantom `python-cors==1.0.0` in `requirements.txt` that broke `pip install` outright. CI now catches that class of rot at PR time.
+- Round 9 (PR #64) removed 2 truly unwired models (`FavoriteRecipe`, `DailyTip`) for features that don't exist. What's left is the reference impl, not aspirational scaffolding.
+
+**Architectural follow-up worth considering** (NOT done in Round 11):
+- Port `NutritionScorer.calculate_all_scores` to TypeScript and call it from the edge route after Gemini's identify-only response. Would replace Gemini-generated scores with the deterministic algorithm — same input always produces same scores, easier to A/B against, no AI cost per dimension. Bigger PR than this round's scope.
+
+### Backend (FastAPI) — original notes
 
 ## 🔐 Cloudflare wrangler auth (project-scoped)
 
