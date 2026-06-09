@@ -39,7 +39,31 @@ database_name = "nutri-vision-d1"
 database_id = "your-database-id"
 ```
 
-3. **Build and Deploy**
+3. **Apply database migrations**
+```bash
+cd frontend
+# First deploy / schema change — apply every pending migration to prod D1.
+npx wrangler d1 migrations apply eatinorder-db --remote
+```
+All migrations live under `frontend/drizzle/` and are registered in `drizzle/meta/_journal.json`. They are **idempotent** (`CREATE TABLE IF NOT EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`) so re-running them is safe. Test locally first with `--local`.
+
+4. **Pre-deploy quality gate**
+
+Before running `npm run deploy`, always run the combined check suite — same gates Cloudflare Pages runs on every push:
+
+```bash
+cd frontend
+npm run check:all     # = type-check + check:i18n + test
+```
+
+This catches three classes of regression we've historically had:
+- Type-check errors that would fail the Next.js build on CF Pages.
+- i18n-key drift — the scanner walks every `useTranslations('ns') + t('key')` call and verifies it exists in all four locales (`th/en/de/da`).
+- Broken unit tests for crypto, AI-prompt validators, and zod request schemas.
+
+If any gate fails, **do not deploy**. See [`docs/ITERATION_PROCESS.md`](docs/ITERATION_PROCESS.md) for the full zero-error-navigation workflow.
+
+5. **Build and Deploy**
 ```bash
 # Generate the build assets for Cloudflare
 npm run pages:build
@@ -49,6 +73,16 @@ npm run deploy
 ```
 
 Your app will be deployed globally on Cloudflare's Edge network with D1 and AI bindings automatically configured via `wrangler.toml`.
+
+6. **Post-deploy smoke check**
+
+Within 5 minutes of deploy, manually verify on the live URL:
+- Home loads without console errors.
+- A known-good food scan completes; the results panel renders no literal `ns.key` strings.
+- Locale switch (to Thai) renders native text; no `(Soup Pla)`-style romanization in AI output.
+- Register / login round-trip still works.
+
+If any of these fail, roll back immediately (see `ITERATION_PROCESS.md §5`).
 
 ---
 

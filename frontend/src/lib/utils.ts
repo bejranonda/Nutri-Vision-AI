@@ -1,10 +1,3 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs))
-}
-
 /**
  * Extract the raw base64 data portion from a data URI string.
  * e.g., "data:image/jpeg;base64,/9j/4AAQ..." → "/9j/4AAQ..."

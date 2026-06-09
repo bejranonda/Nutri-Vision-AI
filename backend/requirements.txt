@@ -16,6 +16,12 @@ hiredis==2.2.3
 # Authentication & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# passlib 1.7.4 detects the bcrypt module via a private attribute
+# (`bcrypt.__about__.__version__`) that bcrypt 4.x removed, so any
+# password-hashing call throws AttributeError. Pin to bcrypt 3.x
+# until passlib ships a fix (the upstream patch was merged but not
+# released as of June 2026).
+bcrypt<4
 python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic-settings>=2.3.0,<3.0
@@ -49,8 +55,11 @@ phonenumbers==8.13.26
 # Rate limiting
 slowapi==0.1.9
 
-# CORS
-python-cors==1.0.0
+# CORS — handled by FastAPI's built-in CORSMiddleware
+# (already imported in app/main.py). No extra package needed; the
+# previous `python-cors==1.0.0` pin pointed at a package that does
+# not exist on PyPI, which made `pip install -r requirements.txt`
+# fail outright.
 
 # Monitoring & Logging
 sentry-sdk[fastapi]==1.39.1

@@ -82,33 +82,3 @@ class ChatMessage(Base):
 
     def __repr__(self):
         return f"<ChatMessage {self.id} from User {self.user_id}>"
-
-
-class DailyTip(Base):
-    """Daily nutrition tips in Thai and English."""
-
-    __tablename__ = "daily_tips"
-
-    # Primary key
-    id = Column(Integer, primary_key=True, index=True)
-
-    # Tip content
-    title_th = Column(String, nullable=False)
-    title_en = Column(String, nullable=False)
-    content_th = Column(Text, nullable=False)
-    content_en = Column(Text, nullable=False)
-
-    # Category
-    category = Column(String, index=True)  # sugar, protein, hydration, etc.
-    tags = Column(JSON, nullable=True)
-
-    # Display
-    icon = Column(String, nullable=True)
-    color = Column(String, nullable=True)
-    is_active = Column(Integer, default=1)
-
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    def __repr__(self):
-        return f"<DailyTip {self.title_en}>"

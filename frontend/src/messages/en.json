@@ -1,8 +1,7 @@
 {
   "brand": {
     "name": "Shinny Guide",
-    "tagline": "Delicious in Order",
-    "tagline_thai": "อร่อย ตาม ลำดับ"
+    "tagline": "Delicious in Order"
   },
   "mascot": {
     "name": "Shinny",
@@ -22,20 +21,23 @@
     "recipes": "Recipes",
     "learn": "Learn",
     "profile": "Profile",
-    "pricing": "Pricing"
+    "pricing": "Pricing",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu"
   },
   "home": {
     "title": "Shinny Guide",
     "subtitle": "Eat Smart, Live Long",
     "description": "Discover how eating in the right order can reduce blood sugar spikes by up to 70%",
-    "cta": "Start Scanning",
+    "cta": "Start your scan",
     "demo": "See How It Works",
     "concept_badge": "The Secret: Delicious in Order",
     "concept": {
       "title": "How to Eat Without Aging?",
       "description": "Our AI doesn't just count calories — it helps you sequence your meals for maximum health benefits:",
       "sequence_short": "Veggies → Protein → Carbs → Sweets",
-      "spike_reduction": "Up to 70% blood sugar spike reduction",
+      "spike_reduction": "Up to 70% blood sugar spike reduction*",
+      "spike_reduction_source": "*Based on a Weill Cornell Medical Center study (Shukla et al., 2015) in type-2 diabetes patients. Individual results vary.",
       "steps": {
         "fiber": "1. Vegetables",
         "fiber_desc": "Fiber coats your gut and slows sugar absorption",
@@ -64,7 +66,8 @@
         "title": "Gamified Health",
         "description": "Earn points, maintain streaks, and level up your eating habits"
       }
-    }
+    },
+    "free_no_signup": "Free · No signup needed to try"
   },
   "scan": {
     "title": "Scan Your Food",
@@ -85,7 +88,6 @@
     "fiber_g": "Fiber",
     "try_again": "Scan Another",
     "error_title": "Sorry! 🙏",
-    "error_oops": "Oops!",
     "error_message": "Shinny couldn't analyze this image",
     "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
     "low_confidence": {
@@ -97,13 +99,7 @@
     "sequence": {
       "title": "Optimal Eating Order",
       "subtitle": "Follow this sequence to reduce blood sugar spike",
-      "spike_reduction": "Estimated spike reduction",
-      "current_step": "Current step",
-      "completed": "Sequence completed!",
-      "eat_first": "Eat First",
-      "eat_second": "Eat Second",
-      "eat_third": "Eat Third",
-      "eat_last": "Eat Last"
+      "spike_reduction": "Estimated spike reduction"
     },
     "scores": {
       "blood_sugar": "Blood Sugar Impact",
@@ -114,17 +110,6 @@
       "protein_quality": "Protein Quality",
       "micronutrient": "Vitamins & Minerals",
       "overall": "Overall Score"
-    },
-    "suggestions": {
-      "add_fiber": "Add some vegetables to reduce the blood sugar spike",
-      "great_balance": "Great balance! This meal has all components."
-    },
-    "mock_foods": {
-      "pad_thai": "Pad Thai",
-      "som_tam": "Som Tam (Papaya Salad)",
-      "tom_yum": "Tom Yum Kung",
-      "green_curry": "Green Curry with Rice",
-      "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
       "stitching": "Stitching photos...",
@@ -173,7 +158,6 @@
       "items_found": "Menu Items Found",
       "items_label": "items",
       "scanned_label": "Menu Scanned",
-      "health_rating": "Health Rating",
       "recommendations": "Shinny Recommends",
       "combo_title": "Best Combo",
       "scenarios": {
@@ -192,7 +176,12 @@
       "health_alerts": "Health Alerts",
       "alternatives": "Healthier Alternatives",
       "timing": "Best Time to Enjoy"
-    }
+    },
+    "dishes_found": "Dishes found",
+    "score_label": "Score",
+    "not_food_title": "Hmm, I don't see food here",
+    "scan_tip": "Try uploading a clear photo of your meal, drink, or menu!",
+    "privacy_note": "🔒 Your photo is used only for this analysis. Not stored. Not used to train AI."
   },
   "demo": {
     "title": "How Shinny Guide Works",
@@ -231,7 +220,7 @@
     "try_it": {
       "title": "Try It Yourself!",
       "description": "Scan your next meal and let Shinny guide you through the optimal eating order.",
-      "cta_scan": "Scan Your Food Now",
+      "cta_scan": "Start your scan",
       "cta_register": "Create Free Account"
     }
   },
@@ -264,15 +253,30 @@
     "quiz": "Take Quiz"
   },
   "chat": {
-    "title": "Ask Shinny",
-    "subtitle": "Your AI Nutrition Companion",
-    "placeholder": "Ask about food, nutrition, or eating order...",
+    "title": "Coach Shinny",
+    "back": "Back to dashboard",
+    "clear": "Clear chat",
     "send": "Send",
-    "examples": {
-      "title": "Try asking:",
-      "1": "How does Pad Thai affect my blood sugar?",
-      "2": "What's the best order to eat Som Tam?",
-      "3": "Can I still eat sweets? How?"
+    "thinking": "Shinny is thinking…",
+    "input_placeholder": "Ask about your meal, ingredients, sequencing…",
+    "welcome_title": "Hi! I'm Shinny, your food coach 🍜",
+    "welcome_subtitle": "Ask me anything about Thai food, blood sugar, or how to eat smart without giving up the foods you love.",
+    "starter": {
+      "q1": "How should I sequence pad thai with a Thai iced tea?",
+      "q2": "I'm about to eat sushi — what should I drink?",
+      "q3": "Best snack to flatten a 3 PM glucose dip?"
+    },
+    "quota_remaining": "{n} questions left today",
+    "retry": "Retry",
+    "not_sent": "Not sent — tap retry below",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_network": "Network error. Check your connection and retry.",
+    "error_rate_limited": "You're sending too fast — wait a moment and retry.",
+    "limit": {
+      "title": "Daily limit reached",
+      "body": "Free plan includes 3 questions per day. Upgrade to Premium for unlimited coaching.",
+      "cta": "See plans",
+      "placeholder": "Daily limit reached — upgrade for more"
     }
   },
   "recipes": {
@@ -294,7 +298,9 @@
       "diabetic_friendly": "Diabetic Friendly",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Best eating order for this recipe"
+    "sequence_hint": "Best eating order for this recipe",
+    "placeholder_title": "Recipes are on the way",
+    "placeholder_body": "Shinny's curating healthy Thai recipes for you. While we cook those up, want to scan today's meal?"
   },
   "gamification": {
     "points": "Points",
@@ -360,9 +366,6 @@
     "confirm_password": "Confirm Password",
     "display_name": "Display Name",
     "or": "or",
-    "login_with_google": "Login with Google",
-    "login_with_line": "Login with Line",
-    "forgot_password": "Forgot password?",
     "no_account": "Don't have an account?",
     "has_account": "Already have an account?",
     "register_here": "Register here",
@@ -382,11 +385,24 @@
       "name_required": "Display name is required"
     },
     "social_coming_soon": "Social login coming soon!",
-    "promo_section": "Have a promotion code?",
+    "social_badge_soon": "Soon",
     "promo_placeholder": "Enter code (e.g., SHINNY2024)",
     "promo_apply": "Apply Code",
-    "promo_success": "Code redeemed successfully!",
-    "promo_error": "Invalid or expired code"
+    "voucher_label": "Voucher code",
+    "voucher_placeholder": "BETA-CHULA-01",
+    "voucher_help": "Required during the pilot. Ask your invite for a code.",
+    "voucher_valid_banner": "Code unlocks {tier} tier for {days} days.",
+    "voucher_seats_remaining": "{n} seats left",
+    "voucher_invalid": {
+      "not_found": "We don't recognise that code. Check for typos?",
+      "inactive": "This code has been deactivated.",
+      "expired": "This code expired.",
+      "exhausted": "This code has been fully redeemed — no seats left.",
+      "wrong_scope": "This code can't be used to create new accounts.",
+      "rate_limited": "Too many checks — please slow down and try again in a moment.",
+      "check_failed": "Couldn't verify the code right now. Try again in a moment."
+    },
+    "toggle_password_visibility": "Show password"
   },
   "pricing": {
     "title": "Choose Your Plan",
@@ -400,7 +416,6 @@
     "current_plan": "Current Plan",
     "get_started": "Get Started Free",
     "upgrade_now": "Upgrade Now",
-    "contact_sales": "Contact Sales",
     "free_tier": {
       "name": "Starter",
       "description": "Get started with basic food scanning",
@@ -445,6 +460,21 @@
       "cta": "Contact Us"
     },
     "promo_code": "Have a promotion code?",
+    "score_breakdown": {
+      "title": "What's the 8-dimension health score?",
+      "intro": "Every scan rates your meal across these 8 dimensions. Free unlocks 3; Premium and Family unlock all 8.",
+      "free_badge": "Free",
+      "dimensions": {
+        "blood_sugar": "How fast this meal raises your blood glucose (glycemic load).",
+        "gut_health": "Fiber, fermented foods, and microbiome support.",
+        "inflammation": "Balance of pro- vs anti-inflammatory ingredients.",
+        "nutrient_density": "Vitamins and minerals per calorie.",
+        "processing": "How far from whole food (NOVA classification).",
+        "protein_quality": "Complete amino-acid profile and digestibility.",
+        "micronutrient": "Specific vitamin and mineral coverage.",
+        "overall": "Weighted average — your single at-a-glance score."
+      }
+    },
     "faq": {
       "title": "Frequently Asked Questions",
       "q1": "Can I try Premium for free?",
@@ -464,7 +494,6 @@
     "scans_used": "Scans Used",
     "streak": "Day Streak",
     "points": "Total Points",
-    "tier_badge": "Your Plan",
     "recent_scans": "Recent Scans",
     "no_scans": "No scans yet. Try scanning your first meal!",
     "daily_challenge": "Today's Challenge",
@@ -472,7 +501,9 @@
     "challenge_reward": "+50 points",
     "upgrade_cta": "Unlock all features with Premium",
     "trial_expires": "Trial expires in {days} days",
-    "scan_now": "Scan Food Now"
+    "scan_now": "Start your scan",
+    "chat_card_title": "Coach Shinny",
+    "chat_card_subtitle": "Ask anything about food"
   },
   "common": {
     "loading": "Loading...",
@@ -493,8 +524,7 @@
     "free": "Free",
     "premium": "Premium",
     "family": "Family",
-    "unlimited": "Unlimited",
-    "coming_soon_feature": "Coming soon!"
+    "unlimited": "Unlimited"
   },
   "coming_soon": {
     "scan": "This feature is coming soon! Our AI is still learning the optimal eating orders.",
@@ -502,5 +532,12 @@
     "login": "This feature is coming soon! Authentication is currently being implemented.",
     "dashboard": "This feature is coming soon! Your personal dashboard is being prepared by our AI.",
     "recipes": "This feature is coming soon! Our chefs and AI are cooking up some recipes."
+  },
+  "not_found": {
+    "title": "I'm sorry! 🙏",
+    "headline": "Couldn't find that page",
+    "subtitle": "The page you're looking for may have moved or never existed.",
+    "back_to_home": "Back to home",
+    "start_scan": "Start a scan"
   }
 }

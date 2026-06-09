@@ -1,3 +1,12 @@
+# Cloudflare auth is project-scoped via `frontend/.env.local`:
+#   CLOUDFLARE_API_TOKEN        (token with the scopes listed in .env.example)
+#   CLOUDFLARE_ACCOUNT_ID       (pins this repo to one account when the
+#                                token has access to multiple)
+# We deliberately do NOT set `account_id` here — for Pages configs the
+# `wrangler d1` family ignores top-level `account_id`, so the env var
+# is the single source of truth. See docs/KNOWLEDGE_BASE.md →
+# "Cloudflare wrangler auth" for the full story.
+
 name = "eatinorder"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
@@ -10,6 +19,12 @@ pages_build_output_dir = ".open-next/assets"
 binding = "DB"
 database_name = "eatinorder-db"
 database_id = "0fde5517-dda7-47e5-8f49-e33027069c1a"
+# Drizzle generates SQL migrations into `drizzle/` (with sibling
+# `drizzle/meta/_journal.json` tracking which have been applied).
+# Wrangler's default lookup is `migrations/`, so we point it at the
+# Drizzle output explicitly. Without this, `wrangler d1 migrations
+# apply` reports "No migrations present" and fails to advance the DB.
+migrations_dir = "drizzle"
 
 [ai]
 binding = "AI"

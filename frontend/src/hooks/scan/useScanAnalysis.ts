@@ -165,7 +165,29 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             });
             logger.scanApiCall({ payloadSize: body.length, locale });
 
-            const API_TIMEOUT_MS = 30_000;
+            // Client-side timeout MUST exceed the server's worst-case
+            // budget — otherwise the abort fires before the cascade
+            // finishes and the user sees a misleading "analysis taking
+            // too long" message even when the server succeeded.
+            //
+            // Server budget (see /api/analyze): Gemini cascade 25s +
+            // CF safety-net 20s = up to 45s end-to-end. Single-photo
+            // scans typically finish in 7–10s so a tight 30s client
+            // timeout never fired in practice. Multi-photo collages
+            // run 18–25s baseline (larger payload + longer AI parse),
+            // and when Gemini falls through to CF the total regularly
+            // exceeds 30s — exactly the user-reported failure mode.
+            //
+            // Scale 30s base + 12s per additional photo, cap at 60s.
+            // Caps:
+            //   1 photo  →  30s   (unchanged from previous behaviour)
+            //   2 photos →  42s   (covers Gemini → CF fall-through)
+            //   3 photos →  54s   (worst observed multi-photo end-to-end)
+            //   4+       →  60s   (clamp; CF Pages wall-clock allows it)
+            const API_TIMEOUT_MS = Math.min(
+                60_000,
+                30_000 + Math.max(0, uploadedImages.length - 1) * 12_000,
+            );
             async function callAnalyzeApi(attempt: number): Promise<{ res: Response; responseText: string; durationMs: number }> {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -272,10 +294,12 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             }
 
             try {
-                // Use the first uploaded photo as the thumbnail — more
-                // recognizable to the user than the (potentially gridded)
-                // stitched image.
-                const thumbnailBase64 = uploadedImages[0] || finalImageBase64;
+                // For multi-photo scans use the stitched collage as the
+                // thumbnail so the user can see all photos they uploaded.
+                // For single-photo scans use the one photo directly — no
+                // collage was created and finalImageBase64 just equals it.
+                const thumbnailBase64 =
+                    uploadedImages.length > 1 ? finalImageBase64 : (uploadedImages[0] || finalImageBase64);
                 const thumbnail = thumbnailBase64 ? await createThumbnail(thumbnailBase64) : undefined;
 
                 // Mode-specific summary. For meals we aggregate across all

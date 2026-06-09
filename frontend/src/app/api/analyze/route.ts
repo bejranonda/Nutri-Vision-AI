@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users, foodScans } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
@@ -10,6 +11,8 @@ import { logger } from '@/lib/logger';
 import { getEnvSafe } from '@/lib/cloudflare';
 import { buildLocalizedPrompt, validateAiResponse, validateMultiDishResponse, validateMenuResponse, validateDrinkSnackResponse, type ScanMode } from '@/lib/ai-prompt';
 import { extractBase64Data, decodeBase64ToBytes } from '@/lib/utils';
+import { AnalyzeRequest, zodFailure } from '@/lib/schemas';
+import { GEMINI_VISION_MODELS } from '@/lib/ai-providers';
 
 /** Safely parse JSON from AI response — tries direct parse first, then regex extraction */
 function safeParseJson(raw: string): { parsed?: any; error?: Error } {
@@ -66,42 +69,33 @@ export async function POST(req: NextRequest) {
     try {
         // ── Phase 1: Parse request body ───────────────────────────
         currentPhase = 'PARSE_BODY';
-        let imageBase64: string;
-        let locale: string;
-        let forceModel: string | undefined;
-        let scanMode: ScanMode = 'meal';
+
+        const rawBody = await req.json().catch(() => null);
+        // Zod enforces: data-URI image, recognised locale/scanMode/photoCount
+        // bounds, optional forceModel string. The route layer re-validates
+        // the decoded image bytes below (size, base64 format); this is the
+        // fast-fail before we do any expensive work.
+        const parsed = AnalyzeRequest.safeParse(rawBody);
+        if (!parsed.success) {
+            const failure = zodFailure(parsed.error);
+            logger.scanApiStage('BODY_PARSE_ERROR', { requestId, fields: Object.keys(failure.fields) });
+            return jsonResponse({ ...failure, requestId }, { status: 400 });
+        }
+        const imageBase64 = parsed.data.imageBase64;
+        const locale = parsed.data.locale ?? 'th';
+        const forceModel = parsed.data.forceModel;
+        const scanMode: ScanMode = parsed.data.scanMode ?? 'meal';
         // photoCount reflects how many separate photos the client stitched
         // into `imageBase64`. We pass this into the prompt so the model
         // knows the image is a collage and must report one dish per tile.
-        let photoCount = 1;
-
-        try {
-            const body = await req.json();
-            imageBase64 = body.imageBase64;
-            locale = body.locale || 'th';
-            forceModel = body.forceModel;
-            if (body.scanMode && ['meal', 'menu', 'drink_snack'].includes(body.scanMode)) {
-                scanMode = body.scanMode as ScanMode;
-            }
-            const parsedPhotoCount = Number(body.photoCount);
-            if (Number.isFinite(parsedPhotoCount) && parsedPhotoCount >= 1) {
-                // Cap at 12 — matches the stitcher's max grid (4x3).
-                photoCount = Math.min(12, Math.floor(parsedPhotoCount));
-            }
-        } catch (parseErr: any) {
-            logger.scanApiStage('BODY_PARSE_ERROR', { requestId, error: parseErr.message });
-            return NextResponse.json(
-                { error: 'Invalid request body', message: 'Could not parse request JSON', requestId },
-                { status: 400 }
-            );
-        }
+        const photoCount = parsed.data.photoCount ?? 1;
 
         const payloadSize = imageBase64 ? imageBase64.length : 0;
         logger.scanApiStage('REQUEST_RECEIVED', { requestId, locale, forceModel, scanMode, photoCount, payloadSizeKB: (payloadSize / 1024).toFixed(1), hasImage: !!imageBase64 });
 
         if (!imageBase64) {
             logger.scanApiStage('VALIDATION_FAILED', { requestId, reason: 'no_image' });
-            return NextResponse.json({ error: 'Image data is required', requestId }, { status: 400 });
+            return jsonResponse({ error: 'Image data is required', requestId }, { status: 400 });
         }
 
         // ── Phase 2: Validate image format ────────────────────────
@@ -109,7 +103,7 @@ export async function POST(req: NextRequest) {
         const imageValidation = validateImageBase64(imageBase64);
         if (!imageValidation.valid) {
             logger.scanApiStage('IMAGE_VALIDATION_FAILED', { requestId, error: imageValidation.error });
-            return NextResponse.json(
+            return jsonResponse(
                 { error: 'Invalid image format', message: imageValidation.error, requestId },
                 { status: 400 }
             );
@@ -157,10 +151,25 @@ export async function POST(req: NextRequest) {
         currentPhase = 'AUTH_CHECK';
         if (db && token) {
             try {
-                const activeSessions = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+                const activeSessions = await db
+                    .select({ userId: sessions.userId, expiresAt: sessions.expiresAt })
+                    .from(sessions)
+                    .where(eq(sessions.token, token))
+                    .limit(1);
                 if (activeSessions.length > 0) {
                     userId = activeSessions[0].userId!;
-                    const foundUsers = await db.select().from(users).where(eq(users.id, userId!)).limit(1);
+                    // Explicit columns — scan auth must survive an
+                    // unapplied additive migration (e.g. is_admin from
+                    // migration 0002 not yet wrangler-applied).
+                    const foundUsers = await db
+                        .select({
+                            id: users.id,
+                            subscriptionTier: users.subscriptionTier,
+                            scansThisMonth: users.scansThisMonth,
+                        })
+                        .from(users)
+                        .where(eq(users.id, userId!))
+                        .limit(1);
                     activeUser = foundUsers[0];
                 }
                 logger.scanSessionEvent(requestId, 'AUTH_RESOLVED', {
@@ -186,7 +195,7 @@ export async function POST(req: NextRequest) {
 
             if (tierConfig.scansPerMonth !== Infinity && activeUser.scansThisMonth >= tierConfig.scansPerMonth) {
                 logger.scanApiStage('RATE_LIMITED', { requestId, tier: tierStr, used: activeUser.scansThisMonth, limit: tierConfig.scansPerMonth });
-                return NextResponse.json({
+                return jsonResponse({
                     error: 'Scan limit reached',
                     message: 'You have exhausted your free scans for this month. Please upgrade to continue.',
                     requestId
@@ -203,28 +212,92 @@ export async function POST(req: NextRequest) {
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
             const aiStartTime = Date.now();
 
-            logger.scanApiStage('AI_INFERENCE_START', { 
-                requestId, 
-                model, 
+            logger.scanApiStage('AI_INFERENCE_START', {
+                requestId,
+                model,
                 locale,
-                promptLength: localizedPrompt.length 
+                promptLength: localizedPrompt.length
             });
 
-            // Decode base64 to byte array — Edge-safe using shared utility
+            // Decode base64 to byte array — Edge-safe using shared utility.
+            // CF Workers AI vision models (`@cf/meta/llama-3.2-*-vision-instruct`,
+            // `@cf/llava-…`) expect `image: number[]` — an array of unsigned
+            // byte values, NOT a wrapper around a Uint8Array.
+            //
+            // Earlier shapes (`image: bytes` with `bytes: Uint8Array`) appear
+            // to deserialise on the runtime as a 1-element list whose only
+            // entry is the typed array itself; the model then sees zero pixels
+            // and hallucinates a text-only "Here is your image: ![image](url)"
+            // response. Bug-hunt May 2026 surfaced this once PR #25 unblocked
+            // the 5016 license error that had been masking it on every prior
+            // scan.
+            //
+            // `Array.from(Uint8Array)` is the cleanest cross-runtime way to
+            // get a plain `number[]` of byte values.
             const base64Data = extractBase64Data(imageBase64);
-            const bytes = decodeBase64ToBytes(base64Data);
+            const bytes = Array.from(decodeBase64ToBytes(base64Data));
 
-            const aiPromise = env.AI.run(model, {
-                prompt: localizedPrompt,
-                image: [bytes]
-            });
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
-            );
-            
+            // Run the model. On the first 5016 (Llama Community License
+            // not accepted on this Cloudflare account), auto-submit the
+            // 'agree' prompt — Cloudflare's documented programmatic
+            // acceptance path — and retry the actual inference once.
+            // Without this, every scan slammed straight through to the
+            // Gemini fallback (May 2026 bug-hunt: Request ID `sex01ab2`
+            // surfaced the 5016 error via `primaryProviderError`).
+            //   Error shape:
+            //     "5016: Prior to using this model, you must submit the
+            //      prompt 'agree'. By submitting 'agree', you hereby
+            //      agree to the llama-3.2-11b-vision-instruct Community
+            //      License …"
+            // The acceptance is account-level and one-shot; subsequent
+            // scans never re-trigger it.
+            //
+            // `max_tokens: 4096` is required, NOT optional. CF Workers
+            // AI defaults to ~256 max_tokens for llama-3.2 vision, which
+            // truncates the JSON output mid-array on any non-trivial
+            // scan (multi-item detectedItems, Thai/multi-byte chars).
+            // Bug-hunt May 2026 (Request IDs `02tf04hd`, `eh0dzg8k`):
+            // when Gemini cascade timed out and CF served the result,
+            // the JSON was structurally invalid because CF stopped
+            // mid-stream. `safeParseJson` rescued the {…} block but
+            // the contents were broken (unclosed arrays). Bumping to
+            // 4096 matches what we already pass to Gemini.
+            const runWithTimeout = (payload: any) =>
+                Promise.race([
+                    env.AI.run(model, payload),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error(`AI inference timed out after ${timeoutMs/1000} seconds`)), timeoutMs)
+                    ),
+                ]);
+
             logger.scanApiStage('AI_AWAITING_RESPONSE', { requestId, model, timeoutMs });
-            const response = await Promise.race([aiPromise, timeoutPromise]) as any;
-            
+            let response: any;
+            try {
+                response = await runWithTimeout({ prompt: localizedPrompt, image: bytes, max_tokens: 4096 });
+            } catch (firstErr: any) {
+                const msg = String(firstErr?.message ?? firstErr);
+                // Code-prefix `5016:` is the stable marker; the human
+                // text after it can drift across Cloudflare AI versions.
+                if (msg.startsWith('5016:') || msg.includes("submit the prompt 'agree'")) {
+                    logger.scanApiStage('CF_LLAMA_LICENSE_ACCEPTING', { requestId, model });
+                    // Cheap text-only acceptance call — no image, minimal
+                    // prompt. Errors here are non-fatal; if acceptance
+                    // itself fails we fall through to the original 5016
+                    // throw and the Gemini cascade picks up.
+                    try {
+                        await env.AI.run(model, { prompt: 'agree' });
+                        logger.scanApiStage('CF_LLAMA_LICENSE_ACCEPTED', { requestId, model });
+                    } catch (acceptErr: any) {
+                        logger.warn(`⚠️ CF_LLAMA_LICENSE_ACCEPT_FAILED [${requestId}]`, { error: String(acceptErr?.message ?? acceptErr) });
+                        throw firstErr; // propagate original — cascade will handle
+                    }
+                    // Retry the real inference now that license is on file
+                    response = await runWithTimeout({ prompt: localizedPrompt, image: bytes, max_tokens: 4096 });
+                } else {
+                    throw firstErr;
+                }
+            }
+
             const rawResponse = response?.response || '{}';
             logger.scanApiStage('AI_INFERENCE_COMPLETE', {
                 requestId,
@@ -249,15 +322,20 @@ export async function POST(req: NextRequest) {
         };
 
         const attemptGoogleInference = async (apiKey: string, timeoutMs: number) => {
-            const model = 'gemma-3-27b-it';
-            const aiStartTime = Date.now();
+            // Walks `GEMINI_VISION_MODELS` in order, returning the first
+            // model that responds 200. Skips on the two known per-model
+            // failure modes:
+            //   - 404 → model retired / alias gone (May 2026 incident,
+            //     `gemini-1.5-flash-latest` retired from v1beta)
+            //   - 429 → quota exhausted on this project for this model
+            //     (May 2026 incident, Request IDs `tqunrejp` / `fz64f4uh`:
+            //     `limit: 0` on `gemini-2.0-flash` free tier while
+            //     `gemini-2.5-flash` on the same key still had quota)
+            // Any other status (5xx, malformed JSON, network) throws
+            // immediately — no point trying the next model when it's an
+            // upstream-wide problem.
             const localizedPrompt = buildLocalizedPrompt(locale, scanMode, photoCount);
-
-            logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
-
             const base64Data = extractBase64Data(imageBase64);
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
             const payload = {
                 contents: [{
                     parts: [
@@ -271,37 +349,68 @@ export async function POST(req: NextRequest) {
                 }
             };
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            const skippedModels: { model: string; status: number }[] = [];
+            // Per-model deadline so the cascade as a whole still fits
+            // inside the caller's timeout budget. Round up so single-model
+            // attempts don't get squeezed when there are few models.
+            const perModelTimeoutMs = Math.max(
+                Math.floor(timeoutMs / GEMINI_VISION_MODELS.length),
+                8_000,
+            );
 
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
+            for (const model of GEMINI_VISION_MODELS) {
+                const aiStartTime = Date.now();
+                logger.scanApiStage('AI_GOOGLE_START', { requestId, model, locale });
 
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), perModelTimeoutMs);
+
+                let response: Response;
+                try {
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+                } catch (err: any) {
+                    clearTimeout(timeoutId);
+                    // Network / abort error — surface immediately, retrying
+                    // a sibling model won't help with connectivity issues.
+                    throw err;
+                }
                 clearTimeout(timeoutId);
+
+                if (response.status === 404 || response.status === 429) {
+                    const errorText = await response.text().catch(() => '');
+                    logger.warn(`⚠️ AI GOOGLE SKIP [${requestId}] | ${model} returned ${response.status}, trying next in cascade`, {
+                        statusPreview: errorText.substring(0, 200),
+                    });
+                    skippedModels.push({ model, status: response.status });
+                    continue;
+                }
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Google API error: ${response.status} ${errorText}`);
+                    throw new Error(`Google API error (${model}): ${response.status} ${errorText}`);
                 }
 
                 const data = await response.json() as any;
                 const rawResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-                
+
                 logger.scanApiStage('AI_GOOGLE_COMPLETE', {
                     requestId,
+                    model,
                     durationMs: Date.now() - aiStartTime,
-                    rawResponseLength: rawResponse.length
+                    rawResponseLength: rawResponse.length,
+                    skippedBeforeWin: skippedModels.length,
                 });
 
                 try {
                     const { parsed, error } = safeParseJson(rawResponse);
                     if (error) throw error;
-                    return { parsedJson: parsed, rawResponse };
+                    return { parsedJson: parsed, rawResponse, model };
                 } catch (parseErr: any) {
                     logger.error(`❌ AI PARSE FAIL [google] [${requestId}]`, {
                         error: parseErr.message,
@@ -309,38 +418,92 @@ export async function POST(req: NextRequest) {
                         rawLength: rawResponse.length,
                         model,
                     });
-                    return { error: parseErr, rawResponse };
+                    return { error: parseErr, rawResponse, model };
                 }
-            } catch (err: any) {
-                clearTimeout(timeoutId);
-                throw err;
             }
+
+            // Cascade exhausted — every model returned 404/429. Encode the
+            // per-model status list so the outer catch's `details` field
+            // tells operators which models had quota and which didn't.
+            const summary = skippedModels.map((s) => `${s.model}=${s.status}`).join(', ');
+            throw new Error(`Google API error: all ${GEMINI_VISION_MODELS.length} fallback models exhausted (${summary})`);
         };
 
         let failedJsonText = '';
+        // Captured so the outer catch's 503 response surfaces the full
+        // chain instead of just the LAST error:
+        //   - primaryProviderError: the Gemini-cascade failure that
+        //     kicked the request into the CF safety-net (was originally
+        //     called "primary" when CF was primary; semantics shifted
+        //     after PR #27 but the field name is preserved for clients
+        //     that already parse it).
+        //   - fallbackProviderError: the CF safety-net failure when CF
+        //     ALSO fails (timeout, returned non-JSON, validation throws).
+        //     Without this, an operator looking at a 503 only sees the
+        //     auto-correction retry's error in `details` and can't tell
+        //     which provider gave up first. Bug-hunt May 2026, Request
+        //     ID `qh0f02ft` (drink_snack mode): both providers failed,
+        //     diagnostic chain showed `primaryProviderError: 'The
+        //     operation was aborted'` but `failedJson: (empty)` — no
+        //     signal at all about what CF actually did.
+        let primaryProviderError: string | null = null;
+        let fallbackProviderError: string | null = null;
 
         try {
             const googleKey = env.GOOGLE_AI_API_KEY;
             let lastError: any = null;
 
             // Helper to run inference + validation with an optional correction prompt
-            const runInferenceWithValidation = async (correctionPrompt?: string) => {
+            const runInferenceWithValidation = async () => {
                 let aiResult: any;
                 let usedModel = '';
-                
-                // Attempt Cloudflare first, fallback to Google
-                try {
-                    if (!env.AI) throw new Error('AI_BINDING_MISSING');
+
+                // CASCADE ORDER (May 2026, post-PR #26):
+                //   1. Google Gemini cascade — primary
+                //   2. Cloudflare Workers AI (Llama 3.2 11B vision) — fallback
+                //
+                // Originally CF was primary (free + fast). Bug-hunt May 2026
+                // surfaced that CF returns hallucinated / inaccurate JSON
+                // even with the image-format fix from PR #26 — calling
+                // Shrimp Fried Rice "Pineapple" with 100% confidence, etc.
+                // CF-primary turned the user-visible answer into "fast +
+                // free + sometimes wrong"; reversing puts accuracy first
+                // and keeps CF as the genuine safety net for the case
+                // where the Gemini cascade is exhausted.
+                //
+                // Net Gemini-quota usage is roughly unchanged: CF's
+                // unreliable JSON output meant most CF-primary requests
+                // were already falling through to Gemini anyway.
+                if (googleKey) {
+                    try {
+                        aiResult = await attemptGoogleInference(googleKey, 25000);
+                        usedModel = `google-${aiResult.model}`;
+                    } catch (gErr: any) {
+                        primaryProviderError = gErr.message;
+                        if (env.AI) {
+                            logger.info(`🔄 SCAN FALLBACK [${requestId}] | Gemini cascade failed (${gErr.message?.substring(0, 120)}), trying Cloudflare Workers AI...`);
+                            // Capture CF errors into `fallbackProviderError`
+                            // before re-throwing so the outer 503 response
+                            // surfaces both providers' failures, not just
+                            // the auto-correction retry's last error.
+                            try {
+                                aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 20000);
+                                usedModel = 'cloudflare-llama-3.2-11b';
+                            } catch (cfErr: any) {
+                                fallbackProviderError = cfErr.message;
+                                throw cfErr;
+                            }
+                        } else {
+                            throw gErr;
+                        }
+                    }
+                } else if (env.AI) {
+                    // No Google key configured at all — CF is the only choice.
+                    logger.warn(`⚠️ SCAN [${requestId}] | No GOOGLE_AI_API_KEY; CF is the sole provider`);
                     aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                     usedModel = 'cloudflare-llama-3.2-11b';
-                } catch (cfErr: any) {
-                    if (googleKey) {
-                        logger.info(`🔄 SCAN FALLBACK [${requestId}] | Primary failed (${cfErr.message}), trying Google...`);
-                        aiResult = await attemptGoogleInference(googleKey, 20000);
-                        usedModel = 'google-gemma-3-27b';
-                    } else {
-                        throw cfErr;
-                    }
+                } else {
+                    throw new Error('AI_BINDING_MISSING');
                 }
 
                 if (aiResult.error) {
@@ -363,26 +526,31 @@ export async function POST(req: NextRequest) {
 
             // AUTO-CORRECTION LOOP (Max 1 retry)
             try {
-                // Attempt 1
+                // Attempt 1 — Gemini → CF
                 const res = await runInferenceWithValidation();
                 resultJson = res.data;
                 modelUsed = res.model;
             } catch (err: any) {
                 lastError = err;
-                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with fallback provider...`);
-                
-                // Attempt 2: Prefer Google fallback on retry for provider diversity
+                logger.warn(`⚠️ AI VALIDATION/PARSE FAILED (Attempt 1) [${requestId}] | Error: ${err.message}. Retrying with diverse provider...`);
+
+                // Attempt 2: for provider diversity, prefer the OPPOSITE
+                // path from what attempt 1 just exercised. If the primary
+                // is Gemini and it (or its CF fallback) failed, jumping
+                // straight to CF on attempt 2 gives a fresh inference
+                // surface — same logic the previous CF-primary version
+                // used, just mirrored.
                 try {
                     let res2;
-                    if (googleKey) {
-                        // On retry, try Google directly for provider diversity
-                        const aiResult = await attemptGoogleInference(googleKey, 25000);
+                    if (env.AI) {
+                        // Force CF directly — Gemini just failed.
+                        const aiResult = await attemptAiInference('@cf/meta/llama-3.2-11b-vision-instruct', 25000);
                         if (aiResult.error) throw new Error(`JSON Parse Error: ${aiResult.error.message}`);
                         let validatedData;
                         if (scanMode === 'meal') validatedData = validateMultiDishResponse(aiResult.parsedJson);
                         else if (scanMode === 'menu') validatedData = validateMenuResponse(aiResult.parsedJson);
                         else validatedData = validateDrinkSnackResponse(aiResult.parsedJson);
-                        res2 = { data: validatedData, model: 'google-gemma-3-27b' };
+                        res2 = { data: validatedData, model: 'cloudflare-llama-3.2-11b' };
                     } else {
                         res2 = await runInferenceWithValidation();
                     }
@@ -407,17 +575,31 @@ export async function POST(req: NextRequest) {
             });
 
             if (aiError.message === 'AI_BINDING_MISSING') {
-                return NextResponse.json({
+                return jsonResponse({
                     error: 'AI not available',
                     message: 'Food analysis requires Cloudflare Workers AI. The AI binding is not configured.',
                     requestId
                 }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
             }
 
-            return NextResponse.json({
+            return jsonResponse({
                 error: 'AI analysis failed',
                 message: 'Food analysis is temporarily unavailable. Our AI models are currently under high load. Please try again in a moment.',
                 details: aiError.message,
+                // Provider-specific diagnostic chain. Together with
+                // `details` (the auto-correction retry's last error) this
+                // gives operators the full "who failed and how" picture
+                // on a single curl, no log access required.
+                //   primaryProviderError:  Gemini cascade failure (or
+                //                          null if Gemini wasn't tried)
+                //   fallbackProviderError: CF safety-net failure (or
+                //                          null if CF wasn't tried OR
+                //                          CF succeeded but later
+                //                          validation rejected its JSON
+                //                          — that case shows up in
+                //                          `failedJson` instead)
+                primaryProviderError,
+                fallbackProviderError,
                 failedJson: failedJsonText, // Send broken JSON to client debug panel
                 requestId,
                 durationMs: aiDurationMs
@@ -526,7 +708,7 @@ export async function POST(req: NextRequest) {
             tier: currentTier
         });
 
-        return NextResponse.json({
+        return jsonResponse({
             result: resultJson,
             scanMode,
             overallScore: scoreOverall,
@@ -546,7 +728,7 @@ export async function POST(req: NextRequest) {
             stack: error.stack?.substring(0, 1000),
             totalDurationMs
         });
-        return NextResponse.json(
+        return jsonResponse(
             {
                 error: 'Internal server error',
                 message: `Unexpected error in phase: ${currentPhase}`,

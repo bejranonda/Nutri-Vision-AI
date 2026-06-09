@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(),
@@ -14,6 +14,11 @@ export const users = sqliteTable('users', {
     scansThisMonth: integer('scans_this_month').default(0),
     streakDays: integer('streak_days').default(0),
     totalPoints: integer('total_points').default(0),
+    // Admin role flag, separate from subscriptionTier so admin status
+    // doesn't get confused with billing tier. Stored as 0/1 in SQLite.
+    // Gates access to /admin/* routes (added later) — DO NOT expose
+    // this in any public profile API response.
+    isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
@@ -23,6 +28,26 @@ export const promoCodes = sqliteTable('promo_codes', {
     type: text('type').notNull(), // TRIAL, DISCOUNT, FANCLUB, REFERRAL
     description: text('description'),
     descriptionTh: text('description_th'),
+    /**
+     * `scope` distinguishes codes usable at different stages:
+     *   - 'registration' — REQUIRED at sign-up; no existing user account
+     *     can redeem this and you can't create an account without one
+     *     when VOUCHER_REQUIRED_FOR_REGISTRATION is on.
+     *   - 'upgrade' — for an already-logged-in user to upgrade their
+     *     subscription tier via /api/promo/redeem.
+     *
+     * Existing rows default to 'upgrade' so pre-migration promo behaviour
+     * is unchanged. New registration vouchers are created explicitly by
+     * the operator in /admin/promo.
+     */
+    scope: text('scope').notNull().default('upgrade'),
+    /**
+     * Admin-only free-text label, e.g. "Summer pilot cohort — 50 seats
+     * for Chula nutrition dept." Never shown to end users. Shown in
+     * the /admin/promo table to help the operator identify the code's
+     * purpose months after it was created.
+     */
+    notes: text('notes'),
     trialDays: integer('trial_days'),
     discountPercent: real('discount_percent'),
     grantTier: text('grant_tier').default('premium'),
@@ -33,13 +58,26 @@ export const promoCodes = sqliteTable('promo_codes', {
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
-export const codeRedemptions = sqliteTable('code_redemptions', {
-    id: text('id').primaryKey(),
-    userId: text('user_id').references(() => users.id),
-    codeId: text('code_id').references(() => promoCodes.id),
-    benefitsApplied: text('benefits_applied', { mode: 'json' }),
-    redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).notNull(),
-});
+export const codeRedemptions = sqliteTable(
+    'code_redemptions',
+    {
+        id: text('id').primaryKey(),
+        userId: text('user_id').references(() => users.id),
+        codeId: text('code_id').references(() => promoCodes.id),
+        benefitsApplied: text('benefits_applied', { mode: 'json' }),
+        redeemedAt: integer('redeemed_at', { mode: 'timestamp' }).notNull(),
+    },
+    // Enforce "one redemption per (user, code)" at the DB level so the
+    // API-level check-then-insert race can't double-grant benefits. The
+    // route handler catches the constraint violation and translates it
+    // to the same "already redeemed" user-facing error.
+    (t) => ({
+        userCodeUnique: uniqueIndex('code_redemptions_user_code_unique').on(
+            t.userId,
+            t.codeId,
+        ),
+    }),
+);
 
 export const sessions = sqliteTable('sessions', {
     id: text('id').primaryKey(),

@@ -64,9 +64,12 @@ module.exports = {
         },
       },
       fontFamily: {
+        // Round 11 cleanup: removed `display` (Plus Jakarta Sans) and
+        // `thai` (Prompt) — both were defined here and loaded via
+        // next/font/google but never applied (no `font-display` or
+        // `font-thai` utility class anywhere in src/). Thai rendering
+        // uses Sarabun via globals.css regardless of this config.
         sans: ['Inter', 'Roboto', 'system-ui', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
-        thai: ['Prompt', 'Sarabun', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'brand': '0 4px 20px rgba(255, 107, 107, 0.15)',

@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight, PlayCircle, Scan, UserPlus, Sparkles } from 'lucide-react';
+import { ChevronRight, PlayCircle, Scan, UserPlus, Sparkles } from 'lucide-react';
 import { logger } from '@/lib/logger';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 const STEP_KEYS = ['fiber', 'protein', 'carbs', 'sweets'] as const;
 const STEP_EMOJIS = ['🥦', '🍗', '🍚', '🍰'];
@@ -38,14 +38,11 @@ export default function DemoPage() {
             {/* Header */}
             <div className="container mx-auto px-4 pt-6 pb-2 relative z-50">
                 <div className="flex items-center justify-between">
-                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                    </Link>
-                    <LanguageSwitcher currentLocale={locale} />
+                    <SiteHeader locale={locale} />
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8 relative z-10 max-w-5xl">
+            <main className="container mx-auto px-4 py-8 relative z-10 max-w-5xl">
                 {/* Title */}
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary-100 rounded-full mb-4">
@@ -194,7 +191,7 @@ export default function DemoPage() {
                         </Link>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

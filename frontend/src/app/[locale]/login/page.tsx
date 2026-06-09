@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, ChevronRight } from 'lucide-react';
+import { UserCircle, Mail, Lock, User, Eye, EyeOff, Gift, Sparkles, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { logger } from '@/lib/logger';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
@@ -15,13 +16,21 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { login, register, redeemCode, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+    const { login, register, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
-    const [mode, setMode] = useState<'login' | 'register'>('login');
+    // Default tab: "Sign Up" for fresh visitors (no existing session
+    // cookie when this page mounts), "Login" for returning ones. The
+    // page's previous default-to-Login plus the "Welcome Back!"
+    // headline actively confused first-timers landing here from a
+    // "Get Started" CTA — fresh-user audit round (May 2026) caught
+    // this. We can't read the HTTP-only `shinnyguide_session` cookie
+    // from JS, but the auth store's `initAuth()` hits /api/auth/me
+    // on mount; if isAuthenticated flips to true the redirect at
+    // line ~55 takes the user to /dashboard anyway, so this default
+    // only ever runs for unauthenticated visitors. Default = register
+    // gives them the right tab on first paint.
+    const [mode, setMode] = useState<'login' | 'register'>('register');
     const [showPassword, setShowPassword] = useState(false);
-    const [promoInput, setPromoInput] = useState('');
-    const [promoMessage, setPromoMessage] = useState('');
-    const [promoSuccess, setPromoSuccess] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
 
     // Form fields
@@ -29,7 +38,32 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
+    const [voucherCode, setVoucherCode] = useState('');
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+    // Voucher live-check state. `voucherStatus` is one of:
+    //   - 'idle'     : no input yet, or too short to check
+    //   - 'checking' : the debounced fetch is in flight
+    //   - 'valid'    : server said the code is usable
+    //   - 'invalid'  : server said the code is not usable; `voucherReason` holds the enum
+    const [voucherStatus, setVoucherStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+    const [voucherReason, setVoucherReason] = useState<string | null>(null);
+    const [voucherInfo, setVoucherInfo] = useState<{
+        remainingSeats: number | null;
+        expiresAt: string | null;
+        grantTier: string | null;
+        trialDays: number | null;
+    } | null>(null);
+
+    // Probe the session cookie on mount. If the user already has a valid
+    // session (e.g. they hit /login directly after logging in in another
+    // tab), initAuth() will flip `isAuthenticated` to true and the effect
+    // below bounces them straight to /dashboard — no redundant login UI.
+    useEffect(() => {
+        initAuth();
+        // intentionally empty deps — run exactly once on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -40,6 +74,62 @@ export default function LoginPage() {
     useEffect(() => {
         logger.trackFeature('Login Page', 'loading', { locale, mode });
     }, [locale, mode]);
+
+    // Debounced voucher-code live-check. Runs whenever the user types
+    // in register mode. Cancellation via AbortController so a stale
+    // response can't overwrite a newer one.
+    useEffect(() => {
+        if (mode !== 'register') return;
+        const code = voucherCode.trim();
+        if (code.length < 3) {
+            setVoucherStatus('idle');
+            setVoucherReason(null);
+            setVoucherInfo(null);
+            return;
+        }
+        setVoucherStatus('checking');
+        const ctrl = new AbortController();
+        const handle = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/voucher/check?code=${encodeURIComponent(code)}`, {
+                    signal: ctrl.signal,
+                });
+                if (!res.ok) {
+                    // 400 (malformed) / 429 (rate-limited) / 500 — treat as
+                    // invalid but don't block re-tries; user can edit + retry.
+                    setVoucherStatus('invalid');
+                    setVoucherReason(res.status === 429 ? 'rate_limited' : 'check_failed');
+                    setVoucherInfo(null);
+                    return;
+                }
+                const data = await res.json();
+                if (data.valid) {
+                    setVoucherStatus('valid');
+                    setVoucherReason(null);
+                    setVoucherInfo({
+                        remainingSeats: data.remainingSeats ?? null,
+                        expiresAt: data.expiresAt ?? null,
+                        grantTier: data.grantTier ?? null,
+                        trialDays: data.trialDays ?? null,
+                    });
+                } else {
+                    setVoucherStatus('invalid');
+                    setVoucherReason(data.reason ?? 'not_found');
+                    setVoucherInfo(null);
+                }
+            } catch (e) {
+                // AbortError is the expected cancellation path — don't flip state.
+                if ((e as any)?.name === 'AbortError') return;
+                setVoucherStatus('invalid');
+                setVoucherReason('check_failed');
+                setVoucherInfo(null);
+            }
+        }, 350);
+        return () => {
+            ctrl.abort();
+            clearTimeout(handle);
+        };
+    }, [voucherCode, mode]);
 
     function validate(): boolean {
         const errors: Record<string, string> = {};
@@ -65,16 +155,16 @@ export default function LoginPage() {
             success = await login(email, password);
             if (success) setSuccessMsg(t('login_success'));
         } else {
-            success = await register(displayName, email, password);
+            // Block submission while a voucher is still being checked; we
+            // don't want to race a stale "checking" state against the
+            // server's authoritative validation. If the code is empty, let
+            // the server enforce its feature-flag default (voucher required
+            // or not) and surface the error — don't second-guess client-side.
+            if (voucherStatus === 'checking') return;
+            if (voucherCode.trim() && voucherStatus === 'invalid') return;
+            success = await register(displayName, email, password, voucherCode, locale);
             if (success) setSuccessMsg(t('register_success'));
         }
-    }
-
-    async function handlePromoRedeem() {
-        if (!promoInput.trim()) return;
-        const result = await redeemCode(promoInput);
-        setPromoSuccess(result.success);
-        setPromoMessage(result.message);
     }
 
     return (
@@ -85,12 +175,10 @@ export default function LoginPage() {
 
             {/* Back button + Language */}
             <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
-                <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                    <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                </Link>
-                <LanguageSwitcher currentLocale={locale} />
+                <SiteHeader locale={locale} />
             </div>
 
+            <main className="w-full max-w-md mx-auto">
             {/* Success state */}
             {successMsg && (
                 <div className="z-10 backdrop-blur-md bg-white/90 rounded-3xl p-8 max-w-md w-full mx-auto shadow-glass text-center animate-bounce-in">
@@ -145,11 +233,13 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{t('display_name')}</label>
+                                <label htmlFor="auth-display-name" className="block text-sm font-medium text-gray-700 mb-1">{t('display_name')}</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="auth-display-name"
                                         type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                                        autoComplete="name"
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                         placeholder="Shinny"
                                     />
@@ -159,11 +249,18 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
+                            <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
+                                    id="auth-email"
                                     type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                                    // autoComplete="email" is broader than "username" — works on
+                                    // both login + register tabs without per-mode switching. iOS
+                                    // Keychain and 1Password both surface saved credentials based
+                                    // on this attribute; missing it means saved logins won't
+                                    // appear (e2e round-5 caught the gap on /th/login).
+                                    autoComplete="email"
                                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                     placeholder="you@example.com"
                                 />
@@ -172,15 +269,30 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('password')}</label>
+                            <label htmlFor="auth-password" className="block text-sm font-medium text-gray-700 mb-1">{t('password')}</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
+                                    id="auth-password"
                                     type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                                    // Mode-aware autoComplete so password managers don't try to
+                                    // prefill saved credentials into the *register* form (which
+                                    // would silently use them) or offer to save the placeholder
+                                    // text on register-success. "current-password" surfaces saved
+                                    // logins; "new-password" prompts the manager to generate +
+                                    // remember a fresh one (e2e round-5 caught the missing attr).
+                                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                                     className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                     placeholder="••••••"
                                 />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    // Icon-only button — accessible name required (e2e iter 7).
+                                    aria-label={t('toggle_password_visibility')}
+                                    aria-pressed={showPassword}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
                             </div>
@@ -189,11 +301,13 @@ export default function LoginPage() {
 
                         {mode === 'register' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{t('confirm_password')}</label>
+                                <label htmlFor="auth-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">{t('confirm_password')}</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
+                                        id="auth-confirm-password"
                                         type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                        autoComplete="new-password"
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary-400 focus:border-transparent outline-none transition-all text-gray-900"
                                         placeholder="••••••"
                                     />
@@ -202,8 +316,76 @@ export default function LoginPage() {
                             </div>
                         )}
 
+                        {mode === 'register' && (
+                            <div>
+                                <label htmlFor="auth-voucher-code" className="block text-sm font-medium text-gray-700 mb-1">
+                                    {t('voucher_label')}
+                                </label>
+                                <div className="relative">
+                                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        id="auth-voucher-code"
+                                        type="text"
+                                        value={voucherCode}
+                                        onChange={(e) => setVoucherCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                                        maxLength={64}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        className={`w-full pl-10 pr-10 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all font-mono text-gray-900 ${
+                                            voucherStatus === 'valid'
+                                                ? 'border-green-300 focus:ring-green-400'
+                                                : voucherStatus === 'invalid'
+                                                    ? 'border-red-300 focus:ring-red-400'
+                                                    : 'border-gray-200 focus:ring-brand-primary-400'
+                                        }`}
+                                        placeholder={t('voucher_placeholder')}
+                                    />
+                                    {voucherStatus === 'checking' && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gray-300 border-t-brand-primary-500 rounded-full animate-spin" aria-label="Checking" />
+                                    )}
+                                    {voucherStatus === 'valid' && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                            <span className="text-white text-xs font-bold">✓</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">{t('voucher_help')}</p>
+                                {voucherStatus === 'valid' && voucherInfo && (
+                                    <p className="text-xs text-green-600 mt-1">
+                                        {t('voucher_valid_banner', {
+                                            tier: voucherInfo.grantTier ?? 'free',
+                                            days: voucherInfo.trialDays ?? 0,
+                                        })}
+                                        {voucherInfo.remainingSeats !== null && (
+                                            <> · {t('voucher_seats_remaining', { n: voucherInfo.remainingSeats })}</>
+                                        )}
+                                    </p>
+                                )}
+                                {voucherStatus === 'invalid' && voucherReason && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {voucherReason === 'inactive' && t('voucher_invalid.inactive')}
+                                        {voucherReason === 'expired' && t('voucher_invalid.expired')}
+                                        {voucherReason === 'exhausted' && t('voucher_invalid.exhausted')}
+                                        {voucherReason === 'wrong_scope' && t('voucher_invalid.wrong_scope')}
+                                        {voucherReason === 'rate_limited' && t('voucher_invalid.rate_limited')}
+                                        {voucherReason === 'check_failed' && t('voucher_invalid.check_failed')}
+                                        {(voucherReason === 'not_found' || !['inactive','expired','exhausted','wrong_scope','rate_limited','check_failed'].includes(voucherReason)) && t('voucher_invalid.not_found')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         <button
-                            type="submit" disabled={isLoading}
+                            type="submit"
+                            disabled={
+                                isLoading ||
+                                // Block submit while the voucher check is pending or
+                                // if the user typed a code that the server rejected.
+                                // Empty code is fine — the server enforces the
+                                // feature-flag default and surfaces the error.
+                                (mode === 'register' && voucherStatus === 'checking') ||
+                                (mode === 'register' && voucherCode.trim().length > 0 && voucherStatus === 'invalid')
+                            }
                             className="w-full py-3.5 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl hover:shadow-brand-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
@@ -217,7 +399,16 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    {/* Social login */}
+                    {/*
+                      Social login — honest "coming soon" treatment (iter 6).
+                      Earlier rounds shipped Google/LINE buttons that LOOKED
+                      live but threw a "coming soon" toast into the promo
+                      result slot, which is dishonest UX (the visual promise
+                      doesn't match the behaviour). Fix: keep the
+                      placeholder so users know we'll support these, but
+                      style them as disabled with a "Soon" badge so the
+                      unmet promise is visible BEFORE the click.
+                    */}
                     <div className="mt-6">
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
@@ -225,46 +416,38 @@ export default function LoginPage() {
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-3">
                             <button
-                                onClick={() => { setPromoMessage(t('social_coming_soon')); setPromoSuccess(false); }}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all text-sm font-medium text-gray-600"
+                                type="button"
+                                disabled
+                                aria-disabled="true"
+                                title={t('social_coming_soon')}
+                                className="relative flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-400 opacity-70 cursor-not-allowed"
                             >
-                                <svg className="w-4 h-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
-                                Google
+                                <svg className="w-4 h-4 grayscale" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
+                                <span>Google</span>
+                                <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-500 border border-gray-200">{t('social_badge_soon')}</span>
                             </button>
                             <button
-                                onClick={() => { setPromoMessage(t('social_coming_soon')); setPromoSuccess(false); }}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#06C755] border border-[#06C755] rounded-xl hover:bg-[#05b64d] transition-all text-sm font-medium text-white"
+                                type="button"
+                                disabled
+                                aria-disabled="true"
+                                title={t('social_coming_soon')}
+                                className="relative flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-medium text-gray-400 opacity-70 cursor-not-allowed"
                             >
-                                LINE
+                                <span>LINE</span>
+                                <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-500 border border-gray-200">{t('social_badge_soon')}</span>
                             </button>
                         </div>
+                        <p className="mt-3 text-center text-xs text-gray-400">{t('social_coming_soon')}</p>
                     </div>
 
-                    {/* Promo code section */}
-                    <div className="mt-6 pt-6 border-t border-gray-100">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Gift className="w-4 h-4 text-brand-accent-500" />
-                            <span className="text-sm font-medium text-gray-600">{t('promo_section')}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <input
-                                type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                                placeholder={t('promo_placeholder')}
-                                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
-                            />
-                            <button
-                                onClick={handlePromoRedeem}
-                                className="px-4 py-2.5 bg-gradient-to-r from-brand-accent-400 to-brand-accent-500 text-white text-sm font-semibold rounded-xl hover:shadow-warning transition-all whitespace-nowrap"
-                            >
-                                {t('promo_apply')}
-                            </button>
-                        </div>
-                        {promoMessage && (
-                            <p className={`text-sm mt-2 ${promoSuccess ? 'text-green-600' : 'text-red-500'}`}>
-                                {promoMessage}
-                            </p>
-                        )}
-                    </div>
+                    {/*
+                      Iter 7: the standalone "Have a promotion code?" input
+                      that used to live here was a duplicate code-entry
+                      slot — register-mode users already have a voucher
+                      field IN the form, and logged-in users redeem promos
+                      on /pricing. Two code inputs on one page confused
+                      fresh users ("which one do I use?"). Removed.
+                    */}
 
                     {/* Switch mode */}
                     <p className="text-center text-sm text-gray-500 mt-4">
@@ -275,6 +458,7 @@ export default function LoginPage() {
                     </p>
                 </div>
             )}
+            </main>
         </div>
     );
 }
