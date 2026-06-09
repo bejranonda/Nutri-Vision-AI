@@ -73,6 +73,10 @@ Round 7 shipped 9 fixes (PRs #46–#53); Round 8 shipped 6 (PRs #56–#61); Roun
 
 Run the **Web Vitals + a11y inventory lens** (added Round 11). Quick version: capture FCP/LCP/CLS per page, audit font-payload consumers, count `<main>` + `<h1>` + unlabeled inputs per page, smoke on WebKit/iPhone 13. Recipe in `docs/GUIDELINE.md → The Web-Vitals + a11y inventory lens`.
 
+## When changing scan, auth, or routing (added Round 12)
+
+Run the **full user-journey spec**: `cd frontend && npx playwright test tests/e2e/user-journey.spec.ts` (~17s warm). It walks production end-to-end through the rendered UI — landing + locale switch, file upload → Analyze → terminal result, register round-trip, recipes/chat/dashboard — and asserts every flow reaches a terminal UI state, never a stuck spinner or error boundary. Known traps it encodes: sub-500-byte files are silently dropped by `useScanUpload.ts`; the `/login` tab and submit share a label (pin `button[type=submit]`); console noise is filtered by documented pattern only. Method: `docs/GUIDELINE.md → The full user-journey lens`.
+
 ## CI on every PR (added Round 11)
 
 `.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.

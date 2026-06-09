@@ -269,6 +269,26 @@ components. Targets:
 **When to add a test**: any time a user reports a bug that our static
 checks missed. See `ITERATION_PROCESS.md §6` ("Iterate until zero-error").
 
+### Full user-journey e2e (for releases and scan/auth/routing PRs)
+
+`tests/e2e/user-journey.spec.ts` (Round 12) walks production end-to-end the
+way a real user would — landing + locale switch, photo upload → AI analyze →
+terminal result, registration round-trip, recipes/chat/dashboard browse —
+through the rendered UI, not API probes. Run it before any release and after
+any change to the scan pipeline, auth flow, or routing:
+
+```bash
+cd frontend
+npx playwright test tests/e2e/user-journey.spec.ts   # ~17s warm, ≤2 min cold
+```
+
+Each run costs 1 vision-model call + 1 voucher-rejected registration attempt
+(no DB row, no cleanup). Four rules to follow when extending it — terminal-state
+assertions, runtime-generated fixtures above client validation floors,
+`button[type=submit]` over text selectors, and the shared documented
+console-noise filter — are spelled out in
+`docs/GUIDELINE.md → The full user-journey lens`.
+
 ### Fresh-user audit lens (for PRs that change first-impression surface)
 
 If your PR touches anything a first-time visitor sees in their first 30 seconds — homepage copy, primary CTAs, nav structure, login affordances, pricing tier labels, headline claims, social-login buttons, mascot placement, etc. — also walk through the product with the fresh-user audit lens before declaring done. This is the third leg of the testing stool (alongside Vitest unit and Playwright e2e); Round 7 (May 2026) caught 9 bugs across 9 iterations that 164 unit tests + 79 e2e tests both missed.
