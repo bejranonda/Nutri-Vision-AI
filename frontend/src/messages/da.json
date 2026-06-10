@@ -402,6 +402,14 @@
       "rate_limited": "For mange forespørgsler — vent et øjeblik og prøv igen.",
       "check_failed": "Koden kunne ikke verificeres lige nu. Prøv igen om lidt."
     },
+    "server_errors": {
+      "voucher_required": "Under pilotfasen kræver registrering en invitation – indtast venligst den voucherkode, du har modtaget.",
+      "email_in_use": "Denne e-mail har allerede en konto. Prøv at logge ind i stedet!",
+      "invalid_credentials": "E-mail eller adgangskode passer ikke – prøv igen.",
+      "rate_limited": "For mange forsøg – vent et øjeblik og prøv igen.",
+      "server_error": "Noget gik galt hos os. Prøv igen om lidt.",
+      "network": "Vi kan ikke nå serveren – tjek din forbindelse og prøv igen."
+    },
     "toggle_password_visibility": "Vis adgangskode"
   },
   "pricing": {
@@ -463,7 +471,7 @@
     "score_breakdown": {
       "title": "Hvad er den 8-dimensionelle sundhedsscore?",
       "intro": "Hvert scan vurderer dit måltid på disse 8 dimensioner. Free låser 3 op; Premium og Family låser alle 8 op.",
-      "free_badge": "Free",
+      "free_badge": "Gratis",
       "dimensions": {
         "blood_sugar": "Hvor hurtigt dette måltid hæver dit blodsukker (glykæmisk belastning).",
         "gut_health": "Fibre, fermenteret mad og støtte til tarmens mikrobiom.",

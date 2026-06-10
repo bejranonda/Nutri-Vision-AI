@@ -16,7 +16,7 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { login, register, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+    const { login, register, initAuth, isAuthenticated, isLoading, error, errorCode, clearError } = useAuthStore();
 
     // Default tab: "Sign Up" for fresh visitors (no existing session
     // cookie when this page mounts), "Login" for returning ones. The
@@ -238,10 +238,32 @@ export default function LoginPage() {
                         </button>
                     </div>
 
-                    {/* Error message */}
+                    {/* Error message — prefer the localized Shinny-voice
+                        string for known server reason-codes; fall back to
+                        the raw (English) server message for anything the
+                        map doesn't know. Voucher rejection codes reuse the
+                        voucher_invalid.* strings the live-check below
+                        already renders, so both surfaces say the same
+                        thing (Round 13). */}
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-red-600 text-sm animate-slide-up">
-                            {error}
+                            {(() => {
+                                const SERVER_ERROR_KEY: Record<string, string> = {
+                                    voucher_required: 'server_errors.voucher_required',
+                                    email_in_use: 'server_errors.email_in_use',
+                                    invalid_credentials: 'server_errors.invalid_credentials',
+                                    rate_limited: 'server_errors.rate_limited',
+                                    server_error: 'server_errors.server_error',
+                                    network: 'server_errors.network',
+                                    not_found: 'voucher_invalid.not_found',
+                                    inactive: 'voucher_invalid.inactive',
+                                    expired: 'voucher_invalid.expired',
+                                    exhausted: 'voucher_invalid.exhausted',
+                                    wrong_scope: 'voucher_invalid.wrong_scope',
+                                };
+                                const key = errorCode ? SERVER_ERROR_KEY[errorCode] : undefined;
+                                return key ? t(key) : error;
+                            })()}
                         </div>
                     )}
 

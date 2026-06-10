@@ -402,6 +402,14 @@
       "rate_limited": "Zu viele Prüfungen — bitte kurz warten und neu versuchen.",
       "check_failed": "Der Code konnte gerade nicht geprüft werden. Bitte später erneut versuchen."
     },
+    "server_errors": {
+      "voucher_required": "Während der Pilotphase ist die Registrierung nur mit Einladung möglich – bitte gib deinen Voucher-Code ein.",
+      "email_in_use": "Diese E-Mail hat bereits ein Konto. Versuch dich stattdessen einzuloggen!",
+      "invalid_credentials": "E-Mail oder Passwort stimmen nicht – probier es noch einmal.",
+      "rate_limited": "Zu viele Versuche – warte kurz und versuch es dann erneut.",
+      "server_error": "Bei uns ist etwas schiefgelaufen. Bitte versuch es gleich noch einmal.",
+      "network": "Keine Verbindung zum Server – prüfe deine Internetverbindung und versuch es erneut."
+    },
     "toggle_password_visibility": "Passwort anzeigen"
   },
   "pricing": {
@@ -463,7 +471,7 @@
     "score_breakdown": {
       "title": "Was ist der 8-dimensionale Gesundheitsscore?",
       "intro": "Jeder Scan bewertet deine Mahlzeit in diesen 8 Dimensionen. Free schaltet 3 frei, Premium und Family alle 8.",
-      "free_badge": "Free",
+      "free_badge": "Kostenlos",
       "dimensions": {
         "blood_sugar": "Wie schnell diese Mahlzeit deinen Blutzucker erhöht (glykämische Last).",
         "gut_health": "Ballaststoffe, fermentierte Lebensmittel und Mikrobiom-Unterstützung.",
