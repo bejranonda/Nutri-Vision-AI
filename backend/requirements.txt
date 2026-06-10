@@ -23,7 +23,12 @@ passlib[bcrypt]==1.7.4
 # released as of June 2026).
 bcrypt<4
 python-dotenv==1.0.0
-pydantic==2.5.0
+# pydantic must satisfy BOTH fastapi 0.104.1 (>=1.7.4,<3, excl. 2.0.x/2.1.0)
+# and pydantic-settings>=2.3.0 (which requires pydantic>=2.7.0). The old
+# pydantic==2.5.0 pin made the requirements file unresolvable — pip's
+# ResolutionImpossible failed every backend CI run since the
+# pydantic-settings range was introduced.
+pydantic>=2.7.0,<3
 pydantic-settings>=2.3.0,<3.0
 email-validator==2.1.0
 
