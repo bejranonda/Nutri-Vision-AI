@@ -53,10 +53,10 @@ This document lists currently identified bugs, limitations, and ongoing technica
 ### 5. Known-benign console-error noise (documented, filtered in e2e)
 - **Current Status**: three console-error patterns appear in production that are *not* user-facing failures, and the e2e suites deliberately filter them (`user-journey.spec.ts → isBenignConsoleError()`):
   1. **Next.js RSC-prefetch fallback** — "Failed to fetch RSC payload … Falling back to browser navigation". A `<Link>` prefetch races navigation (most visible under parallel e2e load); the router falls back to a normal browser navigation and the page renders fine. Cosmetic console noise from the framework.
-  2. **Scan logger instrumentation** — the unified logger reports handled cascade timeouts via `console.error` ("SCAN ERROR … category=timeout"). The scan UI absorbs the error (renders the retry card); the console line is telemetry, not a failure.
+  2. **Scan logger instrumentation** — ✅ resolved Round 15: handled timeouts now emit via `console.warn` (the scan UI absorbs them and renders the retry card; warn keeps the telemetry without crying wolf). The e2e filter entry stays for old cached bundles but should no longer fire.
   3. **Cold-start 404 resource lines** — occasional one-off asset 404s on a cold edge that succeed on retry.
 - **Why documented here**: anyone adding console-error assertions to a new spec should reuse the shared filter rather than rediscovering these three classes as "flakes". If a *new* pattern shows up, treat it as real until proven benign — don't extend the filter casually.
-- **Priority**: Low (cosmetic). A future pass could suppress pattern 1 by tuning Link prefetch and route pattern 2 through `console.warn`.
+- **Priority**: Low (cosmetic). Pattern 2 closed in Round 15; a future pass could still suppress pattern 1 by tuning Link prefetch.
 
 ## 📋 Ongoing Investigations
 
@@ -72,7 +72,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
 
 ### 0b. Admin console — next-phase additions
 - **Status**: The `/admin` console (shipped with `is_admin` migration + UI) covers users, promo codes, and health. Remaining gaps on the original spec:
-  - **`/admin/scans`** — recent scans across all users, filtered by `errorClass` / `modelUsed`. Useful for spotting AI-pipeline regressions but requires a read-only design decision on PII exposure (photos).
+  - **`/admin/scans`** — ✅ shipped Round 15, metadata-only (the design decision: photos were never stored — `/api/analyze` writes `imageUrl: null` — and the page shows truncated userIds + item counts, no emails, no food-name lists). Filterable by `errorClass`; `/api/analyze` now also persists a failure row (`timeout` / `parse_error` / `provider_error` / `binding_missing`) at the 503 funnel, so the previously dead `errorClass` column finally has writers and pipeline regressions are visible without CF log access.
   - **`/admin/logs`** — tail of Cloudflare logs via the GraphQL API. Needs the Cloudflare Account API token surfaced as a Pages secret.
   - **Audit table** — right now `[ADMIN_ACTION]` entries live only in the CF log stream. Persisting them to a dedicated `admin_actions` table would give a queryable audit trail. Requires a schema migration + retention policy.
   - **Rate limit on `/api/admin/*`** — ✅ closed Round 14: all four admin mutation routes throttle at 30/min per IP, pinned by the route-wiring suite in `tests/rate-limit.test.ts`.
