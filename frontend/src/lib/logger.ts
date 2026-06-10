@@ -128,7 +128,15 @@ class Logger {
     const errorMessage = error?.message || String(error);
     const errorType = error?.name || 'UnknownError';
     const errorCategory = classifyError(error);
-    this.error(
+    // Timeouts are a HANDLED outcome — the scan UI absorbs them and
+    // renders the retry card, so the console line is telemetry, not a
+    // failure. Emitting them at error level polluted every console-error
+    // assertion (KNOWN_ISSUES "benign console-error noise" pattern 2; the
+    // e2e suites carried a dedicated filter entry for it). warn keeps the
+    // telemetry visible without crying wolf; genuinely unhandled
+    // categories stay at error level (Round 15).
+    const log = errorCategory === 'timeout' ? this.warn.bind(this) : this.error.bind(this);
+    log(
       `❌ SCAN ERROR [${phase}] | category=${errorCategory} type=${errorType} message="${errorMessage}"`,
       { phase, errorType, errorCategory, errorMessage, ...context, stack: error?.stack }
     );

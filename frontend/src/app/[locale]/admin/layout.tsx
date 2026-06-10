@@ -27,6 +27,7 @@ export const dynamic = 'force-dynamic';
 const NAV = [
   { href: '', label: 'Overview' },
   { href: '/users', label: 'Users' },
+  { href: '/scans', label: 'Scans' },
   { href: '/promo', label: 'Promo codes' },
   { href: '/health', label: 'Health' },
 ];
