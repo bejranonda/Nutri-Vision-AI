@@ -95,8 +95,10 @@ export default function ChatPage() {
     // hard-loaded /chat → /login → /dashboard, making the page
     // unreachable on refresh/bookmark. The !sending guard additionally
     // prevents a redirect mid-request.
+    // mode=login: a gated-page bounce usually means an expired session,
+    // i.e. an existing account — open the auth page on the Login tab.
     if (authChecked && !isAuthenticated && !sending) {
-      router.push(`/${locale}/login`);
+      router.push(`/${locale}/login?mode=login`);
     }
   }, [authChecked, isAuthenticated, sending, locale, router]);
 
@@ -159,7 +161,11 @@ export default function ChatPage() {
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          setError(body?.error || t('error_generic'));
+          // Always show the localized generic line — server error strings
+          // are English diagnostics, not user copy (Round 13). Keep the
+          // raw detail in the console for debugging.
+          console.warn('chat send failed', res.status, body?.error);
+          setError(t('error_generic'));
           // Mark this user turn as failed so the retry button shows up.
           setTurns((prev) => {
             const updated = [...prev];

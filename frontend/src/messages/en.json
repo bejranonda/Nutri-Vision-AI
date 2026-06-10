@@ -67,7 +67,8 @@
         "description": "Earn points, maintain streaks, and level up your eating habits"
       }
     },
-    "free_no_signup": "Free · No signup needed to try"
+    "free_no_signup": "Free · No signup needed to try",
+    "gamify_preview_note": "Example preview — start scanning to earn your own streak and points!"
   },
   "scan": {
     "title": "Scan Your Food",
@@ -89,7 +90,17 @@
     "try_again": "Scan Another",
     "error_title": "Sorry! 🙏",
     "error_message": "Shinny couldn't analyze this image",
+    "upload_unsupported": "That file type isn't supported — try a JPG, PNG, or HEIC photo.",
+    "upload_too_large": "That photo is too big ({mb} MB) — the limit is 15 MB.",
+    "upload_skipped": "Skipped {n} file(s) that were unsupported or too large.",
+    "history_meal": "Meal",
+    "history_menu": "Menu scan",
+    "history_drink_snack": "Drink/snack",
+    "history_more": "+ {n} more",
     "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
+    "error_quota": "You've used all your scans for this month. Upgrade to keep scanning!",
+    "error_rate_limited": "Lots of scans in a short time — please wait a minute and try again.",
+    "error_overloaded": "Shinny's AI is under heavy load right now. Please try again in a moment.",
     "low_confidence": {
       "title": "Shinny isn't sure!",
       "message": "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try a closer, clearer photo."
@@ -402,6 +413,14 @@
       "rate_limited": "Too many checks — please slow down and try again in a moment.",
       "check_failed": "Couldn't verify the code right now. Try again in a moment."
     },
+    "server_errors": {
+      "voucher_required": "Registration is invite-only during the pilot — please enter the voucher code you received.",
+      "email_in_use": "This email already has an account. Try logging in instead!",
+      "invalid_credentials": "That email or password doesn't match — give it another try.",
+      "rate_limited": "Too many attempts — please wait a moment and try again.",
+      "server_error": "Something went wrong on our side. Please try again in a moment.",
+      "network": "We can't reach the server — check your connection and try again."
+    },
     "toggle_password_visibility": "Show password"
   },
   "pricing": {
@@ -485,7 +504,8 @@
       "a3": "We accept PromptPay, credit/debit cards, TrueMoney Wallet, and Rabbit LINE Pay.",
       "q4": "Is there a student discount?",
       "a4": "Yes! Students get Premium at a special rate of THB 999/year. Contact us with your student ID."
-    }
+    },
+    "promo_login_first": "Please log in first to redeem a code."
   },
   "dashboard": {
     "welcome": "Welcome back",
@@ -500,6 +520,7 @@
     "challenge_text": "Scan a meal and follow the eating sequence perfectly",
     "challenge_reward": "+50 points",
     "upgrade_cta": "Unlock all features with Premium",
+    "upgrade_subtitle": "฿{price}/month — unlimited scans + full 8-dimension scores",
     "trial_expires": "Trial expires in {days} days",
     "scan_now": "Start your scan",
     "chat_card_title": "Coach Shinny",

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         const user = foundUsers[0];
 
         if (!user || !(await verifyPassword(password, user.hashedPassword!))) {
-            return jsonResponse({ error: 'Invalid email or password' }, { status: 401 });
+            return jsonResponse({ error: 'Invalid email or password', reason: 'invalid_credentials' }, { status: 401 });
         }
 
         // Create a new session and HTTP-Only cookie

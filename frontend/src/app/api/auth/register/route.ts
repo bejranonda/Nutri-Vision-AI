@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       .where(eq(users.email, email))
       .limit(1);
     if (existingUsers.length > 0) {
-      return jsonResponse({ error: 'Email already in use' }, { status: 409 });
+      return jsonResponse({ error: 'Email already in use', reason: 'email_in_use' }, { status: 409 });
     }
 
     // ── 3. Hash password + derive tier from voucher ───────────────
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     } catch (insertErr: any) {
       const msg = String(insertErr?.message || '');
       if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
-        return jsonResponse({ error: 'Email already in use' }, { status: 409 });
+        return jsonResponse({ error: 'Email already in use', reason: 'email_in_use' }, { status: 409 });
       }
       throw insertErr;
     }

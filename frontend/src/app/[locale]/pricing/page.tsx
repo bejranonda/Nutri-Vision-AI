@@ -29,7 +29,8 @@ export default function PricingPage() {
     async function handlePromo() {
         if (!promoInput.trim()) return;
         if (!isAuthenticated) {
-            setPromoMsg(locale === 'th' ? 'กรุณาเข้าสู่ระบบก่อน' : 'Please login first');
+            // Was a th/en-only ternary — de/da users got English (Round 13).
+            setPromoMsg(t('promo_login_first'));
             setPromoOk(false);
             return;
         }
@@ -38,7 +39,12 @@ export default function PricingPage() {
         setPromoMsg(result.message);
     }
 
-    const currentTier = user?.subscriptionTier || 'free';
+    // Only a logged-in user HAS a current plan. The old fallback treated
+    // anonymous visitors as free-tier members, so the Starter card showed
+    // a dead "Current Plan" chip to people with no account at all —
+    // confusing first-impression copy (Round 13). Anonymous visitors now
+    // get the "Get Started" CTA into registration instead.
+    const currentTier = isAuthenticated ? (user?.subscriptionTier || 'free') : null;
 
     const tiers = [
         {
@@ -165,7 +171,10 @@ export default function PricingPage() {
                                     {t('current_plan')}
                                 </div>
                             ) : (
-                                <Link href={tier.key === 'free' ? `/${locale}/login` : `/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
+                                // All anonymous CTAs lead to account creation — the
+                                // auth page defaults to the Register tab, which is the
+                                // right first step for both free and paid plans.
+                                <Link href={`/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
                                     ? 'bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white shadow-brand hover:shadow-brand-lg'
                                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}>

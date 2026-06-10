@@ -24,7 +24,13 @@ export async function stitchImagesToCanvas(base64Images: string[]): Promise<stri
     const loadedResults = await Promise.all(validImages.map(loadImg));
     const images = loadedResults.filter((img): img is HTMLImageElement => img !== null);
     if (images.length === 0) throw new Error('No images could be loaded for stitching');
-    if (images.length === 1) return validImages[0];
+    if (images.length === 1) {
+        // Return the SURVIVOR's source, not validImages[0] — if the first
+        // image was the broken one, [0] would re-send exactly the data
+        // that failed to load.
+        const survivorIdx = loadedResults.findIndex((img) => img !== null);
+        return validImages[survivorIdx];
+    }
     
     // Determine grid columns and rows based on count (max 10)
     let cols = 1, rows = 1;

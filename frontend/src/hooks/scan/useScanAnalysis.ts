@@ -17,14 +17,17 @@ const EMPTY_NUTRITION = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
  * - `spikeReduction` is averaged (matches the `MealOverview` header).
  * - `dishes` carries the per-dish breakdown so future UI can drill in.
  */
-function summarizeMealForHistory(dishes: AiDishAnalysis[]): {
+function summarizeMealForHistory(
+    dishes: AiDishAnalysis[],
+    labels: { fallbackName: string; more: (n: number) => string },
+): {
     foodName: string;
     spikeReduction: number;
     nutrition: typeof EMPTY_NUTRITION;
     dishes: ScanHistoryDish[];
 } {
     if (dishes.length === 0) {
-        return { foodName: 'Meal', spikeReduction: 0, nutrition: EMPTY_NUTRITION, dishes: [] };
+        return { foodName: labels.fallbackName, spikeReduction: 0, nutrition: EMPTY_NUTRITION, dishes: [] };
     }
 
     const nutrition = dishes.reduce(
@@ -42,8 +45,8 @@ function summarizeMealForHistory(dishes: AiDishAnalysis[]): {
         dishes.reduce((sum, d) => sum + (d.spikeReduction || 0), 0) / dishes.length
     );
 
-    const first = dishes[0]?.name || 'Meal';
-    const foodName = dishes.length > 1 ? `${first} + ${dishes.length - 1} more` : first;
+    const first = dishes[0]?.name || labels.fallbackName;
+    const foodName = dishes.length > 1 ? `${first} ${labels.more(dishes.length - 1)}` : first;
 
     const slimDishes: ScanHistoryDish[] = dishes.map(d => ({
         name: d.name,
@@ -235,8 +238,21 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             }
 
             if (!res.ok) {
-                const errMsg = data.message || data.error || `Server error (${res.status})`;
-                logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
+                // Localize the failures a real user can actually hit:
+                // 403 = monthly tier quota exhausted, 429 = per-IP burst
+                // throttle, 503 = AI cascade exhausted. Everything else
+                // falls back to the server's (English) message — those
+                // are diagnostic shapes (400 invalid image after client
+                // compression, 500 with phase info) that mostly surface
+                // for operators, and the raw detail is worth more there
+                // than a generic translated line (Round 13).
+                const localizedByStatus: Record<number, string> = {
+                    403: t('error_quota'),
+                    429: t('error_rate_limited'),
+                    503: t('error_overloaded'),
+                };
+                const errMsg = localizedByStatus[res.status] || data.message || data.error || `Server error (${res.status})`;
+                logger.scanError('api_response', new Error(data.message || data.error || errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
                 if (data.requestId) setErrorRequestId(data.requestId);
                 
                 if (isDebugMode && data.failedJson) {
@@ -310,17 +326,25 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
                 let nutrition = { ...EMPTY_NUTRITION };
                 let dishes: ScanHistoryDish[] | undefined;
 
+                // History labels are localized at write time (the entry is
+                // device-local, so the locale active at scan time is the
+                // right one). Dish names themselves come from the AI in the
+                // request locale already (Round 13 — these were hardcoded
+                // English and surfaced on the dashboard's recent-scans list).
                 if (resultScanMode === 'meal') {
-                    const summary = summarizeMealForHistory(data.result.dishes || []);
+                    const summary = summarizeMealForHistory(data.result.dishes || [], {
+                        fallbackName: t('history_meal'),
+                        more: (n) => t('history_more', { n }),
+                    });
                     foodName = summary.foodName;
                     spikeReduction = summary.spikeReduction;
                     nutrition = summary.nutrition;
                     dishes = summary.dishes;
                 } else if (resultScanMode === 'menu') {
-                    foodName = 'Menu Scan';
+                    foodName = t('history_menu');
                     spikeReduction = 0;
                 } else {
-                    foodName = data.result.itemName || 'Drink/Snack';
+                    foodName = data.result.itemName || t('history_drink_snack');
                     spikeReduction = 0;
                     nutrition = data.result.nutritionSummary || { ...EMPTY_NUTRITION };
                 }

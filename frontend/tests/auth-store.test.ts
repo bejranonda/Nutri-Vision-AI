@@ -79,3 +79,87 @@ describe('auth-store session-probe lifecycle', () => {
     expect(s.isAuthenticated).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Localized error codes (Round 13)
+// ---------------------------------------------------------------------------
+//
+// Before this, the store exposed only the raw English server message
+// (`error`), so a Thai user registering without a voucher saw
+// "A voucher code is required to register during the pilot." verbatim.
+// The store now derives a stable `errorCode` the UI maps to localized
+// Shinny-voice strings; these tests pin the derivation rules.
+import { deriveErrorCode } from '@/lib/auth-store';
+
+describe('deriveErrorCode', () => {
+  it('prefers the server-provided reason', () => {
+    expect(deriveErrorCode(400, { reason: 'voucher_required' })).toBe('voucher_required');
+    expect(deriveErrorCode(401, { reason: 'invalid_credentials' })).toBe('invalid_credentials');
+  });
+
+  it('falls back to status-class buckets when no reason is present', () => {
+    expect(deriveErrorCode(401, {})).toBe('invalid_credentials');
+    expect(deriveErrorCode(409, {})).toBe('email_in_use');
+    expect(deriveErrorCode(429, {})).toBe('rate_limited');
+    expect(deriveErrorCode(500, null)).toBe('server_error');
+    expect(deriveErrorCode(503, undefined)).toBe('server_error');
+    expect(deriveErrorCode(400, {})).toBe('request_failed');
+  });
+
+  it('ignores a non-string reason', () => {
+    expect(deriveErrorCode(409, { reason: 42 } as any)).toBe('email_in_use');
+  });
+});
+
+describe('auth-store errorCode lifecycle', () => {
+  beforeEach(() => {
+    resetStore();
+    useAuthStore.setState({ errorCode: null });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('login failure (401 + reason) sets errorCode and error, returns false', async () => {
+    mockMe(401, { error: 'Invalid email or password', reason: 'invalid_credentials' });
+    const ok = await useAuthStore.getState().login('a@b.c', 'wrong');
+    expect(ok).toBe(false);
+    const s = useAuthStore.getState();
+    expect(s.errorCode).toBe('invalid_credentials');
+    expect(s.error).toBe('Invalid email or password');
+    expect(s.isLoading).toBe(false);
+  });
+
+  it('register failure (400 voucher_required) propagates the reason', async () => {
+    mockMe(400, { error: 'A voucher code is required to register during the pilot.', reason: 'voucher_required' });
+    const ok = await useAuthStore.getState().register('N', 'a@b.c', 'secret123');
+    expect(ok).toBe(false);
+    expect(useAuthStore.getState().errorCode).toBe('voucher_required');
+  });
+
+  it('a non-JSON error body still produces a usable errorCode (no SyntaxError surfaced)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => { throw new SyntaxError('Unexpected token'); },
+    })) as unknown as typeof fetch);
+    const ok = await useAuthStore.getState().login('a@b.c', 'pw');
+    expect(ok).toBe(false);
+    const s = useAuthStore.getState();
+    expect(s.errorCode).toBe('server_error');
+    expect(s.error).toBe('Login failed');
+  });
+
+  it('network rejection maps to errorCode network', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch);
+    const ok = await useAuthStore.getState().register('N', 'a@b.c', 'secret123');
+    expect(ok).toBe(false);
+    expect(useAuthStore.getState().errorCode).toBe('network');
+  });
+
+  it('clearError clears both error and errorCode', () => {
+    useAuthStore.setState({ error: 'x', errorCode: 'email_in_use' });
+    useAuthStore.getState().clearError();
+    const s = useAuthStore.getState();
+    expect(s.error).toBeNull();
+    expect(s.errorCode).toBeNull();
+  });
+});

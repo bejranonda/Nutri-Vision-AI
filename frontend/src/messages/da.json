@@ -67,7 +67,8 @@
         "description": "Optjen point, hold streaks og level op dine spisevaner"
       }
     },
-    "free_no_signup": "Gratis · Ingen oprettelse nødvendig for at prøve"
+    "free_no_signup": "Gratis · Ingen oprettelse nødvendig for at prøve",
+    "gamify_preview_note": "Eksempel — begynd at scanne og optjen din egen stime og dine egne point!"
   },
   "scan": {
     "title": "Scan Din Mad",
@@ -89,7 +90,17 @@
     "try_again": "Scan Igen",
     "error_title": "Undskyld! 🙏",
     "error_message": "Shinny kunne ikke analysere dette billede",
+    "upload_unsupported": "Den filtype understøttes ikke – prøv et JPG-, PNG- eller HEIC-foto.",
+    "upload_too_large": "Det foto er for stort ({mb} MB) – grænsen er 15 MB.",
+    "upload_skipped": "Sprang {n} fil(er) over, som ikke var understøttet eller var for store.",
+    "history_meal": "Måltid",
+    "history_menu": "Menuscanning",
+    "history_drink_snack": "Drik/snack",
+    "history_more": "+ {n} mere",
     "timeout_message": "Analysen tager for lang tid. Prøv igen med et enklere foto.",
+    "error_quota": "Du har brugt alle dine scanninger i denne måned. Opgrader for at fortsætte!",
+    "error_rate_limited": "Mange scanninger på kort tid – vent et minut og prøv igen.",
+    "error_overloaded": "Shinnys AI har travlt lige nu. Prøv igen om et øjeblik.",
     "low_confidence": {
       "title": "Shinny er ikke sikker!",
       "message": "Dette ligner ikke mad, som jeg kan genkende tydeligt. Analysen nedenfor kan være unøjagtig. Prøv et nærmere, klarere foto."
@@ -402,6 +413,14 @@
       "rate_limited": "For mange forespørgsler — vent et øjeblik og prøv igen.",
       "check_failed": "Koden kunne ikke verificeres lige nu. Prøv igen om lidt."
     },
+    "server_errors": {
+      "voucher_required": "Under pilotfasen kræver registrering en invitation – indtast venligst den voucherkode, du har modtaget.",
+      "email_in_use": "Denne e-mail har allerede en konto. Prøv at logge ind i stedet!",
+      "invalid_credentials": "E-mail eller adgangskode passer ikke – prøv igen.",
+      "rate_limited": "For mange forsøg – vent et øjeblik og prøv igen.",
+      "server_error": "Noget gik galt hos os. Prøv igen om lidt.",
+      "network": "Vi kan ikke nå serveren – tjek din forbindelse og prøv igen."
+    },
     "toggle_password_visibility": "Vis adgangskode"
   },
   "pricing": {
@@ -463,7 +482,7 @@
     "score_breakdown": {
       "title": "Hvad er den 8-dimensionelle sundhedsscore?",
       "intro": "Hvert scan vurderer dit måltid på disse 8 dimensioner. Free låser 3 op; Premium og Family låser alle 8 op.",
-      "free_badge": "Free",
+      "free_badge": "Gratis",
       "dimensions": {
         "blood_sugar": "Hvor hurtigt dette måltid hæver dit blodsukker (glykæmisk belastning).",
         "gut_health": "Fibre, fermenteret mad og støtte til tarmens mikrobiom.",
@@ -485,7 +504,8 @@
       "a3": "Vi accepterer PromptPay, kredit-/debitkort, TrueMoney Wallet og Rabbit LINE Pay.",
       "q4": "Er der studierabat?",
       "a4": "Ja! Studerende får Premium til specialpris på 999 THB/år."
-    }
+    },
+    "promo_login_first": "Log venligst ind først for at indløse en kode."
   },
   "dashboard": {
     "welcome": "Velkommen tilbage",
@@ -500,6 +520,7 @@
     "challenge_text": "Scan et måltid og følg spisesekvensen perfekt",
     "challenge_reward": "+50 point",
     "upgrade_cta": "Lås alle funktioner op med Premium",
+    "upgrade_subtitle": "฿{price}/måned – ubegrænsede scanninger + alle 8 score-dimensioner",
     "trial_expires": "Prøveperiode udløber om {days} dage",
     "scan_now": "Start dit scan",
     "chat_card_title": "Coach Shinny",

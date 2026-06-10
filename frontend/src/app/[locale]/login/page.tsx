@@ -16,7 +16,7 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
-    const { login, register, initAuth, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+    const { login, register, initAuth, isAuthenticated, isLoading, error, errorCode, clearError } = useAuthStore();
 
     // Default tab: "Sign Up" for fresh visitors (no existing session
     // cookie when this page mounts), "Login" for returning ones. The
@@ -32,6 +32,22 @@ export default function LoginPage() {
     const [mode, setMode] = useState<'login' | 'register'>('register');
     const [showPassword, setShowPassword] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
+
+    // Honour explicit intent from the referring surface: the header's
+    // "Log in" CTA and the auth-gate redirects (/dashboard, /chat) send
+    // users who almost certainly HAVE an account, so they link here with
+    // `?mode=login`. Without this, a returning user who clicked a button
+    // labelled "Log in" landed on a "Create your account" form — the nav
+    // promised one thing and the page delivered another (Round 13).
+    // Read via window.location in a mount effect rather than
+    // useSearchParams(): the latter forces a Suspense boundary at build
+    // time and risks a hydration mismatch on this statically-prerendered
+    // page; a post-mount setState costs one pre-paint frame at most.
+    useEffect(() => {
+        const wanted = new URLSearchParams(window.location.search).get('mode');
+        if (wanted === 'login') setMode('login');
+        // 'register' is already the default; any other value is ignored.
+    }, []);
 
     // Form fields
     const [email, setEmail] = useState('');
@@ -168,7 +184,11 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center p-4">
+        // pt-28 clears the absolutely-positioned SiteHeader — without it
+        // the vertically-centered card slides under the header bar and
+        // the card's icon renders half-clipped (visible on every mobile
+        // screenshot, Round 13).
+        <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center px-4 pb-4 pt-28">
             {/* Background blobs */}
             <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-brand-primary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float"></div>
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
@@ -222,10 +242,32 @@ export default function LoginPage() {
                         </button>
                     </div>
 
-                    {/* Error message */}
+                    {/* Error message — prefer the localized Shinny-voice
+                        string for known server reason-codes; fall back to
+                        the raw (English) server message for anything the
+                        map doesn't know. Voucher rejection codes reuse the
+                        voucher_invalid.* strings the live-check below
+                        already renders, so both surfaces say the same
+                        thing (Round 13). */}
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-red-600 text-sm animate-slide-up">
-                            {error}
+                            {(() => {
+                                const SERVER_ERROR_KEY: Record<string, string> = {
+                                    voucher_required: 'server_errors.voucher_required',
+                                    email_in_use: 'server_errors.email_in_use',
+                                    invalid_credentials: 'server_errors.invalid_credentials',
+                                    rate_limited: 'server_errors.rate_limited',
+                                    server_error: 'server_errors.server_error',
+                                    network: 'server_errors.network',
+                                    not_found: 'voucher_invalid.not_found',
+                                    inactive: 'voucher_invalid.inactive',
+                                    expired: 'voucher_invalid.expired',
+                                    exhausted: 'voucher_invalid.exhausted',
+                                    wrong_scope: 'voucher_invalid.wrong_scope',
+                                };
+                                const key = errorCode ? SERVER_ERROR_KEY[errorCode] : undefined;
+                                return key ? t(key) : error;
+                            })()}
                         </div>
                     )}
 

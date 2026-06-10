@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 13 (login intent, error localization, CI resurrection) — review + fix pass (PR #80)
+
+Continuation round on the user's standing brief ("review deeply, anything to improve? … repeat iterations till no error and good feedback"). Baseline before changes: 97/97 e2e green against production, 171/171 unit, type-check + i18n clean. The round hunted what green suites can't see — and found that one of the suites itself was fiction.
+
+**Headline finding — CI had never passed.** Every run of `ci.yml`, including on `main`, failed since the workflow shipped in Round 11. With no branch protection enforcing the check, the red lights ran unnoticed for a month while `ITERATION_PROCESS.md §2` listed CI as a must-pass gate. Two independent infra bugs:
+
+1. Frontend job pointed `cache-dependency-path` (and `npm ci`) at `frontend/package-lock.json` — a file that doesn't exist; npm workspaces hoists the only lockfile to the repo root. setup-node failed in ~10 s on every run.
+2. Backend `requirements.txt` pinned `pydantic==2.5.0` next to `pydantic-settings>=2.3.0` — every release in that range needs pydantic≥2.7.0, so pip's resolver correctly refused (`ResolutionImpossible`).
+
+Fixed both (install at repo root; `pydantic>=2.7.0,<3`, validated in a clean venv — 129/129 backend tests pass). PR #80 carries the **first fully green CI run in the repo's history**. Process lesson recorded in `ITERATION_PROCESS.md`: a gate that nobody watches is not a gate — "CI added" is only true once a run has been seen green.
+
+**User-facing fixes:**
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | Header CTA labelled "Log in" (and auth-gate redirects from /dashboard, /chat) landed on the **Register** tab — "Create your account" for users who clicked "Log in" | `/login?mode=login` honoured from intent-bearing entry points; register default unchanged for fresh-visitor CTAs. Pinned both ways by 2 new e2e cases |
+| 2 | `/api/analyze` (the most expensive route) and `/api/promo/redeem` had **no per-IP rate limit** — and the KNOWN_ISSUES entry tracking this was stale in the opposite direction | Wired per the documented plan (analyze 20/min, promo/redeem 5/min); new `rateLimit route wiring` test suite walks all six route sources so the throttled list is a CI-pinned invariant, not a doc claim |
+| 3 | Server auth errors rendered raw English in all locales — a Thai pilot user registering without a voucher saw "A voucher code is required to register during the pilot." verbatim | auth-store derives a stable `errorCode` (server `reason` preferred — login 401/register 409 now carry one — status-class fallback); login page maps codes to new `auth.server_errors.*` strings (th/en/de/da, Shinny voice). `res.json()` hardened on error paths — the suspected crash class behind KNOWN_ISSUES 2a |
+| 4 | Scan-flow rejections hardcoded English: upload errors ("Unsupported format: …"), quota/overload/throttle failures (403/503/429), history labels ("Menu Scan", "+ N more") | All localized in 4 locales (`scan.upload_*`, `scan.error_quota/overloaded/rate_limited`, `scan.history_*`); history labels resolved at write time |
+| 5 | Dashboard "Recent Scans" rendered **fabricated mock entries** (Pad Thai / Som Tam / Green Curry, fake scores, "Today") whenever the server counter was > 0 — while real device-local history sat unused | Renders up to 3 real `lib/scan-history` entries (thumbnail, name, localized score label, locale-formatted date); honest empty state otherwise. Upgrade-CTA subtitle de-hardcoded (price now read from `TIER_PRICING`); logout button localized |
+| 6 | Auth card's brand icon rendered half-clipped behind the floating header on every mobile load | Top padding clears the absolutely-positioned header before vertical centering |
+| 7 | Collage stitcher single-survivor path returned `validImages[0]` — the broken image, whenever the first photo was the one that failed to load | Returns the survivor's source by index |
+| 8 | Minor: `pricing.score_breakdown.free_badge` untranslated in th/de/da; chat UI could surface raw English server diagnostics; dead identical-branch ternary in pricing | All fixed |
+
+**Final test posture this round:**
+- Frontend unit: **185/185** ✓ (+14: deriveErrorCode rules, errorCode store lifecycle, rate-limit route wiring)
+- Frontend e2e: **99 cases** (+2: `?mode=login` honoured / register default preserved) — full suite run against production post-merge
+- Backend unit: 129/129 ✓ — now actually verified in CI on every PR, for the first time
+
+
 ### UX-audit Round 12 (full user-journey e2e) — automated real-user walkthrough against production
 
 User asked: "can we test as a real user for the whole user journey." This round added a fifth testing lens: a single Playwright spec (`frontend/tests/e2e/user-journey.spec.ts`, PRs #76–#78) that drives the production app the way a real user would — through the rendered UI, not API probes — in four independent phases:

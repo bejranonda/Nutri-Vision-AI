@@ -55,7 +55,10 @@ export default function SiteHeader({ locale }: SiteHeaderProps) {
 
   // Right-side CTA: Dashboard for logged-in users, Login for everyone
   // else. The label + href flip together so nav never lies about state.
-  const rightCtaHref = isAuthenticated ? `/${locale}/dashboard` : `/${locale}/login`;
+  // `?mode=login` makes the auth page open on the Login tab — this CTA
+  // is labelled "Log in", so landing on the register-default tab would
+  // contradict the label (Round 13).
+  const rightCtaHref = isAuthenticated ? `/${locale}/dashboard` : `/${locale}/login?mode=login`;
   const rightCtaLabel = isAuthenticated ? tNav('dashboard') : tAuth('login');
 
   return (

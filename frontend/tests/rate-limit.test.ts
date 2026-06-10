@@ -230,3 +230,40 @@ describe('tooManyResponse', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Route wiring — which endpoints are actually throttled (Round 13)
+// ---------------------------------------------------------------------------
+//
+// KNOWN_ISSUES.md carried a stale "no rate limit on auth & scan
+// endpoints" follow-up long after login/register/voucher/chat were
+// wired, while /api/analyze (the most expensive route — every call
+// burns Workers-AI + Gemini quota) and /api/promo/redeem (code
+// enumeration from a logged-in session) stayed unthrottled. This
+// suite walks the route sources so the wiring is a CI-pinned
+// invariant instead of a doc claim that can drift.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const RATE_LIMITED_ROUTES = [
+  'auth/login',
+  'auth/register',
+  'voucher/check',
+  'chat',
+  'analyze',
+  'promo/redeem',
+] as const;
+
+describe('rateLimit route wiring', () => {
+  for (const route of RATE_LIMITED_ROUTES) {
+    it(`/api/${route} calls rateLimit() and returns tooManyResponse()`, () => {
+      const src = readFileSync(
+        resolve(__dirname, `../src/app/api/${route}/route.ts`),
+        'utf8',
+      );
+      expect(src).toMatch(/rateLimit\(/);
+      expect(src).toMatch(/tooManyResponse\(/);
+      expect(src).toMatch(/from '@\/lib\/rate-limit'/);
+    });
+  }
+});
