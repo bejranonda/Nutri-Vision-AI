@@ -89,6 +89,9 @@
     "try_again": "Erneut scannen",
     "error_title": "Entschuldigung! 🙏",
     "error_message": "Shinny konnte dieses Bild nicht analysieren",
+    "upload_unsupported": "Dieser Dateityp wird nicht unterstützt – probier ein JPG-, PNG- oder HEIC-Foto.",
+    "upload_too_large": "Dieses Foto ist zu groß ({mb} MB) – das Limit liegt bei 15 MB.",
+    "upload_skipped": "{n} Datei(en) übersprungen, die nicht unterstützt oder zu groß waren.",
     "timeout_message": "Die Analyse dauert zu lange. Bitte versuche es erneut mit einem einfacheren Foto.",
     "low_confidence": {
       "title": "Shinny ist sich nicht sicher!",
