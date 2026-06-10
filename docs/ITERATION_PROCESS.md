@@ -63,7 +63,7 @@ When the PR branch is pushed:
 
 | Check | Must pass? | Purpose |
 |-------|-----------|---------|
-| **GitHub Actions CI** (`.github/workflows/ci.yml`) | ✅ yes | Frontend `check:all` (type-check + i18n key parity + Vitest unit) **and** backend `pytest`. Added Round 11; before this there was no CI at all and the backend went 6 weeks unverified between Round 8 → Round 9. |
+| **GitHub Actions CI** (`.github/workflows/ci.yml`) | ✅ yes | Frontend `check:all` (type-check + i18n key parity + Vitest unit) **and** backend `pytest`. Added Round 11 — but **every run failed until Round 13** (setup-node pointed at a nonexistent `frontend/package-lock.json`; the backend pinned `pydantic==2.5.0` against `pydantic-settings>=2.3.0`, which pip correctly refused to resolve). Nobody noticed for a month because no branch protection enforces the check. **Lesson: a gate is only real once you've seen it green** — after adding any CI job, watch one run through to success before claiming the gate exists; and when merging a PR, actually look at the checks, not just the local suite. |
 | **Cloudflare Pages** | ✅ yes | Produces the actual deploy preview. Fails on any Next.js build error or ESLint error. |
 | **GitGuardian** | ✅ yes | Secrets scan. Never commit API keys / `.env` contents. |
 | **CodeRabbit review** | ⚠ advisory | Reads the diff; comments on smells and reach-across-files concerns. Not a gate, but every critical/major comment must be addressed or explicitly dismissed with a reply. |
