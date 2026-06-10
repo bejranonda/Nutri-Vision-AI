@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
     id: text('id').primaryKey(),
@@ -76,18 +76,33 @@ export const codeRedemptions = sqliteTable(
             t.userId,
             t.codeId,
         ),
+        // The composite unique above already serves user_id-prefix
+        // lookups, but Drizzle/SQLite planners use it inconsistently for
+        // plain "WHERE user_id = ?" scans; the dedicated FK index makes
+        // "all redemptions for user X" predictable. Migration 0004.
+        userIdIdx: index('code_redemptions_user_id_idx').on(t.userId),
     }),
 );
 
-export const sessions = sqliteTable('sessions', {
-    id: text('id').primaryKey(),
-    userId: text('user_id').references(() => users.id),
-    token: text('token').notNull().unique(),
-    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
+export const sessions = sqliteTable(
+    'sessions',
+    {
+        id: text('id').primaryKey(),
+        userId: text('user_id').references(() => users.id),
+        token: text('token').notNull().unique(),
+        expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    },
+    // Secondary index on the FK — "all sessions for user X" (e.g. a
+    // future logout-everywhere) full-scanned without it. Migration 0004.
+    (t) => ({
+        userIdIdx: index('sessions_user_id_idx').on(t.userId),
+    }),
+);
 
-export const foodScans = sqliteTable('food_scans', {
+export const foodScans = sqliteTable(
+    'food_scans',
+    {
     id: text('id').primaryKey(),
     userId: text('user_id').references(() => users.id),
     imageUrl: text('image_url'),
@@ -105,7 +120,12 @@ export const foodScans = sqliteTable('food_scans', {
     scanMode: text('scan_mode'), // meal, menu, drink_snack
     errorClass: text('error_class'), // null = success, else: timeout, parse_error, model_error, etc.
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
+    },
+    // "All scans for user X" (history / future /admin/scans). Migration 0004.
+    (t) => ({
+        userIdIdx: index('food_scans_user_id_idx').on(t.userId),
+    }),
+);
 
 export const recipes = sqliteTable('recipes', {
     id: text('id').primaryKey(),
@@ -130,11 +150,18 @@ export const ingredients = sqliteTable('ingredients', {
     specialProperties: text('special_properties', { mode: 'json' }),
 });
 
-export const chatMessages = sqliteTable('chat_messages', {
-    id: text('id').primaryKey(),
-    userId: text('user_id').references(() => users.id),
-    role: text('role').notNull(), // user or assistant
-    content: text('content').notNull(),
-    language: text('language'),
-    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
+export const chatMessages = sqliteTable(
+    'chat_messages',
+    {
+        id: text('id').primaryKey(),
+        userId: text('user_id').references(() => users.id),
+        role: text('role').notNull(), // user or assistant
+        content: text('content').notNull(),
+        language: text('language'),
+        createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    },
+    // "Conversation for user X" — the chat history read path. Migration 0004.
+    (t) => ({
+        userIdIdx: index('chat_messages_user_id_idx').on(t.userId),
+    }),
+);
