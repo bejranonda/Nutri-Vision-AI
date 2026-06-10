@@ -165,7 +165,10 @@ export default function PricingPage() {
                                     {t('current_plan')}
                                 </div>
                             ) : (
-                                <Link href={tier.key === 'free' ? `/${locale}/login` : `/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
+                                // All anonymous CTAs lead to account creation — the
+                                // auth page defaults to the Register tab, which is the
+                                // right first step for both free and paid plans.
+                                <Link href={`/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
                                     ? 'bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white shadow-brand hover:shadow-brand-lg'
                                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}>

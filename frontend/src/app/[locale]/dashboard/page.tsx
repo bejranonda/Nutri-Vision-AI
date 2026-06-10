@@ -32,8 +32,10 @@ export default function DashboardPage() {
     useEffect(() => {
         // Only redirect once the probe has resolved (authChecked); acting
         // on the initial isAuthenticated=false would bounce logged-in users.
+        // mode=login: someone hitting /dashboard almost certainly has an
+        // account already — open the auth page on the Login tab.
         if (authChecked && !isAuthenticated) {
-            router.push(`/${locale}/login`);
+            router.push(`/${locale}/login?mode=login`);
         }
     }, [authChecked, isAuthenticated, locale, router]);
 

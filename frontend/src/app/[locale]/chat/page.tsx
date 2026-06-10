@@ -95,8 +95,10 @@ export default function ChatPage() {
     // hard-loaded /chat → /login → /dashboard, making the page
     // unreachable on refresh/bookmark. The !sending guard additionally
     // prevents a redirect mid-request.
+    // mode=login: a gated-page bounce usually means an expired session,
+    // i.e. an existing account — open the auth page on the Login tab.
     if (authChecked && !isAuthenticated && !sending) {
-      router.push(`/${locale}/login`);
+      router.push(`/${locale}/login?mode=login`);
     }
   }, [authChecked, isAuthenticated, sending, locale, router]);
 

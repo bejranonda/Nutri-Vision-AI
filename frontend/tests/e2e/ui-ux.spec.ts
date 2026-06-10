@@ -155,6 +155,32 @@ test.describe('login form validation — empty submit surfaces an error', () => 
   });
 });
 
+test.describe('auth page honours the ?mode entry intent (Round 13)', () => {
+  // The header CTA labelled "Log in" and the auth-gate redirects from
+  // /dashboard and /chat link to /login?mode=login. Without the param
+  // the page defaults to the Register tab (right for fresh visitors
+  // from "Get started" CTAs, wrong for a button that says "Log in").
+  // Structural probe: the display-name input only exists in register
+  // mode, so its presence/absence distinguishes the tabs without
+  // depending on locale strings.
+  test('/th/login?mode=login opens on the Login tab (no display-name field)', async ({ page }) => {
+    await page.goto('/th/login?mode=login', { waitUntil: 'load' });
+    await page.waitForSelector('input[type="email"]', { timeout: 10_000 });
+    // The mode flip happens in a post-mount effect — give it a beat.
+    await page.waitForTimeout(300);
+    await expect(page.locator('#auth-display-name')).toHaveCount(0);
+    // Login mode = exactly one password input (no confirm-password).
+    await expect(page.locator('input[type="password"]')).toHaveCount(1);
+  });
+
+  test('/th/login without the param keeps the Register default', async ({ page }) => {
+    await page.goto('/th/login', { waitUntil: 'load' });
+    await page.waitForSelector('input[type="email"]', { timeout: 10_000 });
+    await page.waitForTimeout(300);
+    await expect(page.locator('#auth-display-name')).toHaveCount(1);
+  });
+});
+
 test.describe('robots.txt is reachable + advertises the sitemap path', () => {
   test('robots.txt has a non-empty body', async ({ request }) => {
     const res = await request.get('/robots.txt');

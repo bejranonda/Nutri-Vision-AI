@@ -33,6 +33,22 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Honour explicit intent from the referring surface: the header's
+    // "Log in" CTA and the auth-gate redirects (/dashboard, /chat) send
+    // users who almost certainly HAVE an account, so they link here with
+    // `?mode=login`. Without this, a returning user who clicked a button
+    // labelled "Log in" landed on a "Create your account" form — the nav
+    // promised one thing and the page delivered another (Round 13).
+    // Read via window.location in a mount effect rather than
+    // useSearchParams(): the latter forces a Suspense boundary at build
+    // time and risks a hydration mismatch on this statically-prerendered
+    // page; a post-mount setState costs one pre-paint frame at most.
+    useEffect(() => {
+        const wanted = new URLSearchParams(window.location.search).get('mode');
+        if (wanted === 'login') setMode('login');
+        // 'register' is already the default; any other value is ignored.
+    }, []);
+
     // Form fields
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
