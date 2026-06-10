@@ -239,12 +239,13 @@ describe('analyze fallback — Gemini vision cascade', () => {
     expect(source).not.toContain("=== 'google-gemma-3-27b'");
   });
 
-  it('chat cascade (lib/ai-providers) shares GEMINI_VISION_MODELS[0] with scan', () => {
+  it('chat cascade (lib/ai-providers) WALKS GEMINI_VISION_MODELS with the scan path skip semantics', () => {
     // Both the scan fallback and the chat cascade hit the same Google
-    // key — keeping them on the same explicit model id avoids the
-    // situation where chat keeps working (because Groq answers first)
-    // while scan silently breaks (because CF primary failed and the
-    // Gemini fallback resolves to a retired alias or a zero-quota id).
+    // key and the same shared model list. Round 14: the chat path used
+    // to call only GEMINI_VISION_MODELS[0] (the old pin here asserted
+    // exactly that), which reintroduced the single-hardcoded-id outage
+    // mode the cascade exists to prevent. Pin the walk: a for-of over
+    // the list + the 404/429 skip branch.
     const source = readFileSync(AI_PROVIDERS, 'utf8');
 
     // Strip block + line comments so historical references in
@@ -255,7 +256,10 @@ describe('analyze fallback — Gemini vision cascade', () => {
 
     // chat path must reference the cascade head, not a literal id —
     // protects the single-source-of-truth contract.
-    expect(code).toContain('GEMINI_VISION_MODELS[0]');
+    expect(code).toMatch(/for \(const model of GEMINI_VISION_MODELS\)/);
+    expect(code).toMatch(/res\.status === 404 \|\| res\.status === 429/);
+    // The single-id shortcut must stay gone from live code.
+    expect(code).not.toContain('GEMINI_VISION_MODELS[0]');
     // Defensive: must NOT call the retired alias …
     expect(code).not.toContain('gemini-1.5-flash-latest');
     // … and must NOT use any `-latest` alias for any Gemini variant.

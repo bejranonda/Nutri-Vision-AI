@@ -17,9 +17,9 @@
  *      - Use the explicit ID, not a `-latest` alias — Google retired
  *        `gemini-1.5-flash-latest` from `v1beta` in May 2026 without
  *        notice, breaking both this cascade and the scan fallback.
- *      - The chat call uses `GEMINI_VISION_MODELS[0]` so the chat and
- *        scan paths share a single source of truth for the canonical
- *        Gemini id.
+ *      - The chat call walks `GEMINI_VISION_MODELS` in order (skipping
+ *        on 404/429, same semantics as the scan path) so chat and scan
+ *        share a single source of truth for the Gemini ids.
  *
  *   3. Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
  *      - Same free tier neuron budget the scan flow uses.
@@ -151,7 +151,7 @@ export async function chatComplete(
   if (googleKey) {
     const t0 = Date.now();
     try {
-      const reply = await callGemini(googleKey, messages, {
+      const { reply, model } = await callGemini(googleKey, messages, {
         maxTokens,
         temperature,
         timeoutMs,
@@ -160,7 +160,8 @@ export async function chatComplete(
         ok: true,
         reply,
         provider: 'google',
-        modelUsed: GEMINI_VISION_MODELS[0],
+        // Whichever cascade entry actually answered — not [0] (Round 14).
+        modelUsed: model,
         latencyMs: Date.now() - t0,
       };
     } catch (err: any) {
@@ -253,7 +254,7 @@ async function callGemini(
   apiKey: string,
   messages: ChatTurn[],
   opts: ProviderOpts,
-): Promise<string> {
+): Promise<{ reply: string; model: GeminiVisionModel }> {
   // Gemini's REST shape is different from OpenAI's: it expects a
   // `contents` array with `parts`, NOT a `messages` array, and it
   // doesn't have a "system" role — system instructions go via the
@@ -261,7 +262,6 @@ async function callGemini(
   const systemMsg = messages.find((m) => m.role === 'system');
   const turns = messages.filter((m) => m.role !== 'system');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODELS[0]}:generateContent?key=${apiKey}`;
   const payload: any = {
     contents: turns.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -276,25 +276,45 @@ async function callGemini(
     payload.systemInstruction = { parts: [{ text: systemMsg.content }] };
   }
 
-  const res = await withTimeout(
-    fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-    }),
-    opts.timeoutMs,
-    'gemini',
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`gemini ${res.status}: ${body.slice(0, 200)}`);
+  // Walk the shared cascade with the same skip semantics as the scan
+  // path (`/api/analyze → attemptGoogleInference`): 404 = model retired
+  // on this project, 429 = per-model quota gone — both are per-model
+  // conditions a sibling can survive. Any other failure throws
+  // immediately (5xx / network — siblings won't help). Round 14: the
+  // header comment always promised this walk; the code only ever tried
+  // GEMINI_VISION_MODELS[0]. Per-model timeout splits the budget so the
+  // worst case stays within opts.timeoutMs overall.
+  const perModelTimeout = Math.max(2_000, Math.floor(opts.timeoutMs / GEMINI_VISION_MODELS.length));
+  let lastSkip: Error | null = null;
+  for (const model of GEMINI_VISION_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await withTimeout(
+      fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+      perModelTimeout,
+      `gemini:${model}`,
+    );
+    if (res.status === 404 || res.status === 429) {
+      const body = await res.text().catch(() => '');
+      lastSkip = new Error(`gemini ${model} ${res.status}: ${body.slice(0, 200)}`);
+      logger.warn('[chat] Gemini model skipped', { model, status: res.status });
+      continue;
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`gemini ${model} ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const data: any = await res.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof reply !== 'string' || reply.length === 0) {
+      throw new Error(`gemini ${model} returned empty content`);
+    }
+    return { reply, model };
   }
-  const data: any = await res.json();
-  const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof reply !== 'string' || reply.length === 0) {
-    throw new Error('gemini returned empty content');
-  }
-  return reply;
+  throw lastSkip ?? new Error('gemini cascade exhausted');
 }
 
 async function callCloudflare(

@@ -252,6 +252,12 @@ const RATE_LIMITED_ROUTES = [
   'chat',
   'analyze',
   'promo/redeem',
+  // Round 14: admin mutations — auth-gated, but a stolen admin cookie
+  // shouldn't allow unthrottled scripting (KNOWN_ISSUES 0b).
+  'admin/promo/create',
+  'admin/promo/toggle-active',
+  'admin/users/toggle-admin',
+  'admin/users/update-tier',
 ] as const;
 
 describe('rateLimit route wiring', () => {

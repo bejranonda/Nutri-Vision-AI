@@ -41,9 +41,18 @@ const nextConfig = {
    *     — the scan flow uses the camera API; everything else stays
    *     off so a compromised dependency can't quietly call them.
    *
-   * Content-Security-Policy is NOT included. CSP would require a full
-   * audit of every inline style/script Next.js emits (plus the
-   * dev-mode HMR client's `unsafe-eval`). Tracked as a follow-up.
+   * Content-Security-Policy ships in REPORT-ONLY mode (Round 14).
+   * Why report-only: Next.js emits inline scripts (RSC bootstrap) and
+   * inline styles (critical CSS), so script/style allow 'unsafe-inline'
+   * until a nonce strategy lands — the value of this stage is the
+   * ORIGIN allowlist (only self + the Cloudflare Insights beacon may
+   * load/connect). Violations surface as console errors in every
+   * browser, which our Playwright suites already assert against — the
+   * e2e run against the branch preview doubles as the violation scan.
+   * Flip to enforcing (drop `-Report-Only`) after a quiet window.
+   * Dev-mode HMR needs 'unsafe-eval'; the dev server doesn't apply
+   * these production headers paths anyway, and report-only never
+   * blocks regardless.
    */
   async headers() {
     return [
@@ -58,6 +67,26 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+          },
+          {
+            key: 'Content-Security-Policy-Report-Only',
+            value: [
+              "default-src 'self'",
+              // RSC bootstrap + Next inline runtime; nonce strategy is the
+              // tracked follow-up that lets us drop 'unsafe-inline'.
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+              "style-src 'self' 'unsafe-inline'",
+              // data:/blob: — base64 scan thumbnails + canvas previews.
+              "img-src 'self' data: blob:",
+              "font-src 'self' data:",
+              // Beacon POSTs from the CF Insights script.
+              "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+              "worker-src 'self' blob:",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+            ].join('; '),
           },
         ],
       },

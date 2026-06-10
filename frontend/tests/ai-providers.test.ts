@@ -218,3 +218,74 @@ describe('chatComplete — robustness', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Gemini cascade walk (Round 14)
+// ---------------------------------------------------------------------------
+//
+// The module header always promised the chat path walks
+// GEMINI_VISION_MODELS with the scan path's skip semantics (404 = model
+// retired, 429 = per-model quota gone), but the implementation only ever
+// called [0]. These tests pin the walk so it can't silently regress to a
+// single hardcoded id — the exact failure mode the cascade exists for.
+import { GEMINI_VISION_MODELS } from '@/lib/ai-providers';
+
+describe('chatComplete — Gemini cascade walk', () => {
+  it('falls through to the second model when the first 429s, and reports the answering model', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+      const u = String(url);
+      if (u.includes(GEMINI_VISION_MODELS[0])) {
+        return new Response('quota', { status: 429 });
+      }
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: 'second model reply' }] } }] }),
+        { status: 200 },
+      );
+    });
+    const result = await chatComplete({ GOOGLE_AI_API_KEY: 'k' }, { messages: SAMPLE_MESSAGES });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.reply).toBe('second model reply');
+      expect(result.modelUsed).toBe(GEMINI_VISION_MODELS[1]);
+    }
+    // Exactly two Gemini calls: the 429'd first model + the success.
+    const geminiCalls = fetchSpy.mock.calls.filter((c) => String(c[0]).includes('generativelanguage'));
+    expect(geminiCalls.length).toBe(2);
+  });
+
+  it('skips on 404 (retired model) the same way', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+      if (String(url).includes(GEMINI_VISION_MODELS[0])) return new Response('gone', { status: 404 });
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }),
+        { status: 200 },
+      );
+    });
+    const result = await chatComplete({ GOOGLE_AI_API_KEY: 'k' }, { messages: SAMPLE_MESSAGES });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.modelUsed).toBe(GEMINI_VISION_MODELS[1]);
+  });
+
+  it('does NOT walk siblings on a 5xx — falls to the next provider instead', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+      if (String(url).includes('generativelanguage')) return new Response('boom', { status: 500 });
+      throw new Error('unexpected fetch ' + String(url));
+    });
+    // No CF binding → cascade exhausts to failure.
+    const result = await chatComplete({ GOOGLE_AI_API_KEY: 'k' }, { messages: SAMPLE_MESSAGES });
+    expect(result.ok).toBe(false);
+    const geminiCalls = fetchSpy.mock.calls.filter((c) => String(c[0]).includes('generativelanguage'));
+    expect(geminiCalls.length).toBe(1);
+  });
+
+  it('fails over to all-skipped → next provider when every model 429s', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('quota', { status: 429 }));
+    const aiRun = vi.fn(async () => ({ response: 'cf saved the day' }));
+    const result = await chatComplete({ GOOGLE_AI_API_KEY: 'k', AI: { run: aiRun } }, { messages: SAMPLE_MESSAGES });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.provider).toBe('cloudflare');
+      expect(result.reply).toBe('cf saved the day');
+    }
+  });
+});

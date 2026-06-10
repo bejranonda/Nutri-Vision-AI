@@ -57,10 +57,15 @@ export default function DemoPage() {
 
                 {/* Step Navigator */}
                 <div className="flex justify-center gap-2 mb-8">
-                    {STEP_KEYS.map((_, i) => (
+                    {STEP_KEYS.map((key, i) => (
                         <button
                             key={i}
                             onClick={() => setActiveStep(i)}
+                            // Emoji-only button — screen readers announce the raw
+                            // emoji ("broccoli") with no step context. Use the
+                            // step title as the accessible name (Round 14).
+                            aria-label={t(`steps.${key}.title`)}
+                            aria-pressed={activeStep === i}
                             className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all duration-300 ${activeStep === i
                                 ? `${STEP_COLORS[i]} text-white scale-110 shadow-lg`
                                 : 'bg-white/80 hover:bg-white shadow-sm'

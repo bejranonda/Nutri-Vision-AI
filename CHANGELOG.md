@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 14 (backlog burn-down) — security, resilience, schema, a11y (PR #81)
+
+Worked the tracked follow-ups from KNOWN_ISSUES that were achievable without external credentials or product decisions:
+
+| # | Item | What shipped |
+|---|---|---|
+| 1 | Admin throttling (KNOWN_ISSUES 0b) | All four `/api/admin/*` mutation routes rate-limit at 30/min per IP; route-wiring suite pins all **ten** throttled routes |
+| 2 | Chat Gemini cascade | `callGemini` only ever called `GEMINI_VISION_MODELS[0]` despite the documented walk — the exact single-hardcoded-id outage mode the cascade exists to prevent. Now walks the list (skip on 404/429, fail-fast on 5xx, per-model timeout split) and reports the answering model in `modelUsed`. The old test pin asserted the `[0]` shortcut; replaced with cascade-walk pins + 4 behavioural tests |
+| 3 | CSP (long-deferred round-3 follow-up) | `Content-Security-Policy-Report-Only` on every HTML response: origin allowlist (self + Cloudflare Insights), `data:`/`blob:` images, `frame-ancestors 'none'`. `'unsafe-inline'` remains for script/style pending nonce work. Preview e2e run doubled as the violation scan — zero violations across all 99 cases |
+| 4 | Duplicate middleware | Removed the root `middleware.ts` that duplicated `src/middleware.ts` with a hardcoded locale list (drift trap). Build + full locale-routing e2e verified |
+| 5 | FK indexes (KNOWN_ISSUES follow-up #4) | Migration `0004_fk_user_id_indexes.sql`: secondary indexes on `sessions/code_redemptions/food_scans/chat_messages.user_id` + matching Drizzle `index()` definitions. **Remote D1 apply still pending** — this environment has no CF credentials; merger runs `npx wrangler d1 migrations apply eatinorder-db --remote` |
+| 6 | Demo a11y | Emoji-only step-navigator buttons get localized `aria-label` + `aria-pressed` |
+
+**Test posture:** frontend unit **193/193** (+8), e2e 99 cases (98 green against the branch preview — the one "failure" is the spec correctly asserting `deployment.branch === 'main'`, which a branch preview can't satisfy), backend 129/129, ESLint 0 errors.
+
+
 ### UX-audit Round 13 (login intent, error localization, CI resurrection) — review + fix pass (PR #80)
 
 Continuation round on the user's standing brief ("review deeply, anything to improve? … repeat iterations till no error and good feedback"). Baseline before changes: 97/97 e2e green against production, 171/171 unit, type-check + i18n clean. The round hunted what green suites can't see — and found that one of the suites itself was fiction.

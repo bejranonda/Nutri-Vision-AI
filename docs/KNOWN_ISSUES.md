@@ -75,7 +75,7 @@ This document lists currently identified bugs, limitations, and ongoing technica
   - **`/admin/scans`** — recent scans across all users, filtered by `errorClass` / `modelUsed`. Useful for spotting AI-pipeline regressions but requires a read-only design decision on PII exposure (photos).
   - **`/admin/logs`** — tail of Cloudflare logs via the GraphQL API. Needs the Cloudflare Account API token surfaced as a Pages secret.
   - **Audit table** — right now `[ADMIN_ACTION]` entries live only in the CF log stream. Persisting them to a dedicated `admin_actions` table would give a queryable audit trail. Requires a schema migration + retention policy.
-  - **Rate limit on `/api/admin/*`** — same gap as the public routes (see item 2). Admin routes are gated by auth, so the blast radius is smaller, but brute-forcing a stolen admin cookie would still benefit from throttling.
+  - **Rate limit on `/api/admin/*`** — ✅ closed Round 14: all four admin mutation routes throttle at 30/min per IP, pinned by the route-wiring suite in `tests/rate-limit.test.ts`.
 - **Plan**: split into one PR per item so each ships with its own risk review.
 
 ### 1. Retire legacy SHA-256 password-hash fallback
@@ -90,9 +90,9 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Status**: Every prompt change (e.g. `sourcePhotoIndex` addition in PR #8) ships to 100% of traffic without measurement. The only "validation" is manual spot-check by the developer.
 - **Plan**: offline eval harness with ~20 labelled collage fixtures. `npm run eval` scores the current prompt's output (schema compliance + dish count + index range) against the baseline. Runs in CI on any change to `lib/ai-prompt.ts` — fails the PR if regression > 5%.
 
-### 4. DB indexes on foreign-key columns
-- **Status**: `sessions.user_id` and `code_redemptions.user_id` are foreign-key columns but lack explicit secondary indexes, so queries like "all sessions for user X" or "all redemptions for user X" full-scan. Acceptable at today's scale but will bite when the user base grows.
-- **Plan**: add two `CREATE INDEX` statements in a follow-up migration. Non-destructive — can ship anytime.
+### 4. DB indexes on foreign-key columns — ✅ migration shipped (Round 14), ⏳ remote apply pending
+- **Status**: migration `0004_fk_user_id_indexes.sql` adds secondary indexes on `sessions.user_id`, `code_redemptions.user_id`, `food_scans.user_id`, and `chat_messages.user_id` (all `IF NOT EXISTS`, purely additive), with matching `index()` definitions in `src/db/schema.ts`.
+- **Remaining step**: the Round-14 environment had no Cloudflare credentials, so the migration is **not yet applied to remote D1**. Whoever next has `frontend/.env.local` set up must run `npx wrangler d1 migrations apply eatinorder-db --remote` (ITERATION_PROCESS §7). The app works identically before the apply — indexes only change query plans.
 
 ---
 
@@ -243,7 +243,9 @@ Introduced Playwright as a real-browser test layer. Ran a structured iteration l
 
 ### Content-Security-Policy not yet set on HTML responses (May 2026 round 3 follow-up)
 
-**Status**: round-3 UX audit shipped `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` (PR #34). CSP was deliberately deferred.
+**Status update (Round 14)**: `Content-Security-Policy-Report-Only` now ships on every HTML response (next.config.js `headers()`), pinning the origin allowlist (self + Cloudflare Insights; data:/blob: images; frame-ancestors none). `script-src`/`style-src` still carry `'unsafe-inline'` pending the nonce work below — that, plus dropping `-Report-Only` after a quiet window, is what remains.
+
+**Original context**: round-3 UX audit shipped `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` (PR #34). CSP was deliberately deferred.
 
 **Why deferred**: Next.js emits inline `<style>` blocks for critical CSS, and the dev-mode HMR client uses `unsafe-eval`. A meaningful CSP would need:
 1. A nonce-or-hash strategy for the inline styles (Next.js supports `nonce` via `headers()` callback but it's per-request, which complicates static export and edge caching).
