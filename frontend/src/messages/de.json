@@ -514,6 +514,7 @@
     "challenge_text": "Scanne eine Mahlzeit und folge der Esssequenz perfekt",
     "challenge_reward": "+50 Punkte",
     "upgrade_cta": "Alle Funktionen mit Premium freischalten",
+    "upgrade_subtitle": "฿{price}/Monat – unbegrenzte Scans + alle 8 Score-Dimensionen",
     "trial_expires": "Testversion läuft in {days} Tagen ab",
     "scan_now": "Scan starten",
     "chat_card_title": "Coach Shinny",

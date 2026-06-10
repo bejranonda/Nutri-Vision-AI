@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Scan, Flame, Award, Sparkles, Star, ChevronRight, LogOut, Utensils, LayoutDashboard, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
-import { TIER_LIMITS } from '@/lib/tier-config';
+import { TIER_LIMITS, TIER_PRICING } from '@/lib/tier-config';
+import { getScanHistory, type ScanHistoryEntry } from '@/lib/scan-history';
 import { logger } from '@/lib/logger';
 
 export default function DashboardPage() {
@@ -14,10 +15,23 @@ export default function DashboardPage() {
     const tNav = useTranslations('nav');
     const tCommon = useTranslations('common');
     const tGamify = useTranslations('gamification');
+    const tScan = useTranslations('scan');
+    const tAuth = useTranslations('auth');
     const locale = useLocale();
     const router = useRouter();
 
     const { user, isAuthenticated, authChecked, initAuth, logout } = useAuthStore();
+
+    // Real device-local scan history (written by the scan flow via
+    // lib/scan-history). Read in an effect — localStorage doesn't exist
+    // during prerender. Round 13: this section previously rendered
+    // hardcoded mock entries (Pad Thai / Som Tam / Green Curry, fake
+    // scores, 'Today') whenever scansThisMonth > 0 — invented data
+    // presented as the user's own meals.
+    const [recentScans, setRecentScans] = useState<ScanHistoryEntry[]>([]);
+    useEffect(() => {
+        setRecentScans(getScanHistory().slice(0, 3));
+    }, []);
 
     // Probe the session on mount. The dashboard used to have no SiteHeader
     // and never called initAuth itself, so a hard-load relied on bouncing
@@ -91,7 +105,7 @@ export default function DashboardPage() {
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${tierBadgeColors[tier]}`}>
                             {tCommon(tier)}
                         </span>
-                        <button onClick={() => { logout(); router.push(`/${locale}`); }} className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-red-50 transition-all" title="Logout">
+                        <button onClick={() => { logout(); router.push(`/${locale}`); }} className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-red-50 transition-all" title={tAuth('logout')} aria-label={tAuth('logout')}>
                             <LogOut className="w-4 h-4 text-gray-500" />
                         </button>
                     </div>
@@ -184,27 +198,36 @@ export default function DashboardPage() {
                     </div>
                 </Link>
 
-                {/* Recent Scans (empty state) */}
+                {/* Recent Scans — real entries from the device-local scan
+                    history. History is per-device (localStorage), so a user
+                    who scanned on another device sees the empty state here;
+                    that's honest, unlike the mock entries this replaced. */}
                 <div className="backdrop-blur-md bg-white/80 rounded-3xl p-6 shadow-glass mb-8">
                     <h3 className="font-bold text-gray-800 mb-4">{t('recent_scans')}</h3>
-                    {user.scansThisMonth === 0 ? (
+                    {recentScans.length === 0 ? (
                         <div className="text-center py-8">
                             <Utensils className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <p className="text-gray-500">{t('no_scans')}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {/* Mock recent scan entries */}
-                            {Array.from({ length: Math.min(user.scansThisMonth, 3) }).map((_, i) => (
-                                <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-                                    <div className="w-12 h-12 bg-brand-primary-100 rounded-xl flex items-center justify-center text-xl">
-                                        {['🍜', '🥗', '🍛'][i % 3]}
+                            {recentScans.map((scan) => (
+                                <div key={scan.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+                                    {scan.thumbnail ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={scan.thumbnail} alt={scan.foodName} className="w-12 h-12 rounded-xl object-cover" />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-brand-primary-100 rounded-xl flex items-center justify-center text-xl" aria-hidden="true">
+                                            🍽️
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-800 text-sm truncate">{scan.foodName}</p>
+                                        <p className="text-xs text-gray-500">{tScan('score_label')}: {scan.overallScore}/100</p>
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-gray-800 text-sm">{['Pad Thai', 'Som Tam', 'Green Curry'][i % 3]}</p>
-                                        <p className="text-xs text-gray-500">Score: {[61, 82, 68][i % 3]}/100</p>
-                                    </div>
-                                    <span className="text-xs text-gray-400">Today</span>
+                                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                                        {new Date(scan.timestamp).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -216,7 +239,7 @@ export default function DashboardPage() {
                     <Link href={`/${locale}/pricing`} className="block backdrop-blur-md bg-gradient-to-r from-brand-primary-50 to-brand-secondary-50 rounded-3xl p-6 shadow-glass text-center hover:-translate-y-1 transition-all">
                         <Star className="w-8 h-8 text-brand-primary-500 mx-auto mb-2" />
                         <p className="font-bold text-brand-primary-600">{t('upgrade_cta')}</p>
-                        <p className="text-sm text-gray-500 mt-1">THB 199/month → {tCommon('unlimited')} scans + 8-dimension scores</p>
+                        <p className="text-sm text-gray-500 mt-1">{t('upgrade_subtitle', { price: String(TIER_PRICING.premium.monthly) })}</p>
                     </Link>
                 )}
             </div>

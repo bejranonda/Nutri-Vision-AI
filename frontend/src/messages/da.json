@@ -514,6 +514,7 @@
     "challenge_text": "Scan et måltid og følg spisesekvensen perfekt",
     "challenge_reward": "+50 point",
     "upgrade_cta": "Lås alle funktioner op med Premium",
+    "upgrade_subtitle": "฿{price}/måned – ubegrænsede scanninger + alle 8 score-dimensioner",
     "trial_expires": "Prøveperiode udløber om {days} dage",
     "scan_now": "Start dit scan",
     "chat_card_title": "Coach Shinny",

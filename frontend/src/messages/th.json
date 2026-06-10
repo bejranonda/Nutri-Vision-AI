@@ -514,6 +514,7 @@
     "challenge_text": "สแกนมื้ออาหารและกินตามลำดับที่ถูกต้อง",
     "challenge_reward": "+50 คะแนน",
     "upgrade_cta": "ปลดล็อกทุกฟีเจอร์ด้วย Premium",
+    "upgrade_subtitle": "฿{price}/เดือน — สแกนไม่จำกัด + คะแนนครบ 8 มิติ",
     "trial_expires": "ทดลองหมดอายุในอีก {days} วัน",
     "scan_now": "เริ่มสแกนเลย",
     "chat_card_title": "โค้ชชินนี่",
