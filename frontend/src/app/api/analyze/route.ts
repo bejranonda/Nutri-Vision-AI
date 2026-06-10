@@ -588,6 +588,37 @@ export async function POST(req: NextRequest) {
                 durationMs: aiDurationMs
             });
 
+            // Persist a metadata-only failure row so /admin/scans can
+            // surface AI-pipeline regressions (KNOWN_ISSUES 0b). The
+            // errorClass column existed since the schema's first cut but
+            // nothing ever wrote it — failures were only visible in the
+            // ephemeral CF log stream. Best-effort: a DB hiccup here must
+            // never mask the real 503 the user is about to receive.
+            try {
+                if (db) {
+                    const msg = String(aiError.message ?? '');
+                    const errorClass =
+                        msg === 'AI_BINDING_MISSING' ? 'binding_missing'
+                        : /abort|timeout|timed out/i.test(msg) ? 'timeout'
+                        : /json|parse/i.test(msg) ? 'parse_error'
+                        : 'provider_error';
+                    await db.insert(foodScans).values({
+                        id: generateId(),
+                        userId: activeUser?.id ?? null,
+                        imageUrl: null,
+                        detectedItems: [],
+                        nutritionSummary: {},
+                        scoreOverall: null,
+                        modelUsed: null,
+                        scanMode,
+                        errorClass,
+                        createdAt: new Date(),
+                    });
+                }
+            } catch (persistErr: any) {
+                logger.scanApiStage('FAILURE_ROW_PERSIST_ERROR', { requestId, error: persistErr.message });
+            }
+
             if (aiError.message === 'AI_BINDING_MISSING') {
                 return jsonResponse({
                     error: 'AI not available',
