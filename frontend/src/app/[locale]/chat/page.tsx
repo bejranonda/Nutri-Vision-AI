@@ -161,7 +161,11 @@ export default function ChatPage() {
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          setError(body?.error || t('error_generic'));
+          // Always show the localized generic line — server error strings
+          // are English diagnostics, not user copy (Round 13). Keep the
+          // raw detail in the console for debugging.
+          console.warn('chat send failed', res.status, body?.error);
+          setError(t('error_generic'));
           // Mark this user turn as failed so the retry button shows up.
           setTurns((prev) => {
             const updated = [...prev];
