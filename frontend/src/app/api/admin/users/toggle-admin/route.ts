@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { jsonResponse } from '@/lib/api-response';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '@/db';
@@ -25,6 +26,12 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Per-IP rate limit: 30/min. Admin routes are session+is_admin
+  // gated, but a stolen admin cookie shouldn't allow unthrottled
+  // scripting of mutations (KNOWN_ISSUES 0b follow-up, Round 14).
+  const rl = await rateLimit(req, { routeLabel: 'admin-users-toggle-admin', limit: 30, windowMs: 60_000 });
+  if (!rl.allowed) return tooManyResponse(rl);
+
   const gate = await requireAdminApi();
   if ('response' in gate) return gate.response;
   const actingAdmin = gate.user;
