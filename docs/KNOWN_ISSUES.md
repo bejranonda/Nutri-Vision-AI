@@ -82,9 +82,9 @@ This document lists currently identified bugs, limitations, and ongoing technica
 - **Status**: `lib/crypto.ts` currently accepts two hash formats: the new `iterations:salt:hash` PBKDF2 shape written by `hashPassword()` *and* a legacy bare-hex SHA-256 fallback for pre-PBKDF2 accounts. The fallback is cryptographically weak and should be removed once every active account has been re-hashed.
 - **Plan**: after a 30-day observation window measuring the `legacy_hash_observed` counter, ship a migration that (a) emails any remaining legacy users a forced password reset and (b) deletes the fallback branch. Regression tests in `frontend/tests/crypto.test.ts` currently *verify* the fallback works; those tests should be deleted in the same PR.
 
-### 2. Rate limiting on auth & scan endpoints
-- **Status**: `/api/auth/login`, `/register`, `/analyze`, `/promo/redeem` have **no rate limit**. An attacker can brute-force passwords or abuse the expensive Gemini path without throttling. Cloudflare Pages has built-in Rate Limiting rules but nothing is wired up.
-- **Plan**: edge helper `lib/rate-limit.ts` using `caches.default` as an ephemeral per-IP sliding window (no new deps). Apply per-route policies: login 5/15min, register 3/15min, analyze 20/min, promo/redeem 5/min. Return 429 with a `Retry-After` header.
+### 2. Rate limiting on auth & scan endpoints — ✅ closed (Round 13)
+- **Status**: all six abuse-relevant routes now call `rateLimit()` from `lib/rate-limit.ts` (module-scoped Map primary store — see the resolved `caches.default` entry below): login 10/15min, register + voucher-check + chat (pre-existing), and as of Round 13 **analyze 20/min** and **promo/redeem 5/min**. The wiring is CI-pinned by `tests/rate-limit.test.ts → rateLimit route wiring`, which walks each route source — so this list can no longer silently drift from reality (this very entry was stale for two rounds: it claimed login/register were unthrottled after they'd been wired).
+- **Remaining**: cross-instance coordination for distributed multi-PoP attackers (tracked under "Ongoing Follow-ups" in `ITERATION_PROCESS.md §6`).
 
 ### 3. Empirical prompt evaluation
 - **Status**: Every prompt change (e.g. `sourcePhotoIndex` addition in PR #8) ships to 100% of traffic without measurement. The only "validation" is manual spot-check by the developer.

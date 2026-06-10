@@ -8,9 +8,21 @@ import { generateId } from '@/lib/crypto';
 import { sessions } from '@/db/schema';
 import { getEnv } from '@/lib/cloudflare';
 import { PromoRedeemRequest, zodFailure } from '@/lib/schemas';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 
 
 export async function POST(req: NextRequest) {
+    // Per-IP rate limit: 5 redemption attempts/min. The route is
+    // session-gated, but a logged-in attacker could still enumerate
+    // promo codes by brute force — /api/voucher/check already throttles
+    // the anonymous path; this closes the authenticated one.
+    const rl = await rateLimit(req, {
+        routeLabel: 'promo-redeem',
+        limit: 5,
+        windowMs: 60_000,
+    });
+    if (!rl.allowed) return tooManyResponse(rl);
+
     try {
         const rawBody = await req.json().catch(() => null);
         // Bound the code length up-front so a client can't DoS the DB

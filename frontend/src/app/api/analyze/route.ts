@@ -13,6 +13,7 @@ import { buildLocalizedPrompt, validateAiResponse, validateMultiDishResponse, va
 import { extractBase64Data, decodeBase64ToBytes } from '@/lib/utils';
 import { AnalyzeRequest, zodFailure } from '@/lib/schemas';
 import { GEMINI_VISION_MODELS } from '@/lib/ai-providers';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 
 /** Safely parse JSON from AI response — tries direct parse first, then regex extraction */
 function safeParseJson(raw: string): { parsed?: any; error?: Error } {
@@ -62,6 +63,19 @@ function validateImageBase64(imageBase64: string): { valid: boolean; error?: str
 }
 
 export async function POST(req: NextRequest) {
+    // Per-IP rate limit: 20 scans/min. This is the most expensive route
+    // in the app (Workers AI + Gemini quota per call); without a cap one
+    // IP can drain the day's free-tier AI budget. 20/min is far above any
+    // organic usage — a real user takes >3s per scan just uploading —
+    // while still throttling scripted abuse. Sits BEFORE the try/catch
+    // like every other rateLimit call site (the helper never throws).
+    const rl = await rateLimit(req, {
+        routeLabel: 'analyze',
+        limit: 20,
+        windowMs: 60_000,
+    });
+    if (!rl.allowed) return tooManyResponse(rl);
+
     const requestId = logger.generateRequestId();
     const requestStartTime = Date.now();
     let currentPhase = 'INIT';
