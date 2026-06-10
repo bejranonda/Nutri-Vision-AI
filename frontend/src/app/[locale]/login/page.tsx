@@ -184,7 +184,11 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center p-4">
+        {/* pt-28 clears the absolutely-positioned SiteHeader — without it
+            the vertically-centered card slides under the header bar and
+            the card's icon renders half-clipped (visible on every mobile
+            screenshot, Round 13). */}
+        <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-brand-primary-50 via-white to-brand-secondary-50 flex flex-col items-center justify-center px-4 pb-4 pt-28">
             {/* Background blobs */}
             <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-brand-primary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float"></div>
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
