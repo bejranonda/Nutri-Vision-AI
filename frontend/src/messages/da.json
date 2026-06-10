@@ -93,6 +93,9 @@
     "upload_too_large": "Det foto er for stort ({mb} MB) – grænsen er 15 MB.",
     "upload_skipped": "Sprang {n} fil(er) over, som ikke var understøttet eller var for store.",
     "timeout_message": "Analysen tager for lang tid. Prøv igen med et enklere foto.",
+    "error_quota": "Du har brugt alle dine scanninger i denne måned. Opgrader for at fortsætte!",
+    "error_rate_limited": "Mange scanninger på kort tid – vent et minut og prøv igen.",
+    "error_overloaded": "Shinnys AI har travlt lige nu. Prøv igen om et øjeblik.",
     "low_confidence": {
       "title": "Shinny er ikke sikker!",
       "message": "Dette ligner ikke mad, som jeg kan genkende tydeligt. Analysen nedenfor kan være unøjagtig. Prøv et nærmere, klarere foto."

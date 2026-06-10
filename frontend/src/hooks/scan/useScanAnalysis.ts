@@ -235,8 +235,21 @@ export function useScanAnalysis({ locale, tier, isDebugMode, setDebugData }: Use
             }
 
             if (!res.ok) {
-                const errMsg = data.message || data.error || `Server error (${res.status})`;
-                logger.scanError('api_response', new Error(errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
+                // Localize the failures a real user can actually hit:
+                // 403 = monthly tier quota exhausted, 429 = per-IP burst
+                // throttle, 503 = AI cascade exhausted. Everything else
+                // falls back to the server's (English) message — those
+                // are diagnostic shapes (400 invalid image after client
+                // compression, 500 with phase info) that mostly surface
+                // for operators, and the raw detail is worth more there
+                // than a generic translated line (Round 13).
+                const localizedByStatus: Record<number, string> = {
+                    403: t('error_quota'),
+                    429: t('error_rate_limited'),
+                    503: t('error_overloaded'),
+                };
+                const errMsg = localizedByStatus[res.status] || data.message || data.error || `Server error (${res.status})`;
+                logger.scanError('api_response', new Error(data.message || data.error || errMsg), { status: res.status, apiError: data.error, details: data.details, requestId: data.requestId, phase: data.phase });
                 if (data.requestId) setErrorRequestId(data.requestId);
                 
                 if (isDebugMode && data.failedJson) {

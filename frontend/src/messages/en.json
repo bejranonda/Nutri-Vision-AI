@@ -93,6 +93,9 @@
     "upload_too_large": "That photo is too big ({mb} MB) — the limit is 15 MB.",
     "upload_skipped": "Skipped {n} file(s) that were unsupported or too large.",
     "timeout_message": "Analysis is taking too long. Please try again with a simpler photo.",
+    "error_quota": "You've used all your scans for this month. Upgrade to keep scanning!",
+    "error_rate_limited": "Lots of scans in a short time — please wait a minute and try again.",
+    "error_overloaded": "Shinny's AI is under heavy load right now. Please try again in a moment.",
     "low_confidence": {
       "title": "Shinny isn't sure!",
       "message": "This doesn't look like food I recognize clearly. The analysis below might be inaccurate. Try a closer, clearer photo."
