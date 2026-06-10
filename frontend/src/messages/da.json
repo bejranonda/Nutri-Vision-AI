@@ -504,7 +504,8 @@
       "a3": "Vi accepterer PromptPay, kredit-/debitkort, TrueMoney Wallet og Rabbit LINE Pay.",
       "q4": "Er der studierabat?",
       "a4": "Ja! Studerende får Premium til specialpris på 999 THB/år."
-    }
+    },
+    "promo_login_first": "Log venligst ind først for at indløse en kode."
   },
   "dashboard": {
     "welcome": "Velkommen tilbage",

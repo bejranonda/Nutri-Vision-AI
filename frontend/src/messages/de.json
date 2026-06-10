@@ -504,7 +504,8 @@
       "a3": "Wir akzeptieren PromptPay, Kredit-/Debitkarten, TrueMoney Wallet und Rabbit LINE Pay.",
       "q4": "Gibt es einen Studentenrabatt?",
       "a4": "Ja! Studenten erhalten Premium zum Sonderpreis von 999 THB/Jahr."
-    }
+    },
+    "promo_login_first": "Bitte melde dich zuerst an, um einen Code einzulösen."
   },
   "dashboard": {
     "welcome": "Willkommen zurück",

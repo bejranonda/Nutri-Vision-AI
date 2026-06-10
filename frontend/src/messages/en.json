@@ -504,7 +504,8 @@
       "a3": "We accept PromptPay, credit/debit cards, TrueMoney Wallet, and Rabbit LINE Pay.",
       "q4": "Is there a student discount?",
       "a4": "Yes! Students get Premium at a special rate of THB 999/year. Contact us with your student ID."
-    }
+    },
+    "promo_login_first": "Please log in first to redeem a code."
   },
   "dashboard": {
     "welcome": "Welcome back",

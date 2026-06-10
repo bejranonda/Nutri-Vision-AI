@@ -29,7 +29,8 @@ export default function PricingPage() {
     async function handlePromo() {
         if (!promoInput.trim()) return;
         if (!isAuthenticated) {
-            setPromoMsg(locale === 'th' ? 'กรุณาเข้าสู่ระบบก่อน' : 'Please login first');
+            // Was a th/en-only ternary — de/da users got English (Round 13).
+            setPromoMsg(t('promo_login_first'));
             setPromoOk(false);
             return;
         }
@@ -38,7 +39,12 @@ export default function PricingPage() {
         setPromoMsg(result.message);
     }
 
-    const currentTier = user?.subscriptionTier || 'free';
+    // Only a logged-in user HAS a current plan. The old fallback treated
+    // anonymous visitors as free-tier members, so the Starter card showed
+    // a dead "Current Plan" chip to people with no account at all —
+    // confusing first-impression copy (Round 13). Anonymous visitors now
+    // get the "Get Started" CTA into registration instead.
+    const currentTier = isAuthenticated ? (user?.subscriptionTier || 'free') : null;
 
     const tiers = [
         {
