@@ -67,7 +67,8 @@
         "description": "Optjen point, hold streaks og level op dine spisevaner"
       }
     },
-    "free_no_signup": "Gratis · Ingen oprettelse nødvendig for at prøve"
+    "free_no_signup": "Gratis · Ingen oprettelse nødvendig for at prøve",
+    "gamify_preview_note": "Eksempel — begynd at scanne og optjen din egen stime og dine egne point!"
   },
   "scan": {
     "title": "Scan Din Mad",

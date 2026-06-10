@@ -67,7 +67,8 @@
         "description": "Earn points, maintain streaks, and level up your eating habits"
       }
     },
-    "free_no_signup": "Free · No signup needed to try"
+    "free_no_signup": "Free · No signup needed to try",
+    "gamify_preview_note": "Example preview — start scanning to earn your own streak and points!"
   },
   "scan": {
     "title": "Scan Your Food",

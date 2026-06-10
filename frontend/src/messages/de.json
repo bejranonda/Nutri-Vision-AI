@@ -67,7 +67,8 @@
         "description": "Sammle Punkte, halte Streaks und steige in deinen Essgewohnheiten auf"
       }
     },
-    "free_no_signup": "Kostenlos · Kein Konto nötig zum Ausprobieren"
+    "free_no_signup": "Kostenlos · Kein Konto nötig zum Ausprobieren",
+    "gamify_preview_note": "Beispiel-Vorschau – starte mit dem Scannen und sammle deine eigene Serie und Punkte!"
   },
   "scan": {
     "title": "Essen scannen",

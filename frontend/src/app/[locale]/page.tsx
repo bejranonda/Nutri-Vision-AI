@@ -204,6 +204,9 @@ export default function HomePage() {
               <p className="text-sm text-gray-500">{tGamify('level')}</p>
             </div>
           </div>
+          {/* Honesty caption (Round 13): without it, anonymous visitors
+              read these example numbers as real account stats. */}
+          <p className="text-center text-xs text-gray-400 mt-4">{t('gamify_preview_note')}</p>
         </div>
       </section>
 
