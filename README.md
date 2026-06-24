@@ -8,6 +8,8 @@
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
 [![CI](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/bejranonda/Nutri-Vision-AI/actions/workflows/ci.yml)
 
+<img width="1338" height="633" alt="image" src="https://github.com/user-attachments/assets/d74b4daa-020b-42a8-a144-0c9e3adcd542" />
+
 ## What is Shinny Guide?
 
 Shinny Guide is an AI-powered food sequencing app that helps you eat Thai food (and any cuisine) in the right order to reduce blood sugar spikes by up to **70%**\* . Based on real science — eat **Veggies → Protein → Carbs → Sweets**.
