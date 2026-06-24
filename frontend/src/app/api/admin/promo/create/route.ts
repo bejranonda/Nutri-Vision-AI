@@ -2,6 +2,8 @@
  * POST /api/admin/promo/create — insert a new promo code.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { getDb } from '@/db';
 import { promoCodes } from '@/db/schema';
@@ -44,6 +46,12 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Per-IP rate limit: 30/min. Admin routes are session+is_admin
+  // gated, but a stolen admin cookie shouldn't allow unthrottled
+  // scripting of mutations (KNOWN_ISSUES 0b follow-up, Round 14).
+  const rl = await rateLimit(req, { routeLabel: 'admin-promo-create', limit: 30, windowMs: 60_000 });
+  if (!rl.allowed) return tooManyResponse(rl);
+
   const gate = await requireAdminApi();
   if ('response' in gate) return gate.response;
   const actingAdmin = gate.user;
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(() => null);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+    return jsonResponse(zodFailure(parsed.error), { status: 400 });
   }
   const input = parsed.data;
 
@@ -59,7 +67,7 @@ export async function POST(req: NextRequest) {
   try {
     env = await getEnvSafe();
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
   const db = getDb(env);
 
@@ -104,18 +112,18 @@ export async function POST(req: NextRequest) {
       hasExpiry: !!expiresAt,
       hasNotes: !!input.notes,
     });
-    return NextResponse.json({ ok: true, code: upperCode, scope: input.scope });
+    return jsonResponse({ ok: true, code: upperCode, scope: input.scope });
   } catch (e: any) {
     // Unique-constraint on promo_codes.code means the code already exists —
     // return a specific 409 so the admin knows to pick a different string.
     const msg = String(e?.message || '');
     if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: `Code "${upperCode}" already exists` },
         { status: 409 },
       );
     }
     logger.error('[ADMIN_ACTION] promo create failed', { e });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 }

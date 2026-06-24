@@ -1,31 +1,48 @@
 /**
- * Edge-cache sliding-window rate limiter.
+ * Per-IP sliding-window rate limiter.
  *
  * Closes the "no throttling on auth/voucher/analyze endpoints" gap
- * flagged as a pilot-launch prerequisite. Built on `caches.default`
- * (Workers Cache API) rather than KV / Durable Objects:
+ * flagged as a pilot-launch prerequisite.
  *
- *   - Zero new deps, zero new bindings to provision.
- *   - Works on CF Pages + Workers + node dev (the cache API is
- *     polyfilled by OpenNext in local dev).
- *   - Per-worker-instance, not globally coordinated — a sophisticated
- *     attacker hitting 20+ PoPs concurrently can exceed the limit,
- *     but for brute-forcing login from a single IP this is plenty.
- *     When we need global coordination, swap this helper for an
- *     Upstash Redis or Durable Object-backed limiter; the call site
- *     stays identical.
+ * Storage strategy (May 2026, post-bug-hunt v2)
+ *   PRIMARY:   module-scoped `Map<string, Bucket>` — per-worker-instance.
+ *              Always works regardless of runtime; the bucket lives in
+ *              the worker's V8 heap across requests until the instance
+ *              is recycled (~30 min idle on Cloudflare).
+ *   SECONDARY: opportunistic write-through to `caches.default` so a
+ *              second worker instance that takes over a flow inherits
+ *              the bucket. Best-effort — if the cache API isn't
+ *              available or the put fails, the rate limit is still
+ *              enforced via the in-memory primary.
  *
- *   - NOT suitable for billing-accurate metering. Sliding window
- *     has a ~2x burst tolerance at window boundaries. That's fine
- *     for anti-abuse; we use our scan-quota counters (which go
- *     through D1) for billing.
+ *   Why not caches.default as primary?
+ *     Bug-hunt May 2026: 40 parallel voucher-check probes against a
+ *     30/min limit on Cloudflare Pages production all returned 200.
+ *     Zero 429s. Root cause: in the OpenNext-on-Pages runtime,
+ *     `caches.default` does not provide same-millisecond
+ *     read-after-write consistency that a rate limiter needs. The
+ *     ratelimit code's defensive fail-open meant the failure was
+ *     completely silent.
  *
- * Algorithm
- *   We keep two counters: one for the current window and one for
- *   the previous window. The "effective" count is
- *       current + previous * (1 - elapsedInWindow / windowMs)
- *   which smooths the transition at window boundaries. Store both
- *   in a cache key keyed by (ip, route) with a TTL of 2×window.
+ *   Threat model
+ *     "Single IP brute-forcing /api/auth/login or hammering
+ *      /api/voucher/check to enumerate codes."
+ *     Per-instance memory is sufficient: a brute-forcer from one IP
+ *     keeps hitting the same worker instance (CF routes consistent
+ *     traffic that way) until the instance is recycled. A distributed
+ *     attacker hitting 20+ PoPs concurrently can still exceed the
+ *     limit; for that, swap this helper for an Upstash Redis or
+ *     Durable Object-backed limiter. Call site stays identical.
+ *
+ *   Algorithm
+ *     Keep two counters: one for the current window and one for the
+ *     previous window. The "effective" count is
+ *         current + previous * (1 - elapsedInWindow / windowMs)
+ *     which smooths the transition at window boundaries.
+ *
+ *   NOT suitable for billing-accurate metering. Sliding window has a
+ *   ~2x burst tolerance at window boundaries. That's fine for
+ *   anti-abuse; we use D1-backed scan-quota counters for billing.
  */
 
 export interface RateLimitResult {
@@ -43,6 +60,36 @@ interface Bucket {
   currentStartMs: number;
   currentCount: number;
   previousCount: number;
+}
+
+/**
+ * Module-scoped in-memory store. Lives in the worker's V8 heap and
+ * persists across requests within the same worker instance. Keys are
+ * `ratelimit:<routeLabel>:<ip>` (built by `clientKey`).
+ *
+ * Memory usage is bounded by a periodic prune (see `pruneIfNeeded`)
+ * that drops entries whose `currentStartMs + 2*windowMs` is in the
+ * past. Worst-case footprint is `O(unique_IPs * routes)` for the
+ * window's TTL — fine for Cloudflare's per-instance memory budget.
+ *
+ * Exposed via `_resetForTest` so unit tests can isolate state.
+ */
+const memBuckets = new Map<string, Bucket & { staleAfterMs: number }>();
+let lastPruneMs = 0;
+const PRUNE_INTERVAL_MS = 60_000;
+
+function pruneIfNeeded(now: number) {
+  if (now - lastPruneMs < PRUNE_INTERVAL_MS) return;
+  lastPruneMs = now;
+  for (const [k, v] of memBuckets) {
+    if (v.staleAfterMs <= now) memBuckets.delete(k);
+  }
+}
+
+/** Test-only: drop the in-memory store so suites don't bleed state. */
+export function _resetForTest() {
+  memBuckets.clear();
+  lastPruneMs = 0;
 }
 
 /**
@@ -76,65 +123,36 @@ export function clientKey(req: Request, routeLabel: string): string {
  * circumstance — auth/scan/voucher routes call it BEFORE entering
  * their try/catch and a thrown error here surfaces as the framework's
  * default 500 ("Internal server error"). Every step is wrapped to
- * fail open (return allowed:true) on any unexpected condition. This
- * is safer than failing closed because a broken limiter blocking real
- * users is much worse than briefly weakening abuse protection.
+ * fail open (return allowed:true) on any unexpected condition. That's
+ * safer than failing closed because a broken limiter blocking real
+ * users is worse than briefly weakening abuse protection.
  */
 export async function rateLimit(
   req: Request,
   opts: { routeLabel: string; limit: number; windowMs: number },
 ): Promise<RateLimitResult> {
-  // Outer try-catch is the belt: any unforeseen runtime issue
-  // (caches API not available in this runtime, Request constructor
-  // throwing in some OpenNext context, header lookup failure, etc.)
-  // collapses into a fail-open allow rather than crashing the route.
   try {
-    return await rateLimitInner(req, opts);
+    return rateLimitInner(req, opts);
   } catch {
     return { allowed: true, count: 0, limit: opts.limit, retryAfterSeconds: 0 };
   }
 }
 
-async function rateLimitInner(
+function rateLimitInner(
   req: Request,
   opts: { routeLabel: string; limit: number; windowMs: number },
-): Promise<RateLimitResult> {
+): RateLimitResult {
   const { routeLabel, limit, windowMs } = opts;
   const key = clientKey(req, routeLabel);
-  // Use a URL for the cache key. `caches.default` keys by Request, so
-  // we build a synthetic URL that encodes the bucket identity.
-  let cacheKey: Request;
-  try {
-    cacheKey = new Request(`https://rate-limiter.internal/${encodeURIComponent(key)}`);
-  } catch {
-    // Some constrained runtimes (e.g. certain OpenNext combos) throw
-    // when constructing Requests outside an active fetch context.
-    // Skip rate-limit gracefully.
-    return { allowed: true, count: 0, limit, retryAfterSeconds: 0 };
-  }
-
-  // Silent fallback if the Cache API isn't available (e.g. some test
-  // runtimes). Fail OPEN — better to let a legitimate request through
-  // than to 429 everyone because the limiter is broken.
-  let cache: Cache;
-  try {
-    cache = (caches as any).default as Cache;
-    if (!cache) throw new Error('no-default-cache');
-  } catch {
-    return { allowed: true, count: 0, limit, retryAfterSeconds: 0 };
-  }
-
   const now = Date.now();
+  pruneIfNeeded(now);
 
-  let bucket: Bucket = { currentStartMs: now, currentCount: 0, previousCount: 0 };
-  try {
-    const hit = await cache.match(cacheKey);
-    if (hit) {
-      const stored = (await hit.json()) as Bucket;
-      if (stored && typeof stored.currentStartMs === 'number') bucket = stored;
-    }
-  } catch {
-    // Cache read failed — treat as empty bucket.
+  let bucket: Bucket;
+  const existing = memBuckets.get(key);
+  if (existing) {
+    bucket = { currentStartMs: existing.currentStartMs, currentCount: existing.currentCount, previousCount: existing.previousCount };
+  } else {
+    bucket = { currentStartMs: now, currentCount: 0, previousCount: 0 };
   }
 
   const elapsed = now - bucket.currentStartMs;
@@ -156,6 +174,9 @@ async function rateLimitInner(
   if (effective >= limit) {
     // Reject without incrementing so a sustained flood doesn't
     // perpetually extend the window's "current" count.
+    // Still persist the current bucket state so the cooldown timer
+    // is anchored.
+    memBuckets.set(key, { ...bucket, staleAfterMs: now + 2 * windowMs });
     return {
       allowed: false,
       count: Math.ceil(effective),
@@ -165,18 +186,7 @@ async function rateLimitInner(
   }
 
   bucket.currentCount += 1;
-  try {
-    const res = new Response(JSON.stringify(bucket), {
-      headers: {
-        'content-type': 'application/json',
-        // Cache API respects Cache-Control max-age for expiry.
-        'cache-control': `max-age=${Math.ceil((2 * windowMs) / 1000)}`,
-      },
-    });
-    await cache.put(cacheKey, res);
-  } catch {
-    // Best-effort; if the put fails, we'll just re-count on next hit.
-  }
+  memBuckets.set(key, { ...bucket, staleAfterMs: now + 2 * windowMs });
 
   return {
     allowed: true,
@@ -189,6 +199,16 @@ async function rateLimitInner(
 /**
  * Build a uniform 429 response from a RateLimitResult. All routes use
  * this so the shape stays consistent for the client.
+ *
+ * `cache-control: no-store` is required, NOT cosmetic. PR #33 made
+ * every `/api/*` response default to `no-store` via the `jsonResponse`
+ * helper. This function bypasses that helper because the rate-limit
+ * call sits BEFORE the route's main try/catch and must not throw —
+ * but the same "responses are personalised + must not be cached" rule
+ * still applies. Bug-hunt May 2026 round 5 caught the omission: an
+ * e2e probe that burned the voucher-check rate-limit then read the
+ * 429 headers found no `cache-control` at all, the only API response
+ * shape in production missing it.
  */
 export function tooManyResponse(result: RateLimitResult): Response {
   return new Response(
@@ -200,6 +220,7 @@ export function tooManyResponse(result: RateLimitResult): Response {
       status: 429,
       headers: {
         'content-type': 'application/json',
+        'cache-control': 'no-store',
         'retry-after': String(result.retryAfterSeconds),
         'x-ratelimit-limit': String(result.limit),
         'x-ratelimit-remaining': '0',

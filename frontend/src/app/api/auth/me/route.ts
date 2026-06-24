@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users, sessions } from '@/db/schema';
 import { getSessionToken } from '@/lib/session';
@@ -10,8 +11,18 @@ export async function GET(req: NextRequest) {
     try {
         const token = await getSessionToken();
 
+        // `/api/auth/me` is a SESSION PROBE, not a gated resource. Every
+        // page runs it on mount via SiteHeader's initAuth(), so for the
+        // (very common) anonymous first-time visitor it fires on the
+        // homepage too. Returning 401 here made the browser log
+        // "Failed to load resource: 401" to the console on every
+        // anonymous page load — caught by the e2e smoke suite as a
+        // console error on all 4 locales. "Who am I?" with no session is
+        // a valid question with a valid answer (nobody), so we answer
+        // 200 { authenticated: false, user: null }. Genuinely gated
+        // endpoints (dashboard data, admin) still 401/403.
         if (!token) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+            return jsonResponse({ authenticated: false, user: null }, { status: 200 });
         }
 
         const env = await getEnv();
@@ -29,7 +40,7 @@ export async function GET(req: NextRequest) {
             ).limit(1);
 
         if (activeSessions.length === 0) {
-            return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
+            return jsonResponse({ authenticated: false, user: null }, { status: 200 });
         }
 
         const session = activeSessions[0];
@@ -55,7 +66,10 @@ export async function GET(req: NextRequest) {
         const user = foundUsers[0];
 
         if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            // Valid session token but the user row is gone (deleted while
+            // the session was live). Treat as not-authenticated rather
+            // than 404 — same probe semantics, no console error.
+            return jsonResponse({ authenticated: false, user: null }, { status: 200 });
         }
 
         // Helper to check if trial is expired to quickly downgrade if necessary
@@ -66,7 +80,7 @@ export async function GET(req: NextRequest) {
             // await db.update(users).set({ subscriptionTier: 'free' }).where(eq(users.id, user.id));
         }
 
-        return NextResponse.json({
+        return jsonResponse({
             user: {
                 id: user.id,
                 email: user.email,
@@ -82,7 +96,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         // Server-side only — never return error.message to the client.
         console.error('Session retrieval error:', error);
-        return NextResponse.json(
+        return jsonResponse(
             { error: 'Internal server error' },
             { status: 500 }
         );

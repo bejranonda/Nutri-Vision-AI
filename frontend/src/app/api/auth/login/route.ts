@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getDb } from '@/db';
 import { users } from '@/db/schema';
 import { verifyPassword } from '@/lib/crypto';
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         // can assume `email` and `password` are non-empty sanitised strings.
         const parsed = LoginRequest.safeParse(rawBody);
         if (!parsed.success) {
-            return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+            return jsonResponse(zodFailure(parsed.error), { status: 400 });
         }
         const { email, password } = parsed.data;
 
@@ -59,13 +60,13 @@ export async function POST(req: NextRequest) {
         const user = foundUsers[0];
 
         if (!user || !(await verifyPassword(password, user.hashedPassword!))) {
-            return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+            return jsonResponse({ error: 'Invalid email or password', reason: 'invalid_credentials' }, { status: 401 });
         }
 
         // Create a new session and HTTP-Only cookie
         await createSession(env, user.id);
 
-        return NextResponse.json({
+        return jsonResponse({
             user: {
                 id: user.id,
                 email: user.email,
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         // Server-side only — never return error.message to the client.
         console.error('Login error:', error);
-        return NextResponse.json(
+        return jsonResponse(
             { error: 'Internal server error' },
             { status: 500 }
         );

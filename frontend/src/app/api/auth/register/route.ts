@@ -18,6 +18,7 @@
  * rapid-fire account spam once a valid code IS known.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { users, promoCodes, codeRedemptions } from '@/db/schema';
@@ -49,9 +50,12 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.json().catch(() => null);
     const parsed = RegisterRequest.safeParse(rawBody);
     if (!parsed.success) {
-      return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+      return jsonResponse(zodFailure(parsed.error), { status: 400 });
     }
-    const { email, password, displayName, voucherCode } = parsed.data;
+    const { email, password, displayName, voucherCode, locale } = parsed.data;
+    // Server-side default keeps backward compat with older clients
+    // (and the e2e-probe accounts the test harness creates).
+    const language = locale ?? 'th';
 
     const env = await getEnv();
     const db = getDb(env);
@@ -67,7 +71,7 @@ export async function POST(req: NextRequest) {
     const voucherGateOn = voucherRequired(env);
     if (voucherGateOn || voucherCode) {
       if (!voucherCode) {
-        return NextResponse.json(
+        return jsonResponse(
           { error: 'A voucher code is required to register during the pilot.', reason: 'voucher_required' },
           { status: 400 },
         );
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
         // Mirror /api/voucher/check shape so the UI can render the
         // same localised message regardless of which endpoint
         // surfaced the rejection.
-        return NextResponse.json(
+        return jsonResponse(
           { error: 'Invalid voucher', reason: voucherRow.reason },
           { status: 400 },
         );
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
       .where(eq(users.email, email))
       .limit(1);
     if (existingUsers.length > 0) {
-      return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+      return jsonResponse({ error: 'Email already in use', reason: 'email_in_use' }, { status: 409 });
     }
 
     // ── 3. Hash password + derive tier from voucher ───────────────
@@ -133,7 +137,7 @@ export async function POST(req: NextRequest) {
         subscriptionTier,
         trialExpiresAt,
         promoSource,
-        language: 'th',
+        language,
         scansThisMonth: 0,
         streakDays: 0,
         totalPoints: 0,
@@ -142,7 +146,7 @@ export async function POST(req: NextRequest) {
     } catch (insertErr: any) {
       const msg = String(insertErr?.message || '');
       if (/unique constraint|sqlite_constraint|already exists/i.test(msg)) {
-        return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+        return jsonResponse({ error: 'Email already in use', reason: 'email_in_use' }, { status: 409 });
       }
       throw insertErr;
     }
@@ -185,7 +189,7 @@ export async function POST(req: NextRequest) {
     // ── 5. Session cookie, then respond ───────────────────────────
     await createSession(env, userId);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         user: { id: userId, email, displayName, subscriptionTier, trialExpiresAt },
         message: 'Registered successfully',
@@ -194,7 +198,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: any) {
     console.error('Registration error:', error);
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'Internal server error' },
       { status: 500 },
     );

@@ -5,6 +5,8 @@
  * ones in place (the trial is already granted to those users).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
+import { rateLimit, tooManyResponse } from '@/lib/rate-limit';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '@/db';
@@ -20,6 +22,12 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Per-IP rate limit: 30/min. Admin routes are session+is_admin
+  // gated, but a stolen admin cookie shouldn't allow unthrottled
+  // scripting of mutations (KNOWN_ISSUES 0b follow-up, Round 14).
+  const rl = await rateLimit(req, { routeLabel: 'admin-promo-toggle', limit: 30, windowMs: 60_000 });
+  if (!rl.allowed) return tooManyResponse(rl);
+
   const gate = await requireAdminApi();
   if ('response' in gate) return gate.response;
   const actingAdmin = gate.user;
@@ -27,7 +35,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(() => null);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(zodFailure(parsed.error), { status: 400 });
+    return jsonResponse(zodFailure(parsed.error), { status: 400 });
   }
   const { id, isActive } = parsed.data;
 
@@ -35,14 +43,14 @@ export async function POST(req: NextRequest) {
   try {
     env = await getEnvSafe();
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
   const db = getDb(env);
 
   const existing = await db.select({ id: promoCodes.id, code: promoCodes.code })
     .from(promoCodes).where(eq(promoCodes.id, id)).limit(1);
   if (existing.length === 0) {
-    return NextResponse.json({ error: 'Promo code not found' }, { status: 404 });
+    return jsonResponse({ error: 'Promo code not found' }, { status: 404 });
   }
 
   try {
@@ -52,9 +60,9 @@ export async function POST(req: NextRequest) {
       code: existing[0].code,
       isActive,
     });
-    return NextResponse.json({ ok: true, isActive });
+    return jsonResponse({ ok: true, isActive });
   } catch (e) {
     logger.error('[ADMIN_ACTION] promo toggle failed', { e });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return jsonResponse({ error: 'Internal server error' }, { status: 500 });
   }
 }

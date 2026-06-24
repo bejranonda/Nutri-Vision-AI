@@ -7,6 +7,658 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UX-audit Round 14 (backlog burn-down) — security, resilience, schema, a11y (PR #81)
+
+Worked the tracked follow-ups from KNOWN_ISSUES that were achievable without external credentials or product decisions:
+
+| # | Item | What shipped |
+|---|---|---|
+| 1 | Admin throttling (KNOWN_ISSUES 0b) | All four `/api/admin/*` mutation routes rate-limit at 30/min per IP; route-wiring suite pins all **ten** throttled routes |
+| 2 | Chat Gemini cascade | `callGemini` only ever called `GEMINI_VISION_MODELS[0]` despite the documented walk — the exact single-hardcoded-id outage mode the cascade exists to prevent. Now walks the list (skip on 404/429, fail-fast on 5xx, per-model timeout split) and reports the answering model in `modelUsed`. The old test pin asserted the `[0]` shortcut; replaced with cascade-walk pins + 4 behavioural tests |
+| 3 | CSP (long-deferred round-3 follow-up) | `Content-Security-Policy-Report-Only` on every HTML response: origin allowlist (self + Cloudflare Insights), `data:`/`blob:` images, `frame-ancestors 'none'`. `'unsafe-inline'` remains for script/style pending nonce work. Preview e2e run doubled as the violation scan — zero violations across all 99 cases |
+| 4 | Duplicate middleware | Removed the root `middleware.ts` that duplicated `src/middleware.ts` with a hardcoded locale list (drift trap). Build + full locale-routing e2e verified |
+| 5 | FK indexes (KNOWN_ISSUES follow-up #4) | Migration `0004_fk_user_id_indexes.sql`: secondary indexes on `sessions/code_redemptions/food_scans/chat_messages.user_id` + matching Drizzle `index()` definitions. **Remote D1 apply still pending** — this environment has no CF credentials; merger runs `npx wrangler d1 migrations apply eatinorder-db --remote` |
+| 6 | Demo a11y | Emoji-only step-navigator buttons get localized `aria-label` + `aria-pressed` |
+
+**Test posture:** frontend unit **193/193** (+8), e2e 99 cases (98 green against the branch preview — the one "failure" is the spec correctly asserting `deployment.branch === 'main'`, which a branch preview can't satisfy), backend 129/129, ESLint 0 errors.
+
+
+### UX-audit Round 13 (login intent, error localization, CI resurrection) — review + fix pass (PR #80)
+
+Continuation round on the user's standing brief ("review deeply, anything to improve? … repeat iterations till no error and good feedback"). Baseline before changes: 97/97 e2e green against production, 171/171 unit, type-check + i18n clean. The round hunted what green suites can't see — and found that one of the suites itself was fiction.
+
+**Headline finding — CI had never passed.** Every run of `ci.yml`, including on `main`, failed since the workflow shipped in Round 11. With no branch protection enforcing the check, the red lights ran unnoticed for a month while `ITERATION_PROCESS.md §2` listed CI as a must-pass gate. Two independent infra bugs:
+
+1. Frontend job pointed `cache-dependency-path` (and `npm ci`) at `frontend/package-lock.json` — a file that doesn't exist; npm workspaces hoists the only lockfile to the repo root. setup-node failed in ~10 s on every run.
+2. Backend `requirements.txt` pinned `pydantic==2.5.0` next to `pydantic-settings>=2.3.0` — every release in that range needs pydantic≥2.7.0, so pip's resolver correctly refused (`ResolutionImpossible`).
+
+Fixed both (install at repo root; `pydantic>=2.7.0,<3`, validated in a clean venv — 129/129 backend tests pass). PR #80 carries the **first fully green CI run in the repo's history**. Process lesson recorded in `ITERATION_PROCESS.md`: a gate that nobody watches is not a gate — "CI added" is only true once a run has been seen green.
+
+**User-facing fixes:**
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | Header CTA labelled "Log in" (and auth-gate redirects from /dashboard, /chat) landed on the **Register** tab — "Create your account" for users who clicked "Log in" | `/login?mode=login` honoured from intent-bearing entry points; register default unchanged for fresh-visitor CTAs. Pinned both ways by 2 new e2e cases |
+| 2 | `/api/analyze` (the most expensive route) and `/api/promo/redeem` had **no per-IP rate limit** — and the KNOWN_ISSUES entry tracking this was stale in the opposite direction | Wired per the documented plan (analyze 20/min, promo/redeem 5/min); new `rateLimit route wiring` test suite walks all six route sources so the throttled list is a CI-pinned invariant, not a doc claim |
+| 3 | Server auth errors rendered raw English in all locales — a Thai pilot user registering without a voucher saw "A voucher code is required to register during the pilot." verbatim | auth-store derives a stable `errorCode` (server `reason` preferred — login 401/register 409 now carry one — status-class fallback); login page maps codes to new `auth.server_errors.*` strings (th/en/de/da, Shinny voice). `res.json()` hardened on error paths — the suspected crash class behind KNOWN_ISSUES 2a |
+| 4 | Scan-flow rejections hardcoded English: upload errors ("Unsupported format: …"), quota/overload/throttle failures (403/503/429), history labels ("Menu Scan", "+ N more") | All localized in 4 locales (`scan.upload_*`, `scan.error_quota/overloaded/rate_limited`, `scan.history_*`); history labels resolved at write time |
+| 5 | Dashboard "Recent Scans" rendered **fabricated mock entries** (Pad Thai / Som Tam / Green Curry, fake scores, "Today") whenever the server counter was > 0 — while real device-local history sat unused | Renders up to 3 real `lib/scan-history` entries (thumbnail, name, localized score label, locale-formatted date); honest empty state otherwise. Upgrade-CTA subtitle de-hardcoded (price now read from `TIER_PRICING`); logout button localized |
+| 6 | Auth card's brand icon rendered half-clipped behind the floating header on every mobile load | Top padding clears the absolutely-positioned header before vertical centering |
+| 7 | Collage stitcher single-survivor path returned `validImages[0]` — the broken image, whenever the first photo was the one that failed to load | Returns the survivor's source by index |
+| 8 | Minor: `pricing.score_breakdown.free_badge` untranslated in th/de/da; chat UI could surface raw English server diagnostics; dead identical-branch ternary in pricing | All fixed |
+
+**Final test posture this round:**
+- Frontend unit: **185/185** ✓ (+14: deriveErrorCode rules, errorCode store lifecycle, rate-limit route wiring)
+- Frontend e2e: **99 cases** (+2: `?mode=login` honoured / register default preserved) — full suite run against production post-merge
+- Backend unit: 129/129 ✓ — now actually verified in CI on every PR, for the first time
+
+
+### UX-audit Round 12 (full user-journey e2e) — automated real-user walkthrough against production
+
+User asked: "can we test as a real user for the whole user journey." This round added a fifth testing lens: a single Playwright spec (`frontend/tests/e2e/user-journey.spec.ts`, PRs #76–#78) that drives the production app the way a real user would — through the rendered UI, not API probes — in four independent phases:
+
+| Phase | What it drives | Terminal assertion |
+|---|---|---|
+| 1. Landing + locale switch | `/th` → `/en` navigation, hreflang graph (4 locales + x-default) | `<html lang>` flips, zero fatal console errors |
+| 2. Scan flow | Sets a generated 256×256 PNG on the real `<input type=file>`, clicks the rendered "Analyze Now" CTA, waits for the Workers AI → Gemini cascade | Meal result, not-food card, **or** handled-error card visible — never a stuck spinner (own 180s budget for cold-start cascades) |
+| 3. Auth round-trip | Fills + submits the real register form with a fresh unique email, no voucher | Live `voucher_required` 400 contract pinned; **fails if the Next.js client error boundary engages** (crash observed twice during development) |
+| 4. Recipes / chat / dashboard | Hard-loads each route | Own UI or clean auth-redirect, zero fatal console errors |
+
+**What building the spec itself surfaced** (the journey lens earns its seat):
+- **Intermittent client-side crash after `/api/auth/register` response** — Next.js error boundary ("Application error: a client-side exception has occurred") engaged twice during spec development, then stopped reproducing. The server contract was correct each time (400 `voucher_required`); the client crashed handling it. Pinned by a sentinel assertion in phase 3; tracked in `KNOWN_ISSUES.md`.
+- **Silent sub-500-byte file rejection** — `useScanUpload.ts` drops files under `MIN_FILE_SIZE` with only an `uploadError` state, no analyze CTA ever appears. Correct behaviour, but invisible to a naive test (and to a user with a tiny image). The fixture is generated with LCG noise specifically to defeat deflate and clear the floor.
+- **Duplicate-text button trap on `/login`** — the register *tab* and register *submit* share the same Thai label ("สมัครสมาชิก"), so `getByRole('button', { name })` + `.first()` re-clicks the tab. The spec pins to `button[type=submit]`.
+- **Benign console-noise classes documented**: Next.js RSC-prefetch fallback under parallel load ("Failed to fetch RSC payload … Falling back to browser navigation" — router recovers), the scan logger's own `console.error` instrumentation for handled cascade timeouts, and cold-start 404 resource retries. Shared `isBenignConsoleError()` filter with rationale per pattern (#78 de-flaked phases 1–2 under full-suite parallel load after standalone runs were green).
+- **Cold-path validation**: one run exercised the full analyze-timeout path — the UI correctly rendered the friendly Thai handled-error card ("การวิเคราะห์ใช้เวลานานเกินไป") with a retry CTA rather than crashing.
+
+**Side-effect budget per run** (documented in the spec header): 1 vision-model call (the noise PNG routes to the `not_food` branch — input-token cost only) + 1 registration attempt rejected by voucher gating (no DB row, no cleanup).
+
+**Final test posture this round:**
+- Frontend unit: 171/171 ✓
+- Frontend e2e: **97/97** ✓ (+4 journey phases; full suite verified twice, ~1.1 min per run)
+- Backend unit: 129/129 ✓
+
+### UX-audit Round 11 (comprehensive depth) — CI + Web Vitals + a11y + schema audit
+
+User asked to "try as much as iterations to validate and improve comprehensively." Hit 7 audit angles this round, shipped 5 PRs that turned up real wins.
+
+| # | Audit angle | Finding | PR |
+|---|---|---|---|
+| 1 | **CI workflow** | No GitHub Actions on the repo; backend went 6 weeks unverified (Round 9 found 3 latent failures). Resolved the "what is the backend for?" ambiguity I'd punted for two rounds: it's the canonical reference impl (`nutrition_scorer.py` is the 536-line algorithmic spec) — keep + add CI. | #70 |
+| 2 | **Web Vitals** | Homepage FCP at **2272ms** ⚠ and `/scan` at 2100ms ⚠ (threshold 1800ms). Root cause: `Prompt` (5 weights) + `Plus Jakarta Sans` Google fonts loaded on every page with **zero consumers** — no `font-display` / `font-thai` Tailwind class anywhere, no CSS-variable usage. Removed both. After: home FCP **620ms** (−73%), scan FCP **372ms** (−82%); total page bytes down ~110kB. | #71 |
+| 3 | **Deep a11y** | 5 of 6 public pages had no `<main>` landmark; scan/pricing had unlabeled inputs. WCAG 2.1 AA failure — screen-reader users had no "skip past nav to content" target on every page. Wrapped page content in `<main>`, added aria-label to hidden file inputs + the pricing promo input. New permanent suite guards (15/15 a11y tests pass). | #72 |
+| 4 | **WebKit/Safari** | All 6 pages render cleanly on WebKit/iPhone 13 — title, h1, zero console errors. **No findings.** | — |
+| 5 | **Interaction-time console** | Zero notable messages across 7 user-action stages (locale switch, nav, type credentials, switch tab, expand disclosure). **No findings.** | — |
+| 6 | **i18n quality** | 35 heuristic flags reviewed; all defensible (brand terms, marketing tier names, borrowed English in DE/DA). **No findings.** | — |
+| 7 | **Schema audit** | `users.language` was being hardcoded to `'th'` on register regardless of registration locale — latent (currently unread) but wrong data. Also flagged `users.healthInfo` + `users.usageTracking` as truly dead columns (no readers, no writers); documented in KNOWN_ISSUES for a future migration. | #73 |
+
+**Final test posture this round:**
+- Frontend unit: 171/171 ✓ (+2)
+- Frontend e2e: 93/93 ✓ (+6 — the new a11y main-landmark guards)
+- Backend unit: 129/129 ✓
+- CI runs on every PR going forward
+- Web Vitals: all 6 public pages now under "good" threshold for FCP
+
+Released as **v2.1.13**.
+
+### UX-audit Round 10 (mobile + perf hygiene) — driving the rendered UI
+
+After Round 9's static dead-code sweep, this round drove the actual rendered UI: a real-photo scan walkthrough through the upload affordance (not just probing `/api/analyze`), authed surfaces with a session cookie, and a 3×5 mobile-viewport matrix.
+
+| Finding | Where | PR |
+|---|---|---|
+| Global avatar preload fired on every page in the locale layout, but only the homepage uses the base `shinny_avatar.png` (other pages use `_explaining/_celebrating/_confused/_analyzing` variants) → browser logged "preloaded but not used" on 4 of 5 pages + wasted ~40KB per page | `app/[locale]/layout.tsx` | #67 |
+| `/pricing` "Apply Code" button overflowed iPhone-SE viewport by ~24px — the classic flex `min-width: auto` trap when an `<input>` sits next to a `whitespace-nowrap` button | `pricing/page.tsx` | #68 |
+| Stale e2e assertion that *required* the avatar preload (from before #67); needed inverting + correcting | `responsive-perf.spec.ts` | #68 + this PR |
+
+**Found but NOT a code bug:** during the UI scan walkthrough, `/api/analyze` returned the **Cloudflare Llama 3.2 11B fallback** result (score 50, "Shinny isn't sure!", zero-filled nutrition) instead of the higher-quality Gemini response — because Google Gemini was returning *503 "This model is currently experiencing high demand"* during the audit. External Google outage, not our code. The fallback chain *worked* (user gets *some* result rather than 503). Current UI copy ("AI analysis failed" on full exhaustion) is correct, just bland; leaving as-is.
+
+**Other audit observations (not bugs):**
+- Zero no-op `onClick` handlers, zero `href="#"` placeholders, zero TODO/FIXME/HACK comments in the source tree.
+- Only 2 `console.warn` calls — both in legitimate error catches.
+- Decorative `bg-brand-*-400/20` blobs on the homepage extend past the viewport, but the outer wrapper has `overflow-hidden` → clipped, no actual scroll.
+- 414px and 768px viewports show no overflow on any anonymous page.
+
+**Final test posture this round:**
+- Frontend unit: 169/169 ✓
+- Frontend e2e: **87/87** ✓ (was 80; +9 new guards: 4 mobile-overflow + 4 no-preload + 1 anonymous-probe)
+- Backend unit: 129/129 ✓
+
+Released as **v2.1.12**.
+
+### UX-audit Round 9 (unwired-element audit) — frontend + backend dead-code sweep
+
+User asked: "no unwired function and element in frontend and backend." A static audit (export → import callers, t-key → source references, tier-flag → consumer queries, model → endpoint usage) found a cluster of dead code shipped across earlier rounds.
+
+| Finding | Where | PR |
+|---|---|---|
+| `GradientButton`, `GlassCard` — 0 callers; referenced a stale brand palette (`BrandOrange/Magenta/Violet`) that doesn't match the live tokens | `src/components/ui/` (whole dir) | #63 |
+| `cn()` helper + `clsx` + `tailwind-merge` deps — only used by the two deleted components | `src/lib/utils.ts`, `package.json` | #63 |
+| `isFeatureAvailable` (twice — standalone in tier-config + method on auth-store), `canScan`, `canAskAI` — all defined, zero callers (quota enforcement is server-side) | `tier-config.ts`, `auth-store.ts` | #63 |
+| 25 orphan i18n keys × 4 locales (~100 strings): PR #51 leftovers, never-wired aspirational labels, superseded duplicates, pre-AI-pipeline scan stubs | `messages/{th,en,de,da}.json` | #63 |
+| `FavoriteRecipe`, `DailyTip` SQLAlchemy models — defined but no endpoint queries them; back-refs on Recipe/User pointed at nothing | `backend/app/models/` | #64 |
+| `requirements.txt` pinned `python-cors==1.0.0` — package doesn't exist on PyPI; `pip install` failed outright (FastAPI's `CORSMiddleware` is already used) | `backend/requirements.txt` | #65 |
+| passlib 1.7.4 vs bcrypt 4.x incompatibility — `AttributeError: module 'bcrypt' has no attribute '__about__'` broke 3/129 tests on fresh install | `backend/requirements.txt` | #65 |
+
+Deliberately **kept** (aspirational placeholders for documented roadmap features): `mascot.{encourage,celebrate,walking,upf_alert}`, `profile.*`, `gamification.achievements.*`, `recipes.dietary.*`, `learn.quiz`. They map to features in README + PROJECT_PLAN; removing them means re-translating later.
+
+**Final test posture this round:**
+- Frontend unit: 169/169 ✓
+- Backend unit: **129/129** (was 126/129 — bcrypt fix gained 3) ✓
+- Frontend e2e: 80/80 ✓
+- 4/4 locales aligned at 216 keys each (was 240 — net -24)
+- `pip install -r backend/requirements.txt` now succeeds from a clean checkout (was failing on the phantom python-cors)
+
+Released as **v2.1.11**.
+
+### UX-audit Round 8 (end-user + professional-tester loop) — live-deploy verification
+
+Round 7 was a static fresh-user reading of the app. Round 8 ran the app for real: drove Playwright against the **live deploy**, completed a real-photo scan end-to-end, and audited the authenticated surfaces (dashboard, chat) with a session cookie — surfaces the anonymous walkthrough couldn't reach. This caught one live regression that had been shipped for several PRs, plus latent bugs.
+
+| Bug | Severity | How caught | PR |
+|-----|----------|-----------|----|
+| Anonymous visitors hit a `401` console error on **every** page (`SiteHeader` → `initAuth` → `/api/auth/me`, introduced by the Round-7 iter-3 header extraction) | Medium | Playwright e2e vs live deploy (4 failures) | #56 |
+| Homepage hero CTA said "Start Scanning" while dashboard/demo said "Start your scan" in EN/DE/DA — iter-2's canonicalization was left half-done | Low–Med | Fresh-user walkthrough | #57 |
+| Footer hardcoded "Version 2.1.7" vs `package.json` 2.1.9; `/api/health` reported "unknown" | Low | Version audit | #58 |
+| Locale-aware 404's anti-dead-end CTAs **dead-ended** — bare `/scan` 404s again, bare `/` drops the locale | Medium | Internal-link audit | #59 |
+| `/api/analyze` real-food probe ✓ (no bug — verified `gemini-2.5-flash` correctly IDs the dish, returns 8 dimensions + sequence) | — | AI-pipeline validation gate | — |
+| Flaky live rate-limit e2e (per-instance `Map` + CF request-spreading) | — | The 80-test run itself | #60 |
+| **`/chat` unreachable on hard-load/refresh/bookmark** for logged-in users — redirect race fired on the pre-probe `isAuthenticated === false`, bouncing `/chat → /login → /dashboard` | **High** (feature unreachable) | Authed walkthrough with session cookie | #61 |
+
+**Key lesson (stated bluntly in the round's own notes):** the `401` and the chat-unreachable bugs were both shipped because earlier rounds verified with "compiles + unit-green + string looks right" rather than running the e2e suite + walking the rendered/authed app. The moment Round 8 actually ran Playwright against the deploy and drove the authed surfaces, both surfaced immediately. **Running e2e against the deploy is a hard gate, not optional** — it's already in `ITERATION_PROCESS.md`; it just wasn't being honored on the Round-7 PRs.
+
+New regression guards: `tests/auth-store.test.ts` (5 cases pinning the `authChecked` probe lifecycle), e2e assertions for the anonymous `/api/auth/me` 200-probe contract and the in-locale 404 CTAs, and a de-flaked rate-limit probe.
+
+### UX-audit Round 7 (fresh-user loop) — 9 iterations focused on first-impression UX
+
+Round 6 was machine-driven (e2e probes catching machine-readable bugs: missing `htmlFor`, dropped headers, etc.). Round 7 inverted the lens: view the app as a first-time visitor with zero context — what looks broken, dishonest, or jargon-heavy? The 79-case e2e suite couldn't catch any of these because they're product/copy/IA decisions, not invariants.
+
+| Iter | Fresh-user pain | Shipped in |
+|------|------------------|-----------|
+| 1 | Login defaulted to *Log in* but most landing visitors haven't registered. Homepage didn't say "free / no signup". Scan didn't promise privacy. | PR #46 |
+| 2 | Three different primary CTAs across pages ("Start Scanning" / "Try Scan" / "Scan Now") read like a janky portfolio of half-finished features. | PR #47 |
+| 3 | Only the homepage had a real nav. Every other page degraded to a "Back to home" link — navigation predictability evaporated. | PR #48 |
+| 4 | `/recipes` was a bare "coming soon" stub with no Shinny voice and no escape route — read like a 503. | PR #48 |
+| 5 | "Full 8-dimension scoring" on the Premium card is opaque jargon. Fresh users have no way to know what's measured or where the free cutoff lands. | PR #49 |
+| 6 | Google/LINE social-login buttons LOOKED live but threw "coming soon" toasts on click — visual promise breaking from behaviour. | PR #50 |
+| 7 | Login page had TWO code-entry inputs visible at once (voucher + promo). Fresh users had no idea which one to use. | PR #51 |
+| 8 | Shinny avatar (40KB PNG) popped in late on every page that uses it — hero greeting visibly stuttered on mobile. | PR #52 |
+| 9 | Headline claim "Up to 70% blood sugar spike reduction" had no source. To a skeptical first-timer, indistinguishable from marketing fabrication. | PR #53 |
+
+**9 first-impression bugs caught by viewing the site as a fresh user that no automated suite could:**
+- Login flow defaulting to the wrong tab (`mode: 'login'` → `'register'`)
+- Unspoken objections: "is this free?" "do I need to sign up?" "what happens to my photo?"
+- Inconsistent CTAs across pages signaling product immaturity
+- Header-less secondary pages with no consistent navigation
+- Stub pages with no voice and no recovery
+- Jargon ("8-dimension scoring") presented without context
+- Fake/dishonest affordances (clickable but non-functional buttons)
+- Duplicate / competing input fields on the same screen
+- Unsubstantiated headline claims without citation
+- Late-loading mascot creating perceived performance issues
+
+**Pattern that emerged**: unit tests pin code invariants, e2e tests pin rendered behaviour, but neither lens catches *editorial* problems — copy that doesn't reflect what the product actually does, IA that confuses first-timers, claims that need citation. Those need a human (or AI) walking through the product with fresh eyes and the freedom to be brutal about what's broken.
+
+### UX-audit Round 6 (e2e loop) — 10 iterations of probe → fix → ship → verify
+
+Introduced Playwright as a second test layer (28 e2e cases initially → 79 across 5 spec files by the end) and ran a structured iteration loop. Each iteration: write/expand the e2e suite → run against live deploy → triage findings → ship fixes → wait for deploy → re-verify. Coverage converged after 10 iterations.
+
+| Iter | Probe | Real bugs caught | Fixed in |
+|------|-------|-----------------:|----------|
+| 1 | First Playwright run | Sandbox cert chain rejected | Config-only (`ignoreHTTPSErrors`) |
+| 2 | Smoke re-run | 0 — 17/17 green | — |
+| 3 | UI/UX suite | 1 — no hreflang alternates on any locale page | PR #41 |
+| 4 | Post-deploy verify | 0 | — |
+| 5 | Deep probes | 3 — email + password missing `autoComplete`; 429 responses missing `Cache-Control` | PR #42 |
+| 6 | Post-deploy verify | 0 | — |
+| 7 | A11y probes | 4 — hamburger + eye toggle missing `aria-label`; 5 inputs missing `htmlFor`/`id` linkage; no `color-scheme` declared | PR #43 |
+| 8 | Post-deploy verify | 1 — second voucher-like input (promo redeem) still unlabeled | PR #44 |
+| 9 | Responsive + perf | 1 — Cloudflare Insights script not whitelisted (legitimate; needed explicit acknowledgement) | PR #44 |
+| 10 | Full-suite verify | 0 — coverage converged | — |
+
+**10 real bugs caught by the e2e layer that the 164-case Vitest unit suite never could:**
+- Per-page `<link rel="alternate" hreflang>` missing (sitemap had them, page metadata didn't)
+- Login inputs without `autoComplete` (iOS Keychain / 1Password silently failed to fill)
+- 429 responses bypassing `jsonResponse` so `Cache-Control` dropped
+- Icon-only buttons (hamburger, eye-toggle) without accessible names
+- 5 visible `<label>` elements not programmatically linked to their inputs via `htmlFor`/`id`
+- Promo-redeem input on `/th/login` with no label association at all
+- No `color-scheme` declaration → native widgets clashed with brand palette on system-dark
+- CF Insights beacon flying under the third-party-script radar
+
+**Test totals**: 164 unit + 79 e2e = **243 total tests**. Unit suite stays in `npm run check:all` (~2s); Playwright is opt-in via `npm run test:e2e` (~25s, needs network).
+
+**Touched (across PRs #41–#44)**:
+- `playwright.config.ts` — new file. mobile viewport, `ignoreHTTPSErrors`, baseURL → prod.
+- `tests/e2e/smoke.spec.ts` — 17 cases pinning every architectural fix from PRs #21–#40.
+- `tests/e2e/ui-ux.spec.ts` — 11 cases for DOM-only surfaces.
+- `tests/e2e/deep-probes.spec.ts` — 20 cases for headers, headings, autocomplete, payload size, rate-limit behaviour.
+- `tests/e2e/a11y.spec.ts` — 9 cases for keyboard nav, icon-button names, focus indicators, label associations, lang attribute, color-scheme.
+- `tests/e2e/responsive-perf.spec.ts` — 12 cases for viewport breakpoints, payload caps, LCP preload, third-party script whitelist.
+- `src/app/[locale]/layout.tsx` — `metadata.alternates.languages` + `viewport.colorScheme: 'light'`.
+- `src/app/[locale]/login/page.tsx` — 6 inputs gained `id` + matching `htmlFor` on labels; `autoComplete` per mode; `aria-label` on eye toggle and promo input.
+- `src/app/[locale]/page.tsx` — hamburger gained `aria-label` + `aria-expanded`.
+- `src/lib/rate-limit.ts` — `tooManyResponse()` now sets `Cache-Control: no-store`.
+- `src/messages/{th,en,de,da}.json` — 3 new keys (`nav.open_menu`, `nav.close_menu`, `auth.toggle_password_visibility`) × 4 locales.
+- `package.json` — new scripts `test:e2e` + `test:e2e:report`; `@playwright/test` ^1.60.0.
+- `.gitignore` — Playwright artefact directories.
+
+**Pattern**: e2e is the layer that catches **"fix shipped but doesn't render correctly"** + **"surface exists but assistive tech can't use it"**. Unit tests pin source-code invariants (cheap); e2e pins rendered behaviour (medium-cost, ~25s, opt-in). Both have their place. The session-derived rule: **add an e2e probe BEFORE the next deploy cycle** when shipping any architectural change to the public surface — saves the 4-iteration spiral that PRs #34–#38 needed for the sitemap.
+
+### Added — Playwright e2e suite + hreflang alternates on every locale page
+
+UX-audit round 5 introduced a new test layer: **Playwright e2e against production**. Until now the test suite was Vitest source-level invariants only — `npm run check:all` was fast (~2s) but couldn't catch bugs that only appear in a real browser (DOM after hydration, network-layer 404s on referenced assets, console errors). 28 e2e tests now sit alongside the 163 unit tests.
+
+Within the first run, Playwright caught **a real bug** the unit suite missed:
+
+🐛 **No `<link rel="alternate" hreflang>` tags on any rendered HTML page**. The sitemap (`/sitemap.xml`) carries the locale alternates, but the per-page metadata didn't — so a crawler visiting `/th` couldn't see that `/en`, `/de`, `/da` are translations of the same content. `og:locale:alternate` covers Open Graph but not search-engine canonicalisation, which specifically needs the `rel=alternate` links.
+
+**Fix**: `app/[locale]/layout.tsx → metadata.alternates`:
+```ts
+alternates: {
+  canonical: '/th',
+  languages: {
+    th: '/th', en: '/en', de: '/de', da: '/da',
+    'x-default': '/th',   // primary launch locale
+  },
+}
+```
+
+`metadataBase` from PR #35 makes Next.js serialise these as absolute URLs.
+
+Other touches:
+- **`playwright.config.ts`** (new): `baseURL` defaults to production; mobile viewport (414×896, iPhone 11 Pro); Thai locale via `Accept-Language`; `ignoreHTTPSErrors: true` for sandbox containers that lack the public CA bundle (Node `request` works without it; Chromium needs the flag). NOT wired into `check:all` — too slow + needs network. Invoke explicitly via `npm run test:e2e`.
+- **`tests/e2e/smoke.spec.ts`** (new): 17 cases pinning every architectural fix this session has shipped — homepage renders without console errors across all 4 locales; favicon + apple-touch-icon resolve; og:image absolute URL; locale-aware 404 with native headlines (`หาหน้านี้ไม่พบ`, `Couldn't find that page`, …); sitemap.xml well-formed; security headers (X-Frame, Referrer-Policy); Cache-Control on every API route; `/api/health.deployment.shaShort` shape; zod 400 on `/api/auth/login`; scan page renders.
+- **`tests/e2e/ui-ux.spec.ts`** (new): 11 cases for surfaces the unit suite can't reach — locale-switcher round-trip; nav links resolve; `<img>` alt-text after hydration; zero broken images post-load; manifest icons all serve 200; login form empty-submit doesn't navigate to `/dashboard`; robots.txt has body; **canonical/hreflang present** (the failing test that surfaced the bug above).
+- **`package.json`**: new scripts `test:e2e` and `test:e2e:report`. `@playwright/test` ^1.60.0 in devDependencies.
+- **`.gitignore`**: Playwright artefact dirs (`test-results/`, `playwright-report/`, `playwright/.cache/`).
+
+**Pattern**: e2e is the layer that catches "fix shipped but doesn't render correctly" — exactly the class of bug that took 4 PRs (#34→#38) to nail down the sitemap. Future architectural changes get an e2e probe BEFORE the deploy validation cycle, so the next 4-iteration spiral takes 1 iteration instead.
+
+Project tests: **163 unit + 28 e2e = 191 total** (was 163).
+
+### Fixed — Browser tab icon was the default browser glyph because `src/app/icon.png` never served
+
+UX-audit round 3 documented this in `KNOWN_ISSUES.md` but didn't fix it: `/icon.png` and `/apple-icon.png` both 404'd in production. The 418KB PNG files lived in `src/app/` (App Router convention), but the OpenNext-on-Pages adapter never served them — likely the same convention-vs-static-asset split that bit `/sitemap.xml`.
+
+User-visible impact: every browser tab on `shinnyguide.autobahn.bot` showed the default browser globe/document icon instead of a brand mark. Mild but persistent UX scrappiness for the entire app surface.
+
+**Fix** — apply the established escalation rule from PR #38 (convention fails → move to `/public/*`):
+
+- **`frontend/public/favicon.svg`** — new 1KB hand-written SVG. Brand-primary-400 (`#ec7064`) rounded square + white capital "S" in `viewBox="0 0 256 256"`. Replaces the 418KB PNG that couldn't serve. Text-diffable in PRs; scales to every tab size without aliasing.
+- **`frontend/src/app/[locale]/layout.tsx`** — explicit `icons` block in `metadata`: `icon: '/favicon.svg'`, `apple: '/images/shinny_avatar.png'` (the avatar is already proven to serve via the og:image path; iOS expects raster for `apple-touch-icon`).
+- **`frontend/src/app/manifest.ts`** — icons array updated to reference the same paths (SVG + the avatar PNG for both `any` and `maskable` purpose).
+- **`frontend/src/app/icon.png` + `frontend/src/app/apple-icon.png`** — **deleted** (836KB total). The App Router convention proven unreliable for this adapter; explicit `/public/` paths are the working surface.
+- **`frontend/tests/seo-pwa.test.ts`** — 3 new cases: layout-metadata icons point at `/favicon.svg` + `/images/...`, manifest icons reject `/icon.png` and `/apple-icon.png`, `public/favicon.svg` exists with valid envelope + brand-colour token. **163/163 passing** (was 160/160).
+
+**Pattern**: applies the rule the session derived through PRs #34–#38. Convention surfaces are unreliable on OpenNext-on-Pages; `/public/*` files always serve. For brand assets that don't change request-by-request, ship as static files.
+
+### Fixed — Multi-photo scans always failed with "analysis taking too long" — client timeout was tighter than server budget
+
+User report (Thai): "เวลาใส่หลายรูป เจอแบบนี้ตลอด" (every multi-photo upload errors). Screenshot showed `การวิเคราะห์ใช้เวลานานเกินไป กรุณาลองอีกครั้งด้วยรูปที่ชัดกว่านี้` — the **client-side** abort copy, not the server's "AI under high load" 503. **No `Request ID`** on the error card, confirming the request never reached server-completion state.
+
+**Root cause**: structural mismatch between client and server timeouts.
+
+| Layer | Budget |
+|---|---|
+| Client fetch abort (`API_TIMEOUT_MS`) | **30 s** (hardcoded) |
+| Server cascade (`/api/analyze`) | Gemini 25 s + CF safety-net 20 s = **up to 45 s** |
+
+Single-photo scans typically finish in 7–10 s, so the 30 s client wall never triggered — the mismatch was invisible. **Multi-photo collages** run 18–25 s baseline (larger payload + longer AI parse for the stitched image), and when the Gemini cascade falls through to the CF safety-net, total response time routinely exceeds 30 s. **Client aborted on every multi-photo scan**, leaving the user with a misleading "taking too long" message even when the server had successfully completed the analysis a few seconds later.
+
+**Fix**: scale `API_TIMEOUT_MS` by photo count:
+
+```ts
+const API_TIMEOUT_MS = Math.min(
+  60_000,
+  30_000 + Math.max(0, uploadedImages.length - 1) * 12_000,
+);
+//  1 photo  → 30 s  (unchanged — preserves fast-fail UX for genuinely-broken requests)
+//  2 photos → 42 s  (covers Gemini → CF fall-through)
+//  3 photos → 54 s  (worst observed multi-photo end-to-end)
+//  4+       → 60 s  (clamped; >5s headroom above server's 45s cascade budget)
+```
+
+Touched:
+- `frontend/src/hooks/scan/useScanAnalysis.ts` — `API_TIMEOUT_MS` rewritten with the per-photo scale + cap. Inline comment records the user-report context, the server budget breakdown, and the per-photoCount mapping table so the next contributor doesn't shrink the cap below the cascade.
+- `frontend/tests/scan-timeout.test.ts` — **new test file**, 4 cases pinning: (a) hardcoded `30_000` is forbidden in live code, (b) formula references `uploadedImages.length`, (c) cap (60 s) stays ≥ 5 s above server budget (45 s), (d) base case (1 photo) preserves the 30 s wall. Project total: **160/160 tests passing** (was 156/156).
+
+**Pattern recognition**: this is structurally identical to PR #28's rate-limit bug — a "doesn't throw" safety wrapper masked the actual problem. Pre-fix, the hardcoded 30 s client timeout *worked* for 90 %+ of scans (single-photo) and silently failed for the remaining 10 % (multi-photo). Tests passed because no test exercised the multi-photo timing axis. **Adding the regression test makes the formula's intent visible**: the timeout must exceed server budget by 5 s, the formula must scale with photo count, the base case must preserve the fast-fail UX for single-photo. Any future contributor who reverts to a single fixed value re-introduces the bug and fails CI.
+
+### Fixed — `/sitemap.xml` still 404 after PR #37; switched to static file in `/public/`
+
+PR #37 moved the handler to `/api/sitemap` and added `next.config.js → rewrites()` to expose at `/sitemap.xml`. Post-deploy probing isolated the failure cleanly:
+
+```
+/api/sitemap   → 200, application/xml, 3587 bytes  ✓ handler works
+/sitemap.xml   → 404                               ✗ rewrite doesn't fire
+```
+
+**`next.config.js → rewrites()` doesn't run on OpenNext-on-Cloudflare-Pages**. Likely cause: Next.js compiles rewrites into Vercel-specific edge middleware that the OpenNext adapter doesn't translate. Four iterations on this surface (#34 convention → #36 dotted folder → #37 API + rewrite → now) is enough.
+
+**Fix**: drop the rewrite plumbing entirely. Ship `/public/sitemap.xml` as a static file. Cloudflare Pages serves `/public/*` reliably (already proven for `/images/shinny_avatar.png`). Loses dynamic generation; gains bulletproof serving.
+
+Touched:
+- `frontend/public/sitemap.xml` — **new static file**, 3587 bytes, same content as the dynamic handler produced. Update by hand when adding a locale or public path (`src/lib/i18n-config.ts → locales` change → regenerate this file).
+- `frontend/src/app/api/sitemap/` — **deleted**.
+- `frontend/next.config.js` — removed the `rewrites()` block (it doesn't run on the adapter).
+- `.gitignore` — carve-out for `frontend/public/sitemap.xml` (the existing `*.xml` rule matches by name).
+- `tests/seo-pwa.test.ts` — reads the static file directly via `readFileSync`. Same 5 invariants (well-formed envelope, home + scan entries, auth-gated routes excluded, hreflang for all 4 locales, absolute URLs). 156/156 passing.
+
+**Revised escalation rule** (this is now version 3 — the session has been honest about its own iterations):
+1. Try the Next.js convention file (`app/manifest.ts` ✓, `app/sitemap.ts` ✗).
+2. **Do NOT** try `app/<name>.<ext>/route.ts` — dotted-folder collision.
+3. **Do NOT** try `app/api/<name>/route.ts` + `rewrites()` — rewrites don't fire on this adapter.
+4. **DO** ship a static file in `/public/` if the content can be pre-rendered.
+
+The audit playbook in `GUIDELINE.md` is updated accordingly.
+
+### Fixed — `/sitemap.xml` still 404 after PR #36; moved handler to `/api/sitemap` behind a rewrite
+
+Post-deploy validation of PR #36 caught its sitemap fix didn't actually fix anything: `/sitemap.xml` continued returning 404 in production even after dropping the `app/sitemap.ts` convention for an explicit `app/sitemap.xml/route.ts` handler. The localised 404 page from the same PR shipped correctly (response carried `ขออภัย` / Shinny brand / 32KB body — vs the framework's 7.5KB default), but the sitemap stayed broken.
+
+Suspected cause: Next.js's `sitemap.{js,ts,xml,jsx,tsx}` special-filename recognition collides with a dotted folder name like `sitemap.xml/`. Either Next.js itself or the OpenNext-on-Cloudflare-Pages adapter ends up treating the folder as a malformed convention file and skips it during route registration. No build warning, no log entry — just a 404.
+
+Fix: move the handler to a non-dotted path that the adapter handles reliably (`/api/sitemap` — the most thoroughly-tested surface) and add a `next.config.js` rewrite so the public URL stays `/sitemap.xml`. Search engines and robots.txt links don't notice; the rewrite is transparent.
+
+Touched:
+- `src/app/api/sitemap/route.ts` — **new path**, identical handler logic moved from `src/app/sitemap.xml/route.ts`. Inline comment records PR #34 → #36 → this PR's iteration trail so the next person doesn't re-discover the dotted-folder trap.
+- `src/app/sitemap.xml/` — **deleted** (folder removed; `route.ts` moved as above).
+- `next.config.js` — added `rewrites()` mapping `/sitemap.xml` → `/api/sitemap`.
+- `.gitignore` — removed the PR #36 carve-out (`!frontend/src/app/sitemap.xml/`) since the folder no longer exists. Back to clean state.
+- `tests/seo-pwa.test.ts` — updated the sitemap test's import path to `@/app/api/sitemap/route`. No test logic changed. Project total: **158/158 passing**.
+
+Diagnostic note: PR #36's CHANGELOG entry promised "explicit `route.ts` always works on every adapter". That claim was wrong for dotted folder names. **Revised rule**: explicit `route.ts` only beats the convention when the folder path is alphanumeric — dotted paths still collide with Next.js's special-filename recognition. `/api/*` is the universally-safe location; pair with `rewrites()` for the public-facing URL.
+
+### Fixed — `/sitemap.xml` 404 + locale-aware 404 page not actually rendering (UX round 4 post-deploy validation)
+
+Round 4 (PR #35) shipped `app/sitemap.ts` (Next.js convention) and `app/[locale]/not-found.tsx`. Local tests passed; production probes after deploy showed two real-world failures:
+
+1. **`/sitemap.xml` → 404** in production, even though `/manifest.webmanifest` from the same Next.js convention family returned 200. OpenNext-on-Cloudflare-Pages handles the `manifest.ts` convention but silently drops the `sitemap.ts` one. No build error, no log entry — just a 404.
+2. **`/th/no-such-path` rendered the English framework default** (`<title>404: This page could not be found.</title>`, zero Thai chars, no `<html lang="th">`). The locale layout never executed — OpenNext was short-circuiting to a static 404 fallback before the segment chain could run.
+
+Both fixed by bypassing the adapter-fragile Next.js conventions and dropping to lower-level routing primitives that the adapter handles reliably:
+
+- **Sitemap**: deleted `src/app/sitemap.ts`; added `src/app/sitemap.xml/route.ts` — an explicit `GET` handler that returns the XML directly with `Content-Type: application/xml`. Same content, lower-level routing.
+- **Locale 404**: added `src/app/[locale]/[...slug]/page.tsx` — a catch-all server component that calls `notFound()`. Forces the locale segment to enter on any unmatched path under `/<locale>/...`. Next.js then renders the closest `not-found.tsx` — which is the localized one inside `[locale]/`. Sibling routes (`/th/scan`, `/th/login`, …) still take precedence over the catch-all by Next.js's specificity rules.
+
+Touched:
+- `src/app/sitemap.ts` — **deleted**.
+- `src/app/sitemap.xml/route.ts` — **new file**, explicit `GET` handler building the XML by hand. Defensive `xmlEscape()` for the `&`-in-URL case.
+- `src/app/[locale]/[...slug]/page.tsx` — **new file**, two-line catch-all that calls `notFound()`.
+- `tests/seo-pwa.test.ts` — rewrote the sitemap tests to invoke the route handler directly and parse the XML body. Added 2 new cases asserting the catch-all source uses `notFound()` from `next/navigation`. Project total: **157/157 tests passing** (was 153/153).
+- `docs/KNOWN_ISSUES.md` — Resolved entry; OpenNext-on-Pages adapter quirks documented so the next contributor knows to reach for explicit handlers when convention-based files silently 404.
+
+### Added — `og:image` / `twitter:image` + locale-aware 404 page (UX round 4)
+
+Round 4 UX audit probed the rendered HTML for share-preview metadata and the 404 experience. Found two gaps that no user had reported but that broke the share-driven product loop and the locale contract:
+
+1. **No `og:image` / `twitter:image`** on any locale page. Sharing the homepage on LINE / FB / X / Discord / Slack produced a text-only card with no preview — embarrassing for a product whose explicit pitch is "scan your food, share with friends".
+2. **404 page was fully English** even when hitting Thai URLs. `/th/this-route-does-not-exist` returned the Next.js default with `<title>404: This page could not be found.</title>` and zero Thai characters in body. Breaks the Thai-primary product positioning.
+
+Touched:
+- `src/app/[locale]/layout.tsx` — added `openGraph.images` (1200×630 ratio recommendation, our 640×640 avatar fits both FB + X), `twitter.card: 'summary_large_image'`, `twitter.images`, and `metadataBase: new URL('https://shinnyguide.autobahn.bot')` so relative paths resolve against the prod origin (without it, crawler-side renders point at `localhost`).
+- `src/app/[locale]/not-found.tsx` — **new file**. Localized 404 with the Shinny avatar, two CTAs (Home + Scan) so it's not a dead-end. Uses `next-intl` from the new `not_found` namespace.
+- `src/messages/{th,en,de,da}.json` — new `not_found` namespace with 5 keys × 4 locales = 20 strings. Native phrasing per locale (Thai uses `ค่ะ` polite particle to match the Shinny voice, German uses `möglicherweise verschoben`, etc.).
+- `tests/seo-pwa.test.ts` — **10 new cases** pinning: og:image presence, twitter card type, metadataBase, the 404 page references `useTranslations('not_found')`, every `not_found.*` key gets rendered, both CTAs present, and cross-locale namespace completeness (4 generated tests, one per locale). Project total: **153/153 passing** (was 143/143).
+
+### Added — Security headers + PWA manifest + multi-locale sitemap (UX round 3)
+
+UX-audit round 3 probed HTML pages and discovered systemic gaps that no user had reported but that affected privacy, install UX, and SEO:
+
+| Gap | Surface | Fix |
+|---|---|---|
+| No `X-Frame-Options` | every HTML page | `next.config.js` headers → `DENY` (no iframe-embed use case) |
+| No `Referrer-Policy` | every HTML page | → `strict-origin-when-cross-origin` (stops leaking `?debug=1` URLs to third-party CDNs) |
+| No `Permissions-Policy` | every HTML page | → `camera=(self)` only; mic/geo/payment/usb/sensors all off |
+| `/manifest.webmanifest` → 404 | mobile users | `src/app/manifest.ts` (Next.js convention) — enables Add-to-Home-Screen |
+| `/sitemap.xml` → 404 | search engines | `src/app/sitemap.ts` — public surfaces only (`/`, `/scan`, `/demo`, `/pricing`, `/recipes`, `/login`) with `hreflang` alternates across all 4 locales |
+
+**Excluded by design from sitemap**: `/dashboard`, `/chat` (auth-gated; indexing them points search users at a redirect-to-login experience), `/admin/*`, `/api/*`.
+
+**CSP not included**: Content-Security-Policy would require a full audit of every inline style/script Next.js emits, plus the dev-mode HMR client's `unsafe-eval`. Tracked as a follow-up in `KNOWN_ISSUES.md`.
+
+Touched:
+- `next.config.js` — `headers()` block applies the three security headers to every non-`/api/*` route. API routes already set `Cache-Control: no-store` via `lib/api-response.ts` and don't render HTML, so framing/referrer headers don't apply.
+- `src/app/manifest.ts` — **new file**, returns `MetadataRoute.Manifest`. Brand colour tokens (`#ec7064` theme, `#fff5f5` background) match `globals.css`.
+- `src/app/sitemap.ts` — **new file**, returns `MetadataRoute.Sitemap`. Auto-generated entries cover all 4 locales × 6 public paths = 24 hreflang-linked URLs.
+- `tests/seo-pwa.test.ts` — **new test file**, **9 cases** pinning manifest + sitemap shape: brand colours, standalone-portrait display, auth-gated routes excluded, every entry carries `hreflang` alternates for all 4 locales, absolute URLs. Project total: **143/143 tests passing** (was 134/134).
+- `docs/KNOWN_ISSUES.md` — Resolved entry; CSP follow-up + `/icon.png` 404 (separate deployment issue, not addressed in this PR) documented.
+
+### Fixed — Every API route except `/api/health` was returning responses with no `Cache-Control` header
+
+Bug-hunt May 2026 UX-audit pass: sweep of every `/api/*` endpoint showed only `/api/health` was returning `Cache-Control: no-store`. The other 12 routes (`auth/login`, `auth/me`, `auth/register`, `auth/logout`, `chat`, `analyze` 400s, `promo/redeem`, `voucher/check`, all `admin/*`) shipped responses with no `Cache-Control` at all. Each of those carries personalized data (user records), per-request identifiers (`requestId`), or session-tied state — none safe for an intermediate cache to store.
+
+Cloudflare's edge happens not to cache cookie-bearing responses by default, so real-world blast radius was small. But relying on that is fragile and varies by edge-cache configuration — explicit `Cache-Control: no-store` is the contract.
+
+**Fix**: new `lib/api-response.ts` exports `jsonResponse(body, init?)` — a thin wrapper around `NextResponse.json` that defaults `Cache-Control: no-store` on every API response. All 13 API routes migrated to use it. The escape hatch (caller-supplied `Cache-Control` overrides the default) is preserved for the hypothetical future "cacheable manifest" route, but opting out has to be visible at the call site.
+
+**Locked in by test**: `tests/api-response.test.ts` walks every `src/app/api/**/route.ts` file and asserts `NextResponse.json(...)` doesn't appear in live code. Any new route that uses the unwrapped `NextResponse.json` now fails CI.
+
+Touched:
+- `lib/api-response.ts` — **new file**, single `jsonResponse` export.
+- All 13 routes under `src/app/api/**/route.ts` — migrated from `NextResponse.json(...)` to `jsonResponse(...)`. Import line updated; the explicit `Cache-Control: 'no-store'` that some routes (`/analyze` success, `/health`) already passed is harmless (helper merges it the same way).
+- `tests/api-response.test.ts` — **new file**, 5 helper-shape tests + per-route invariant enforcement (14 generated test cases, one per route file). Project total: **134/134 passing** (was 115/115).
+- `tests/analyze-fallback.test.ts` — updated the `fallbackProviderError` regex to accept either `NextResponse.json` or `jsonResponse` at the call site (post-migration).
+
+### Added — `fallbackProviderError` field on `/api/analyze` 503 responses
+
+Bug-hunt May 2026, Request ID `qh0f02ft` (drink_snack mode): both the Gemini cascade AND the CF safety-net failed. The 503 response surfaced `primaryProviderError: 'The operation was aborted'` (Gemini) but **nothing about CF's failure** — only the auto-correction retry's last error in `details`. Operators couldn't tell whether CF actually failed first or whether CF wasn't even tried.
+
+Now the response carries `fallbackProviderError` alongside `primaryProviderError`:
+
+```json
+{
+  "error": "AI analysis failed",
+  "details": "...",                              // last error in chain (auto-correction retry)
+  "primaryProviderError": "The operation was aborted",  // Gemini cascade
+  "fallbackProviderError": "CF timeout after 20s",      // CF safety-net  ← NEW
+  "failedJson": "...",                           // CF's raw response if it returned anything
+  "requestId": "..."
+}
+```
+
+The full chain ("who failed and how") is now visible on a single curl, no log access required. **This continues the diagnostic-dividend pattern from PRs #23 + #25**: each surface added makes the next session's bug findable in one probe instead of multiple round trips.
+
+Touched:
+- `app/api/analyze/route.ts` — wrapped the CF safety-net call in a try/catch that captures `cfErr.message` into `fallbackProviderError` before re-throwing. Surfaces in the 503 response body. Inline comment explains how it interacts with `failedJson` (which still captures CF's raw response when CF DID return but the content failed validation).
+- `tests/analyze-fallback.test.ts` — new regression case asserts the field is captured at the right call site (`fallbackProviderError = cfErr.message`) AND surfaced in the 503 response shape (not just declared). Project total: **115/115 tests passing** (was 114/114).
+
+### Fixed — CF safety-net fallback was truncating its JSON output (default `max_tokens` too low)
+
+User report: scan 503 with Request ID `02tf04hd` on the Thai locale (user is on premium tier — not a quota issue). Direct probe (Request ID `eh0dzg8k`) surfaced the diagnostic chain via PR #23's `primaryProviderError` + PR #25's `failedJson` preview:
+
+```
+primaryProviderError: 'The operation was aborted'                       ← Gemini cascade timed out
+failedJson:           {"isFood":true,"dishes":[{"name":"ข้าวผัด",      ← CF served, saw the food
+                       "detectedItems":["🥔 ข้าว","🐟 น้ำปลา",…        ← but stopped mid-array
+details:              JSON Parse Error: Regex-extracted JSON also       ← validation failed
+                       invalid: Expected ',' or ']' …
+```
+
+**Root cause**: when CF Workers AI runs `@cf/meta/llama-3.2-11b-vision-instruct` without explicit `max_tokens`, it defaults to ~256 — way too tight for our schema. On a verbose Thai response (long `detectedItems` array + multi-byte UTF-8), the model stopped mid-stream and the JSON parser couldn't recover. The Gemini call already passed `maxOutputTokens: 4096`; the CF call didn't pass the equivalent.
+
+**Fix**: pass `max_tokens: 4096` on both CF call sites in `attemptAiInference` (initial inference + post-license-accept retry). Matches the Gemini budget. The text-only `prompt: 'agree'` license-acceptance call doesn't need it (default is fine for a ~10-token ping).
+
+The combined diagnostic chain that surfaced this — `primaryProviderError` (PR #23) + `failedJson` (PR #25) — meant root cause was visible in one probe. **The session's diagnostic investment is paying recurring dividends**: every subsequent 503 will continue to surface its actual root cause in the response body without requiring a separate logging deployment.
+
+Touched:
+- `app/api/analyze/route.ts` — `max_tokens: 4096` on both `env.AI.run({prompt, image, …})` calls. Inline comment records the Request IDs and the truncation failure mode.
+- `tests/analyze-fallback.test.ts` — new regression case asserts both image-carrying CF call sites include `max_tokens: 4096`. Project total: **114/114 tests passing** (was 113/113).
+- `docs/KNOWN_ISSUES.md` — Resolved entry with the diagnostic trail.
+
+### Added — `/api/health` now surfaces Cloudflare Pages deployment metadata
+
+Bug-hunt May 2026 closing gap: the only way to verify "is the current deploy actually the commit I just merged?" was through behavioural inference (does `modelUsed` reflect the post-PR shape? does rate-limit suddenly engage?). That's slow and error-prone — it's how PRs #21, #22, and #23 each shipped feeling complete while leaving an unfixed user-facing bug, because the validation matrix passed against a stale deploy that hadn't rolled over yet.
+
+`/api/health` now reads `CF_PAGES_COMMIT_SHA`, `CF_PAGES_BRANCH`, and `CF_PAGES_URL` from the Cloudflare Pages build environment and exposes them as a `deployment` block:
+
+```json
+{
+  "status": "healthy",
+  "deployment": {
+    "sha": "9e74084adfa7516f4502401cdfbe8775165f215f",
+    "shaShort": "9e74084",
+    "branch": "main",
+    "pagesUrl": "https://nutri-vision-ai.pages.dev"
+  }
+}
+```
+
+`ITERATION_PROCESS.md §5` post-merge verification now starts with `git rev-parse --short main` vs `curl /api/health | jq -r .deployment.shaShort` — if they don't match within ~5 min, the §3 behavioural checks would be validating old code.
+
+Touched:
+- `app/api/health/route.ts` — added `deployment` block; reads the three CF Pages env vars defensively (null in local dev, which is the correct sentinel).
+- `tests/health.test.ts` — **new test file**, 5 cases pinning the response shape: `deployment` block exists, reads from the three `CF_PAGES_*` env vars, produces a 7-char short SHA, returns `null` when env vars are unset, and `status` field stays top-level. Project total: **113/113 tests passing** (was 108/108).
+- `README.md`, `docs/KNOWLEDGE_BASE.md`, `docs/GUIDELINE.md`, `docs/ITERATION_PROCESS.md` — point operators at the new field with the canonical curl-vs-git-rev-parse recipe.
+
+### Fixed — Rate limiting was silently failing open in production
+
+Bug-hunt May 2026 (continuation): **40 parallel requests to `/api/voucher/check`** (configured limit: 30 / minute) all returned HTTP 200. Zero 429s. Same test on `/api/auth/login` (configured limit: 10 / 15min) returned 12 consecutive 401s with no rate-limit engagement. The brute-force protection for the pilot launch was **not actually protecting anything**.
+
+**Root cause**: `lib/rate-limit.ts` v1 used `caches.default` (Cloudflare Workers Cache API) as its primary store. In raw Workers this gives same-millisecond read-after-write consistency. In the OpenNext-on-Pages runtime, it does not — the cache `put` doesn't propagate before the next request reads, so every request sees an empty bucket. The original code's defensive `try { } catch { return allowed:true }` design meant this failure was **completely silent**: no log, no metric, no test failure.
+
+**Fix**: switched the primary store to a module-scoped `Map<string, Bucket>`. Bucket state now lives in the worker's V8 heap and persists across requests within the same instance — always works regardless of runtime. The original `caches.default` path is dropped entirely; if we later need cross-instance coordination, swap for Upstash Redis / Durable Object behind the same `rateLimit()` API.
+
+Threat-model fit: per-instance memory is sufficient against the *intended* threat (single-IP brute-force from one client). A distributed attacker hitting 20+ CF PoPs concurrently can still exceed the limit; that requires a cross-instance store and is documented as a future swap path.
+
+Touched:
+- `lib/rate-limit.ts` — `rateLimitInner` rewritten around a module-scoped `Map`. Added periodic LRU prune to bound memory at `O(unique_IPs × routes)` for the window TTL. Exposed `_resetForTest()` so suites don't bleed state between cases.
+- `tests/rate-limit.test.ts` — **5 new enforcement tests** that exercise the actual blocking behaviour (was previously only fail-open contract testing, which is what let the bug ship). Project total: **108/108 tests passing** (was 103/103).
+- `docs/KNOWN_ISSUES.md` — Resolved entry with the bug-hunt diagnostic trail.
+
+Validation: re-probe `/api/voucher/check` with 40 parallel requests after deploy. Expected: first ~30 return 200, remainder return 429 with `retry-after` header. `/api/auth/login` brute force: 11th attempt returns 429.
+
+### Changed — Reversed scan cascade: Gemini is now primary, Cloudflare is the safety-net fallback
+
+Post-bug-hunt May 2026 (PRs #25 + #26) discovery: with the 5016 license and image-format bugs both fixed, CF's vision model could finally serve responses — but it served **inaccurate** ones. The smaller Llama 3.2 11B model called Shrimp Fried Rice "Pineapple" with 100% confidence on multiple probes, and its JSON compliance was non-deterministic (sometimes parseable, sometimes free-form text that failed validation).
+
+The original CF-primary order was chosen for cost — CF is free with the Pages plan, Gemini burns a paid free-tier quota. But because CF's invalid-JSON responses were already triggering fallthrough to Gemini on most scans, **the CF-primary order wasn't actually saving meaningful Gemini quota** — it was just trading "accurate-when-Gemini-works" for "fast-and-cheap-but-sometimes-wrong" on the subset of scans where CF returned parseable garbage.
+
+**Decision**: reverse the cascade so accuracy wins the happy path.
+
+- **Primary**: Gemini cascade — `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`. The third entry (1.5-flash explicit version) is new RPM headroom for burst loads; if a project has EOL'd 1.5, the cascade skips on 404 just like the other entries.
+- **Safety-net fallback**: Cloudflare `@cf/meta/llama-3.2-11b-vision-instruct`. Runs only when the entire Gemini cascade exhausts (or returns garbage). Users get *some* response when Gemini quota is fully out, accepting accuracy degradation as the cost of "not 503'ing the user."
+- **`primaryProviderError`** field semantics shift: now carries the **Gemini** error message when CF is the one ultimately serving (previously carried the CF error). The route comment is updated to reflect this.
+
+Touched:
+- `app/api/analyze/route.ts` — `runInferenceWithValidation` rewritten so Gemini runs first, CF is the catch path. Inline comment records why (the post-PR #26 accuracy regression). Attempt-2 auto-correction inverts to force CF for diversity (was forcing Google).
+- `lib/ai-providers.ts` — `GEMINI_VISION_MODELS` extended with `'gemini-1.5-flash'` as a third entry. Doc comment updated with the RPM-headroom rationale.
+- `tests/analyze-fallback.test.ts` — new test pins the Gemini-before-CF source order so a future contributor can't quietly swap it back. **103/103 project tests passing** (was 102/102).
+- `README.md`, `README-TH.md`, `docs/KNOWLEDGE_BASE.md`, `docs/gemini.md`, `docs/claude.md` — all updated to describe the reversed cascade and the rationale.
+
+### Fixed — Cloudflare AI vision was never seeing the image (`image: [bytes]` was a Uint8Array wrapped in an array)
+
+Surfaced once PR #25 unblocked the 5016 license error that had been masking it on every prior scan. Post-PR #25, CF responses came back parseable but **hallucinated** — fried-rice images were being analysed as "Mixed Greens Salad", and responses included `Here is your image: ![image](https://i.imgur.com/…)`. That last detail is the smoking gun: the vision model was generating training-data-style markdown about a hypothetical image because it had zero pixels to look at.
+
+**Root cause**: the route was calling
+```ts
+const bytes = decodeBase64ToBytes(base64Data);  // Uint8Array
+env.AI.run(model, { prompt, image: [bytes] });  // [Uint8Array] !!
+```
+CF Workers AI vision models (`@cf/meta/llama-3.2-*-vision-instruct`, `@cf/llava-…`) expect `image: number[]` — a flat array of unsigned byte values. The original code shipped `[Uint8Array]`, a 1-element list whose only entry was the typed array itself. CF deserialised that as "no image present" and the model fell back to text-only behaviour.
+
+The bug had been there since the original `/api/analyze` commit but was **completely invisible** because every CF call returned 5016 (Llama Community License never accepted on this account) before ever reaching the model. Auto-accept (PR #25) made the call succeed, which made the format bug observable for the first time.
+
+**Fix**: flatten via `Array.from(decodeBase64ToBytes(…))` at the decode site, then pass `image: bytes` (no wrapper).
+
+Touched:
+- `app/api/analyze/route.ts` — `decodeBase64ToBytes(...) ` wrapped in `Array.from(...)`; both call sites changed from `image: [bytes]` to `image: bytes`. Comment block records the failure mode so the next person doesn't accidentally re-wrap.
+- `tests/analyze-fallback.test.ts` — new regression case forbids `image: [bytes]` or `image: [decodeBase64ToBytes(...)]` in live code and requires `Array.from(decodeBase64ToBytes` at the decode site. Project total: **102/102 tests passing** (was 101/101).
+- `docs/KNOWN_ISSUES.md` — entry under Resolved with the full diagnostic trail and the masking-by-5016 narrative.
+
+Validation: re-probe `/api/analyze` against production after deploy. Expected: `modelUsed: cloudflare-llama-3.2-11b` returning a `dishes` array with the actual food in the image (Shrimp Fried Rice for the canonical test fixture).
+
+### Fixed — Cloudflare AI primary 100% failure (Llama 3.2 license never accepted); now auto-accepts on first 5016
+
+Surfaced by bug-hunt May 2026 (Request ID `sex01ab2`). The `primaryProviderError` field shipped in PR #23 had been quietly hiding the same error on every production scan since launch:
+
+```
+5016: Prior to using this model, you must submit the prompt 'agree'.
+By submitting 'agree', you hereby agree to the
+llama-3.2-11b-vision-instruct Community License …
+```
+
+Meta requires Cloudflare account holders to explicitly accept the Llama 3.2 Community License once before the model will run any inference. This account had never accepted, so **every scan since launch was being served by the Gemini fallback** — costing Google free-tier quota for work the CF primary should have done for free. The cascade absorbed it (users saw successful results), so the failure was silent until both Gemini cascade entries 429'd in the same window during a burst probe.
+
+**Fix**: `attemptAiInference` in `/api/analyze` now catches the first `5016:` error, sends `prompt: 'agree'` (Cloudflare's documented programmatic acceptance path — text-only, no image), and retries the actual food inference once. Acceptance is account-level and one-shot; subsequent scans never re-trigger it. If acceptance itself fails, the original 5016 propagates and the Gemini cascade picks up as before — net behaviour can only improve, never regress.
+
+Touched:
+- `app/api/analyze/route.ts` — wrapped the `env.AI.run` call in a try/catch that detects `5016:` prefix, submits the agree-prompt acceptance, then retries the real inference. Added `CF_LLAMA_LICENSE_ACCEPTING` / `CF_LLAMA_LICENSE_ACCEPTED` telemetry stages.
+- `tests/analyze-fallback.test.ts` — new regression case asserts the route contains the `5016:` marker, the `prompt: 'agree'` retry call, and both telemetry stages. Project total: **101/101 tests passing** (was 100/100).
+- `docs/KNOWN_ISSUES.md` — removed stale §0 "CF primary frequently fails" (now resolved); added "Cloudflare AI primary 100% failure — Meta Llama 3.2 license never accepted" under Resolved with the diagnostic trail.
+
+Validation: re-probe against production after deploy. Expected: scans now report `modelUsed: cloudflare-llama-3.2-11b` for the bulk of traffic; Gemini falls back only when CF actually times out / errors out.
+
+### Fixed — Google free-tier `gemini-2.0-flash` quota silently dropped to `limit: 0`; scan fallback broken (again)
+
+User report: scan upload **still** returns `503 "Food analysis is temporarily unavailable"` after the previous Gemini-alias swap (Request IDs `tqunrejp` shown in the UI, `fz64f4uh` from a direct probe). PR #22 was deployed correctly — the fix shipped — but the route's catch path only echoed the LAST error in the chain, hiding the actual cause.
+
+Root cause, surfaced by directly probing `/api/analyze` with the user's image:
+
+```
+Google API error: 429 — Quota exceeded for metric:
+generativelanguage.googleapis.com/generate_content_free_tier_requests,
+limit: 0, model: gemini-2.0-flash
+```
+
+`limit: 0` means this project's API key has zero free-tier allowance for `gemini-2.0-flash` specifically — even though `gemini-2.5-flash` on the same key still has the standard 1500 req/day. Google can quietly retune per-project per-model free-tier policy, and a single hardcoded model id is one such policy change away from outage.
+
+Separate but related: the Cloudflare primary is also failing on this image (we see `failedJson:""` and a fast `durationMs:548`, meaning `env.AI.run` threw rather than returning bad JSON). The route was discarding `cfErr.message` after falling through to Google, so operators looking at the 503 response could only see Google's 429 and had no signal about the primary failure.
+
+**Fix** — two-part:
+
+1. **Cascade, don't hardcode.** Introduced `GEMINI_VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']` exported from `lib/ai-providers.ts`. `attemptGoogleInference` walks the list in order, returning the first model that responds 200, skipping on 404 (model retired) or 429 (per-model quota gone), and throwing immediately on any other status (5xx / network — retrying a sibling won't help). Per-model timeout = `floor(totalTimeout / cascade.length)` so the cascade fits inside the caller's budget.
+2. **Stop swallowing the primary error.** Captured `cfErr.message` into a route-scoped `primaryProviderError` and added it as a top-level field on the 503 response body, so future failures surface BOTH the primary and fallback errors. No more "Google 429 only" responses hiding a CF binding outage.
+
+Touched:
+- `lib/ai-providers.ts` — added exported `GEMINI_VISION_MODELS` cascade + `GeminiVisionModel` type. Chat fallback (`callGemini`) now references `GEMINI_VISION_MODELS[0]` instead of a literal id; same single-source-of-truth contract as scan.
+- `app/api/analyze/route.ts` — `attemptGoogleInference` rewritten as a `for…of GEMINI_VISION_MODELS` loop with 404/429 fall-through. Returns `{parsedJson, rawResponse, model}` so `usedModel` reflects the model that actually answered (e.g. `google-gemini-2.5-flash`). Outer 503 catch now includes `primaryProviderError`.
+- `app/[locale]/scan/page.tsx` — replaced the hardcoded `=== 'google-gemini-2.0-flash'` ternary with a `modelDisplayName(modelUsed)` helper that handles any `google-gemini-*` id. Future cascade additions render correctly without touching the page.
+- `tests/analyze-fallback.test.ts` — rewritten to assert (a) `GEMINI_VISION_MODELS` is non-empty and every entry passes the gemini/non-gemma/non-`-latest` invariants, (b) the route imports the constant and iterates it (no hardcoded `const model = 'gemini-…'`), (c) the route surfaces `primaryProviderError`, (d) the scan page uses `startsWith('google-gemini-')`, (e) the chat call references `GEMINI_VISION_MODELS[0]`. Suite passes 5/5; project total 100/100.
+- `README.md` — Smart Inference Pipeline + Tech Stack sections updated to describe the cascade.
+
+Validation: probed live `https://shinnyguide.autobahn.bot/api/analyze` with the user's actual image after deploy — see PR description for the curl probe and `200` response.
+
+### Fixed — Google retired the `gemini-1.5-flash-latest` alias; scan + chat fallback broken
+
+User report: scan upload still returns `503 "Food analysis is temporarily unavailable"` after the previous Gemma → Gemini swap (Request IDs `brxqf5nr`, `2s24bp5i`). Probing `/api/analyze` directly surfaced the upstream error in the response body's `details` field:
+
+```
+Google API error: 404 — models/gemini-1.5-flash-latest is not found for
+API version v1beta, or is not supported for generateContent.
+```
+
+Root cause: Google retired the `-latest` alias from the `v1beta` Generative Language API in May 2026 without notice. The chat path uses the same model but Groq is first in its cascade, so the Gemini fallback there had also been silently broken without ever being exercised.
+
+**Fix:** swap to `gemini-2.0-flash` — current canonical free-tier vision model, GA since Feb 2025, multimodal (same `inline_data` payload shape), free quota 1500 req/day. Pin to the explicit version id, **never** a `-latest` alias.
+
+Touched:
+- `app/api/analyze/route.ts` — `gemini-1.5-flash-latest` → `gemini-2.0-flash`; identifier `'google-gemini-1.5-flash'` → `'google-gemini-2.0-flash'`. Inline comment now records both incidents (Gemma text-only April 2026, alias-retirement May 2026) so the next person doesn't reach for a `-latest` alias.
+- `app/[locale]/scan/page.tsx` — "analyzed by" footer reads "Gemini 2.0 Flash".
+- `lib/ai-providers.ts` — chat cascade Gemini step also swapped to `gemini-2.0-flash` (single source of truth across scan + chat).
+- `tests/analyze-fallback.test.ts` — added 4th invariant: model id must NOT match `/-latest$/`. Added 4th case that checks `lib/ai-providers.ts` stays on the same explicit non-alias id. Suite passes 4/4.
+
+### Fixed — `/api/analyze` had no real vision fallback (April 2026)
+
+User report: scan upload returns `503 "Food analysis is temporarily unavailable"` (Request ID `7063ch9g`). Root cause: `attemptGoogleInference` in `/api/analyze` used `gemma-3-27b-it` as the fallback model. Free-tier availability of Gemma 3 multimodal on Google's Generative Language API is inconsistent in practice, so a Cloudflare Workers AI primary failure left the route with **no working vision fallback** — the second provider couldn't process the image either. Both attempts failed, route returned the catch-all 503, and the user-facing copy ("AI under high load") implied a transient issue when the fallback was structurally broken.
+
+**Fix:** swap the Google fallback to a vision-capable Gemini model (the same one `lib/ai-providers.ts` uses for chat) and add `tests/analyze-fallback.test.ts` regression cases that read the route source and assert the model is in the Gemini family — guards against a future contributor silently reverting to text-only Gemma.
+
+### Added — AI Coach Shinny (chat)
+
+- **`/[locale]/chat` page** — conversational coach UI. Persisted history in localStorage, last 10 turns sent as context, retry-on-failure, daily-quota nudge that links to `/pricing`.
+- **`POST /api/chat` endpoint** — auth-gated, tier-quota-gated (`aiQuestionsPerDay`: free=3, premium/family=∞), zod-validated, rate-limited (20/min/IP), persists both turns to `chat_messages`. Locale-aware system prompt builds Shinny's persona per `th`/`en`/`de`/`da`.
+- **`lib/ai-providers.ts`** — three-stage chat-completion fallback:
+  1. **Groq** (`llama-3.3-70b-versatile`, free 30 req/min, sub-300ms) — primary when `GROQ_API_KEY` is set.
+  2. **Google Gemini** (`gemini-2.0-flash`, free 1500 req/day) — fallback, reuses the existing Gemini key.
+  3. **Cloudflare Workers AI** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) — safety net using the `env.AI` binding the scan path already uses.
+  Each step is independently timed-out; the function never throws.
+- **`lib/chat-prompts.ts`** — Shinny's system prompt, locale-keyed. Bakes the three brand rules in concrete language: never forbid food, warm older-sister tone, stay-in-scope. Thai prompt explicitly forbids parenthetical romanization (the karaoke-spelling regression from PR #15).
+- **Dashboard nav card** — links to `/chat` from the dashboard so users discover it after their first scan.
+- **`GROQ_API_KEY` env var** documented in `.env.example`. When unset, the route gracefully degrades to Gemini → CF cascade.
+- **28 new vitest cases** locking the persona, fallback chain, schema, and "never throws" contracts. Suite total: **95 tests** (was 67).
+
 ### Fixed — auth routes resilient to half-applied migrations
 
 - **`/api/auth/login`, `/me`, `/register`, `/promo/redeem`, `/analyze`** all switched from unqualified `db.select()` (which selects every schema-declared column) to explicit-column `db.select({ ... })`. The schema declares newer columns (`is_admin` from migration 0002, `scope`/`notes` from 0003); if those haven't been applied to the live D1 yet, an unqualified `select()` errors with "no such column" and login becomes a 500 across the board. Reported as "Internal server error" on login attempts in production. The fix makes every read side resilient to additive schema changes that haven't been wrangler-applied yet, and is also a small perf win (smaller wire size, fewer columns to deserialize).

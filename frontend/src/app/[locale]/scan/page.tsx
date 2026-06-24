@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Scan, Cpu } from 'lucide-react';
+import { Scan, Cpu } from 'lucide-react';
 
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_LIMITS } from '@/lib/tier-config';
@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 import { type ScanMode } from '@/lib/ai-prompt';
 
 // Components
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 import ScanModeSelector from '@/components/scan/ScanModeSelector';
 import DishCard from '@/components/scan/DishCard';
 import MealOverview from '@/components/scan/MealOverview';
@@ -25,6 +25,25 @@ import ScanDebugPanel from '@/components/scan/ScanDebugPanel';
 import { useScanUpload } from '@/hooks/scan/useScanUpload';
 import { useScanAnalysis } from '@/hooks/scan/useScanAnalysis';
 import { useScanDebug } from '@/hooks/scan/useScanDebug';
+
+/**
+ * Map a `modelUsed` identifier from `/api/analyze` to a short, human-
+ * readable label for the "Analyzed by" footer. Identifiers can be:
+ *   - `cloudflare-llama-3.2-11b` (primary)
+ *   - `google-gemini-2.5-flash`, `google-gemini-2.0-flash`, … (fallback
+ *     cascade — see `GEMINI_VISION_MODELS` in `lib/ai-providers.ts`).
+ *
+ * Fallback to "Llama 3.2 11B" preserves prior behaviour when the
+ * identifier doesn't match a known prefix (e.g. the CF primary, or a
+ * future renamed id we haven't updated this map for yet).
+ */
+function modelDisplayName(modelUsed: string): string {
+    if (modelUsed.startsWith('google-gemini-')) {
+        const id = modelUsed.slice('google-gemini-'.length); // e.g. "2.5-flash"
+        return `Gemini ${id.replace(/-/g, ' ').replace(/\bflash\b/i, 'Flash').replace(/\blite\b/i, 'Lite')}`;
+    }
+    return 'Llama 3.2 11B';
+}
 
 export default function ScanPage() {
     const t = useTranslations('scan');
@@ -101,24 +120,24 @@ export default function ScanPage() {
             <div className="absolute -bottom-1/4 right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
 
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-50">
-                <div className="flex items-center justify-between">
-                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                    </Link>
+                <SiteHeader locale={locale} />
+                <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-3">
                         {isAuthenticated && (
                             <div className="text-sm text-gray-500">
                                 {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{activeTier === 'premium' || activeTier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
                             </div>
                         )}
-                        <LanguageSwitcher currentLocale={locale} />
                     </div>
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
-                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" />
-                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" />
+            <main className="container mx-auto px-4 py-6 relative z-10 max-w-4xl">
+                {/* Hidden file inputs triggered programmatically by the visible
+                    Camera / Upload buttons. aria-label gives screen-reader users
+                    an accessible name even though no <label> is visible. */}
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileInput} className="hidden" aria-label={t('take_photo')} />
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} className="hidden" aria-label={t('upload')} />
 
                 <div className="text-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-2">
@@ -133,7 +152,7 @@ export default function ScanPage() {
                 {isReadyForUpload && (
                     <>
                         <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
-                        <ScanUploadArea 
+                        <ScanUploadArea
                             scanMode={scanMode}
                             tier={tier}
                             canStillScan={canStillScan}
@@ -148,6 +167,21 @@ export default function ScanPage() {
                             onClearImages={upload.clearImages}
                             onAnalyze={handleAnalyzeTrigger}
                         />
+                        {/*
+                          Privacy reassurance directly under the upload
+                          area — fresh-user UX audit (May 2026) found
+                          the page had ZERO copy about what happens to
+                          uploaded photos. For a health app asking for
+                          food images, that's table-stakes trust copy.
+                          Sits below the drop zone so it's the next
+                          thing visible after the user reads "drag a
+                          photo here". Servers don't actually persist
+                          the image to R2/S3 today (image-storage is
+                          on the roadmap), so this matches reality.
+                        */}
+                        <p className="mt-3 text-xs text-gray-500 text-center max-w-md mx-auto">
+                            {t('privacy_note')}
+                        </p>
                     </>
                 )}
 
@@ -262,7 +296,7 @@ export default function ScanPage() {
                                         {analysis.modelUsed && (
                                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-brand-primary-300">
                                                 <Cpu className="w-3 h-3" />
-                                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                                <span>{t('analyzed_by')} {modelDisplayName(analysis.modelUsed)}</span>
                                             </div>
                                         )}
                                     </div>
@@ -367,7 +401,7 @@ export default function ScanPage() {
                         {analysis.modelUsed && (
                             <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-400">
                                 <Cpu className="w-3 h-3" />
-                                <span>{t('analyzed_by')} {analysis.modelUsed === 'google-gemma-3-27b' ? 'Gemma 3 27B' : 'Llama 3.2 11B'}</span>
+                                <span>{t('analyzed_by')} {modelDisplayName(analysis.modelUsed)}</span>
                             </div>
                         )}
                     </div>
@@ -381,7 +415,7 @@ export default function ScanPage() {
                         onToggleDebug={debug.toggleDebug}
                     />
                 )}
-            </div>
+            </main>
         </div>
     );
 }

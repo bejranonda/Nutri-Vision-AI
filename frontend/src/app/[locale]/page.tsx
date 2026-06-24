@@ -1,21 +1,17 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Utensils, Award, Flame, Menu, X } from 'lucide-react';
+import { Scan, Sparkles, HeartPulse, ChevronRight, ChevronDown, Award, Flame, Utensils } from 'lucide-react';
 import { logger } from '@/lib/logger';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function HomePage() {
   const t = useTranslations('home');
-  const tNav = useTranslations('nav');
-  const tAuth = useTranslations('auth');
-  const tBrand = useTranslations('brand');
   const tMascot = useTranslations('mascot');
   const tGamify = useTranslations('gamification');
   const locale = useLocale();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     logger.trackFeature('Landing Page', 'success', { locale });
@@ -28,73 +24,18 @@ export default function HomePage() {
       <div className="absolute top-1/4 -right-1/4 w-1/2 h-1/2 bg-brand-secondary-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
       <div className="absolute -bottom-1/4 left-1/4 w-1/2 h-1/2 bg-brand-accent-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float" style={{ animationDelay: '4s' }}></div>
 
-      {/* Header */}
-      <header className="container mx-auto px-4 py-4 md:py-6 relative z-50 backdrop-blur-md bg-white/70 rounded-b-3xl mb-8 shadow-glass">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 rounded-2xl flex items-center justify-center shadow-brand transform hover:rotate-6 transition-transform">
-              <Utensils className="text-white w-5 h-5 md:w-6 md:h-6" />
-            </div>
-            <div>
-              <span className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500">{tBrand('name')}</span>
-              <p className="text-xs text-brand-neutral/60 font-medium hidden sm:block">{tBrand('tagline')}</p>
-            </div>
-          </div>
+      {/*
+        Header extracted into <SiteHeader/> in iter 3 so every page
+        gets the same nav. The inline JSX that used to live here
+        moved verbatim into `src/components/SiteHeader.tsx`; this
+        line keeps the homepage looking identical while sharing the
+        component with /scan, /login, /pricing, /demo, /recipes.
+      */}
+      <SiteHeader locale={locale} />
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors">
-              {tNav('dashboard')}
-            </Link>
-            <Link href={`/${locale}/recipes`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors">
-              {tNav('recipes')}
-            </Link>
-
-            {/* Language Switcher */}
-            <LanguageSwitcher currentLocale={locale} />
-
-            <Link
-              href={`/${locale}/login`}
-              className="group relative px-6 py-2.5 font-semibold text-white rounded-xl overflow-hidden shadow-brand hover:shadow-brand-lg transition-shadow"
-            >
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-brand-primary-400 via-brand-secondary-400 to-brand-accent-400"></span>
-              <span className="absolute bottom-0 right-0 block w-64 h-64 mb-32 mr-4 transition duration-500 origin-bottom-left transform rotate-45 translate-x-24 bg-white opacity-10 group-hover:rotate-90 ease"></span>
-              <span className="relative">{tAuth('login')}</span>
-            </Link>
-          </div>
-
-          {/* Mobile Hamburger */}
-          <div className="flex md:hidden items-center gap-2">
-            <LanguageSwitcher currentLocale={locale} />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
-            </button>
-          </div>
-        </nav>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 border-t border-gray-200/50 flex flex-col gap-3 animate-slide-up">
-            <Link href={`/${locale}/dashboard`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              {tNav('dashboard')}
-            </Link>
-            <Link href={`/${locale}/recipes`} className="text-gray-700 hover:text-brand-primary-500 font-medium transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              {tNav('recipes')}
-            </Link>
-            <Link
-              href={`/${locale}/login`}
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-center px-6 py-2.5 font-semibold text-white rounded-xl bg-gradient-to-r from-brand-primary-400 via-brand-secondary-400 to-brand-accent-400 shadow-brand"
-            >
-              {tAuth('login')}
-            </Link>
-          </div>
-        )}
-      </header>
-
+      {/* Round-11 a11y: <main> landmark for screen readers — gives
+          assistive tech a "skip to content" target after the nav. */}
+      <main>
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center relative z-10">
         {/* Mascot Greeting */}
@@ -135,6 +76,16 @@ export default function HomePage() {
             {t('demo')}
           </Link>
         </div>
+        {/*
+          Fresh-user reassurance — addresses the "is this free? do I
+          need to sign up?" question that the May 2026 UX-audit
+          subagents flagged as the homepage's biggest unspoken
+          objection. Sits right under the primary CTA so the answer
+          arrives at the moment the user is deciding whether to click.
+        */}
+        <p className="mt-4 text-sm text-gray-600">
+          {t('free_no_signup')}
+        </p>
       </section>
 
       {/* Concept Section: อร่อย ตาม ลำดับ */}
@@ -152,6 +103,18 @@ export default function HomePage() {
             </p>
             <p className="text-sm text-brand-success font-semibold mt-2">
               📉 {t('concept.spike_reduction')}
+            </p>
+            {/*
+              UX-audit iter 9: "Up to 70% spike reduction" used to
+              float as a headline number with zero source. Honest fix:
+              keep the punchy number (it's real — Shukla et al., 2015,
+              Weill Cornell, T2D patients) but show the citation right
+              under it so fresh readers know it's grounded, not just
+              marketing copy. Asterisk + small gray footnote keeps the
+              hero visual hierarchy intact.
+            */}
+            <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+              {t('concept.spike_reduction_source')}
             </p>
           </div>
 
@@ -241,15 +204,20 @@ export default function HomePage() {
               <p className="text-sm text-gray-500">{tGamify('level')}</p>
             </div>
           </div>
+          {/* Honesty caption (Round 13): without it, anonymous visitors
+              read these example numbers as real account stats. */}
+          <p className="text-center text-xs text-gray-400 mt-4">{t('gamify_preview_note')}</p>
         </div>
       </section>
+
+      </main>
 
       {/* Footer / Version Display */}
       <footer className="container mx-auto px-4 py-8 relative z-10 text-center border-t border-gray-200/50 mt-10">
         <div className="flex flex-col items-center justify-center gap-2">
           <p className="text-sm text-gray-500 font-medium">© {new Date().getFullYear()} Shinny Guide. All rights reserved.</p>
           <span className="text-xs font-mono text-gray-500 bg-white/80 px-3 py-1 rounded-full border border-gray-200 shadow-sm hover:text-brand-primary-500 transition-colors cursor-default">
-            Version 2.1.7
+            Version {process.env.NEXT_PUBLIC_APP_VERSION}
           </span>
         </div>
       </footer>

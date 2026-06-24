@@ -63,6 +63,7 @@ When the PR branch is pushed:
 
 | Check | Must pass? | Purpose |
 |-------|-----------|---------|
+| **GitHub Actions CI** (`.github/workflows/ci.yml`) | ✅ yes | Frontend `check:all` (type-check + i18n key parity + Vitest unit) **and** backend `pytest`. Added Round 11 — but **every run failed until Round 13** (setup-node pointed at a nonexistent `frontend/package-lock.json`; the backend pinned `pydantic==2.5.0` against `pydantic-settings>=2.3.0`, which pip correctly refused to resolve). Nobody noticed for a month because no branch protection enforces the check. **Lesson: a gate is only real once you've seen it green** — after adding any CI job, watch one run through to success before claiming the gate exists; and when merging a PR, actually look at the checks, not just the local suite. |
 | **Cloudflare Pages** | ✅ yes | Produces the actual deploy preview. Fails on any Next.js build error or ESLint error. |
 | **GitGuardian** | ✅ yes | Secrets scan. Never commit API keys / `.env` contents. |
 | **CodeRabbit review** | ⚠ advisory | Reads the diff; comments on smells and reach-across-files concerns. Not a gate, but every critical/major comment must be addressed or explicitly dismissed with a reply. |
@@ -74,12 +75,27 @@ The Cloudflare preview URL (commented by the CF bot on the PR) is the
 
 ## 3. Pre-merge manual verification
 
-Before clicking "Merge", the author must do all of these on the CF preview:
+For any PR that changes the **public surface** (HTML metadata, form structure, API response shape, layout components, manifest, sitemap, robots, error pages, locale strings), **run the Playwright e2e suite first**:
+
+```bash
+cd frontend && npm run test:e2e
+```
+
+6 spec files (97 cases, ~1.1 min). Pins 10+ surfaces the unit suite can't reach. UX-audit round 6 ran this loop 10 iterations and caught 10 real bugs (PRs #41–#44) before they shipped. The e2e suite is the difference between a 1-iteration fix and a 4-iteration spiral (the `/sitemap.xml` saga, PRs #34→#38, predates this layer).
+
+The `user-journey.spec.ts` file (Round 12) automates checks **1, 3, 4 and 5** of the manual list below against production — run it first; if it's green, the manual pass can focus on check 2 (multi-photo with real food) and anything specific to your diff:
+
+```bash
+npx playwright test tests/e2e/user-journey.spec.ts   # ~17s warm
+```
+
+Then, on the CF preview:
 
 1. **Home → Scan happy path** (desktop + mobile viewport):
-   - Upload a known-good food photo.
+   - Upload a **real food photo** (a known-good one — `research/test-image/buymeacoffee-food-6940159_640.jpg` is the canonical fixture).
    - Scan completes within ~20s.
    - A `DishCard` renders with a score and a sequence.
+   - **A 200 response with `isFood:false` does NOT count.** A non-food image only proves the rejection branch works; it does not prove the success path round-trips through the AI cascade. Three "fixed" PRs went out for the same Gemini-cascade bug in Apr–May 2026 because each round's validation stopped here.
 2. **Multi-photo flow**:
    - Upload 2+ photos in meal mode.
    - Overview shows `dishCount === photoCount`.
@@ -94,6 +110,21 @@ Before clicking "Merge", the author must do all of these on the CF preview:
 5. **Console / network**:
    - 0 red errors in DevTools Console.
    - 0 4xx/5xx responses on the happy path.
+
+For PRs that touch `/api/analyze`, `lib/ai-providers.ts`, `GEMINI_VISION_MODELS`, or related pipeline code, also run the **headless probe** documented in `GUIDELINE.md → Before declaring an AI-pipeline fix "shipped"`. Record the `modelUsed` value the cascade landed on in the PR description.
+
+**For PRs that change the first-impression surface** (homepage copy, CTAs visible above the fold, nav structure, headline claims, login affordances, pricing tier labels, anything a fresh visitor sees in their first 30 seconds), also run the **fresh-user audit lens** (Round 7, May 2026). 6-step recipe in `docs/GUIDELINE.md → The fresh-user audit lens`. Quick version: open in an incognito window, log out, clear cookies, read every visible string out loud, click everything that looks interactive, count code-entry inputs per page, audit every headline claim for citation, verify the primary CTA is the same string across pages. Round 7 ran this lens 9 iterations and shipped 9 fixes (PRs #46–#54) that the 164-case unit suite + 79-case e2e suite both missed.
+
+For PRs that touch `lib/rate-limit.ts` or wire new routes into `rateLimit()`, run a **sequential** burst against the configured limit + 5:
+
+```bash
+for i in $(seq 1 35); do
+  curl -sS -o /dev/null -w "%{http_code}\n" \
+    "https://shinnyguide.autobahn.bot/api/voucher/check?code=SEQ$i"
+done
+```
+
+Expect the first N (≈ limit) to return 200, then 429s. **Parallel bursts with `&` give false negatives** — concurrent requests scatter across multiple worker instances and each sees its own per-instance bucket. Bug-hunt May 2026 (PR #28) caught this: 40 parallel voucher probes against a 30/min limit all returned 200 while a sequential 35-probe burst from the same machine correctly tripped at request 27. Sequential matches the actual single-IP brute-force threat model.
 
 If any of these fails, the PR goes back to review — no override.
 
@@ -120,7 +151,21 @@ PR #7 shipped solely to recover from this silent drop.
 
 Within 5 minutes of the merge commit landing on `main`, Cloudflare
 Pages will deploy production at <https://shinnyguide.autobahn.bot/>.
-The merger must click through the same 5 checks from §3 on production.
+The merger must:
+
+1. **Verify the deploy SHA matches the merge commit** — single curl,
+   no behavioural inference needed:
+   ```bash
+   git rev-parse --short main
+   # → 9e74084
+   curl -s https://shinnyguide.autobahn.bot/api/health | jq -r .deployment.shaShort
+   # → 9e74084   ← must match within ~5 min of the merge
+   ```
+   If the production SHA doesn't move within 10 minutes, check the
+   Cloudflare Pages dashboard for a stuck build before retrying §3
+   checks (you'd otherwise be validating *old* code and conclude
+   "fix didn't work").
+2. Click through the same 5 checks from §3 on production.
 
 If any production check fails:
 1. File a revert PR *within 15 minutes* (keep the rollback window tight).
@@ -156,9 +201,9 @@ A build is "zero-error" when:
 - Every destructive path (register, redeem, logout) is idempotent or race-safe at the DB level.
 
 Not yet fully met (see `docs/KNOWN_ISSUES.md` → "Ongoing Follow-ups"):
-- Rate limiting on auth + scan endpoints.
 - Empirical prompt evaluation in CI.
 - Secondary indexes on FK columns.
+- Cross-instance rate-limit coordination (current per-instance Map is sufficient for sequential-from-one-IP brute force; distributed multi-PoP attackers can still evade).
 
 ---
 
@@ -193,3 +238,24 @@ The project has four layers of static validation:
 
 New checks should be wired into `npm run check:all` so they run as part
 of the per-commit loop, not just CI.
+
+## 9. The five-lens testing posture (Rounds 7 → 12, May–June 2026)
+
+Correctness has five orthogonal lenses; the project relies on all five because each one catches a class of bug the others don't.
+
+| Lens | Tool | What it pins | What it misses |
+|------|------|-------------|----------------|
+| **Unit** | Vitest (`npm test`) — 171 cases | Code invariants: crypto, zod, prompt-builder, cascade structure, auth-store `authChecked` lifecycle | Anything that requires real DOM, network, or human judgment |
+| **e2e (per-surface)** | Playwright (`npm run test:e2e`) — 97 cases total | Rendered DOM behaviour against the live deploy: hreflang, og:image, accessible names, label associations, payload caps, `<main>` landmark on every public page, iPhone-SE 375px overflow guard, anonymous `/api/auth/me` 200-probe contract, third-party-script whitelist | Editorial issues — copy can be honest, the DOM doesn't care. And integration seams — each probe checks one surface in isolation |
+| **Fresh-user audit** | Human / AI walking through the product with zero context | First-impression UX: dishonest affordances, jargon without context, duplicate inputs, unsubstantiated claims, late-loading assets, inconsistent CTAs | Anything that needs >10s of investigation per claim |
+| **Web Vitals + a11y inventory** | Playwright + `performance.getEntriesByType` + DOM inspector | Perf regressions (FCP/LCP/CLS), font-payload bloat, missing `<main>`/landmarks, h1 hierarchy, unlabeled inputs, WebKit/Safari smoke | Schema correctness, business-logic invariants |
+| **Full user-journey** (Round 12) | Playwright — `tests/e2e/user-journey.spec.ts`, 4 phases | End-to-end flows through the rendered UI reaching *terminal states*: upload → analyze → result/handled-error (never a stuck spinner), register submit → inline error/success (never an error boundary), every nav target renders or redirects cleanly | Content quality of the AI result (the fixture is deliberately not food); multi-photo specifics; anything requiring a real session cookie |
+
+**Cadence**:
+- Unit + e2e run on every commit-loop. Unit runs in CI on every PR.
+- The journey spec runs before any release and after any change to scan, auth, or routing — it automates §3's manual checks 1, 3, 4, 5.
+- Fresh-user audit + Web Vitals + a11y inventory run in **rounds** (each ~5–10 iterations, ship-fix-verify), triggered when the product changes its first-impression surface, hits a perf threshold, or when ~3 months have passed since the last round.
+
+**Don't substitute one for another**. The `/sitemap.xml` saga (PRs #34→#38) shipped 4 "fixed" PRs because each round's validation only proved the route returned 200 — what the unit suite would have asked. e2e would have caught it in one iteration. Round 7 re-learned the lesson: 9 fresh-user bugs that 243 automated tests couldn't see, because they're editorial. Round 11 re-learned it again: 5 perf + a11y bugs that 251 tests couldn't see because they pass the green-light check (the page renders, nothing throws) but fail a quality bar (FCP > 1.8s, no `<main>`). Round 12 closed a fourth gap: per-surface probes were green while building the journey spec still surfaced an intermittent register-form crash and a silent file-rejection floor — bugs that only appear when you chain the surfaces together the way a user does.
+
+See `docs/GUIDELINE.md → The fresh-user audit lens`, `→ The Web-Vitals + a11y inventory lens`, and `→ The full user-journey lens` for the practical recipes the next contributor should follow.

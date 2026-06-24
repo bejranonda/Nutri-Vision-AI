@@ -1,21 +1,29 @@
 /**
  * Tests for lib/rate-limit.ts.
  *
- * Goal: prove the limiter NEVER throws — that's the contract it makes
- * with the auth/scan/voucher routes. The limiter is called BEFORE the
- * route's try/catch (so the route can return a 429 directly without
- * hitting expensive work), so a thrown error here surfaces as the
- * framework's default 500 page. Every code path through rateLimit()
- * must end with a returned RateLimitResult, not an uncaught throw.
+ * Goals (in priority order):
+ *   1. Prove the limiter NEVER throws — auth/scan/voucher routes call
+ *      it BEFORE their try/catch, so any uncaught throw here surfaces
+ *      as the framework's default 500 page. Every code path must end
+ *      with a returned RateLimitResult.
+ *   2. Prove the limit actually engages: after `limit` requests within
+ *      `windowMs`, subsequent requests from the same client must
+ *      return `allowed: false`. Bug-hunt May 2026 caught the previous
+ *      implementation silently fail-open in production (40 parallel
+ *      voucher probes against a 30/min limit all returned 200) because
+ *      `caches.default` in the OpenNext-on-Pages runtime didn't
+ *      persist between requests. The current implementation uses a
+ *      module-scoped Map as primary store, which always works.
  *
- * We can't easily simulate `caches.default` in Vitest's Node env, but
- * we don't need to — the contract is "if anything goes wrong, return
- * allowed:true". Vitest happens to be one of those "anything goes
- * wrong" environments (no `caches` global), which is exactly the
- * surface we want to verify.
+ * Each test resets the in-memory store via `_resetForTest` so suites
+ * don't bleed state between cases.
  */
-import { describe, it, expect } from 'vitest';
-import { rateLimit, clientKey, tooManyResponse } from '@/lib/rate-limit';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { rateLimit, clientKey, tooManyResponse, _resetForTest } from '@/lib/rate-limit';
+
+beforeEach(() => {
+  _resetForTest();
+});
 
 function mkReq(headers: Record<string, string> = {}): Request {
   return new Request('https://example.com/x', {
@@ -27,9 +35,8 @@ function mkReq(headers: Record<string, string> = {}): Request {
 // ---------------------------------------------------------------------------
 // rateLimit fail-open contract
 // ---------------------------------------------------------------------------
-describe('rateLimit', () => {
-  it('does not throw when caches.default is unavailable (Node test env)', async () => {
-    // No `caches` global in Vitest — the limiter must still resolve.
+describe('rateLimit — fail-open contract (must never throw)', () => {
+  it('does not throw with a vanilla Node Request', async () => {
     const result = await rateLimit(mkReq(), {
       routeLabel: 'auth-login',
       limit: 10,
@@ -48,9 +55,7 @@ describe('rateLimit', () => {
     expect(result.allowed).toBe(true);
   });
 
-  it('uses cf-connecting-ip when present (does not fall back)', async () => {
-    // We can't observe the bucket key directly, but we can verify the
-    // route doesn't 500 with a realistic CF header.
+  it('does not throw when cf-connecting-ip is present', async () => {
     const result = await rateLimit(
       mkReq({ 'cf-connecting-ip': '203.0.113.42' }),
       { routeLabel: 'auth-register', limit: 3, windowMs: 15 * 60_000 },
@@ -70,6 +75,81 @@ describe('rateLimit', () => {
       limit: expect.any(Number),
       retryAfterSeconds: expect.any(Number),
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// rateLimit enforcement — the limit must actually engage
+// ---------------------------------------------------------------------------
+describe('rateLimit — enforcement', () => {
+  it('blocks the (limit+1)th request from the same IP within the window', async () => {
+    // Bug-hunt May 2026: prior implementation used `caches.default` as
+    // primary store. In the OpenNext-on-Pages runtime that doesn't
+    // give same-millisecond read-after-write consistency, so 40
+    // parallel probes against a 30/min limit all returned `allowed:true`
+    // — silently fail-open. The current Map-backed primary fixes this.
+    const headers = { 'cf-connecting-ip': '203.0.113.99' };
+    const opts = { routeLabel: 'auth-login', limit: 3, windowMs: 60_000 };
+
+    for (let i = 0; i < 3; i++) {
+      const r = await rateLimit(mkReq(headers), opts);
+      expect(r.allowed).toBe(true);
+    }
+    // 4th request must trip
+    const fourth = await rateLimit(mkReq(headers), opts);
+    expect(fourth.allowed).toBe(false);
+    expect(fourth.retryAfterSeconds).toBeGreaterThan(0);
+    expect(fourth.limit).toBe(3);
+  });
+
+  it('does not bleed buckets across distinct IPs', async () => {
+    const opts = { routeLabel: 'voucher-check', limit: 2, windowMs: 60_000 };
+    // Exhaust IP A
+    await rateLimit(mkReq({ 'cf-connecting-ip': '198.51.100.1' }), opts);
+    await rateLimit(mkReq({ 'cf-connecting-ip': '198.51.100.1' }), opts);
+    const aBlocked = await rateLimit(mkReq({ 'cf-connecting-ip': '198.51.100.1' }), opts);
+    expect(aBlocked.allowed).toBe(false);
+    // IP B is fresh
+    const bAllowed = await rateLimit(mkReq({ 'cf-connecting-ip': '198.51.100.2' }), opts);
+    expect(bAllowed.allowed).toBe(true);
+  });
+
+  it('does not bleed buckets across distinct routeLabels', async () => {
+    const headers = { 'cf-connecting-ip': '203.0.113.50' };
+    // Exhaust route A
+    await rateLimit(mkReq(headers), { routeLabel: 'A', limit: 1, windowMs: 60_000 });
+    const aBlocked = await rateLimit(mkReq(headers), { routeLabel: 'A', limit: 1, windowMs: 60_000 });
+    expect(aBlocked.allowed).toBe(false);
+    // Route B is fresh
+    const bAllowed = await rateLimit(mkReq(headers), { routeLabel: 'B', limit: 1, windowMs: 60_000 });
+    expect(bAllowed.allowed).toBe(true);
+  });
+
+  it('blocked request does not increment further (no DoS-by-flood extending the window)', async () => {
+    const headers = { 'cf-connecting-ip': '203.0.113.77' };
+    const opts = { routeLabel: 'voucher-check', limit: 2, windowMs: 60_000 };
+    await rateLimit(mkReq(headers), opts);
+    await rateLimit(mkReq(headers), opts);
+    // Three more rejected attempts in a row
+    const r1 = await rateLimit(mkReq(headers), opts);
+    const r2 = await rateLimit(mkReq(headers), opts);
+    const r3 = await rateLimit(mkReq(headers), opts);
+    expect(r1.allowed).toBe(false);
+    expect(r2.allowed).toBe(false);
+    expect(r3.allowed).toBe(false);
+    // count must stay equal to limit, not grow unbounded.
+    expect(r3.count).toBe(opts.limit);
+  });
+
+  it('treats unrelated requests with no IP header as one shared "anon" bucket', async () => {
+    // Defensive — if no IP signal exists, every request lands in the
+    // same bucket. Better to have *some* throttle on the unknown
+    // surface than to grant unlimited.
+    const opts = { routeLabel: 'auth-login', limit: 1, windowMs: 60_000 };
+    const first = await rateLimit(mkReq(), opts);
+    const second = await rateLimit(mkReq(), opts);
+    expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(false);
   });
 });
 
@@ -137,4 +217,59 @@ describe('tooManyResponse', () => {
     expect(body.error).toBe('Too many requests');
     expect(body.retryAfterSeconds).toBe(42);
   });
+
+  it('sets cache-control: no-store on 429 responses', () => {
+    // Round 5 e2e caught that 429 responses were missing
+    // `cache-control: no-store` — every other /api/* response sets
+    // it via `jsonResponse`, but `tooManyResponse` bypasses that
+    // helper because rate-limit runs before the route's main
+    // try/catch. The same "personalised, never cache" contract still
+    // applies. Locking it here so a future contributor who copies
+    // tooManyResponse for a new error type doesn't drop the header.
+    const res = tooManyResponse({ allowed: false, count: 5, limit: 3, retryAfterSeconds: 10 });
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Route wiring — which endpoints are actually throttled (Round 13)
+// ---------------------------------------------------------------------------
+//
+// KNOWN_ISSUES.md carried a stale "no rate limit on auth & scan
+// endpoints" follow-up long after login/register/voucher/chat were
+// wired, while /api/analyze (the most expensive route — every call
+// burns Workers-AI + Gemini quota) and /api/promo/redeem (code
+// enumeration from a logged-in session) stayed unthrottled. This
+// suite walks the route sources so the wiring is a CI-pinned
+// invariant instead of a doc claim that can drift.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const RATE_LIMITED_ROUTES = [
+  'auth/login',
+  'auth/register',
+  'voucher/check',
+  'chat',
+  'analyze',
+  'promo/redeem',
+  // Round 14: admin mutations — auth-gated, but a stolen admin cookie
+  // shouldn't allow unthrottled scripting (KNOWN_ISSUES 0b).
+  'admin/promo/create',
+  'admin/promo/toggle-active',
+  'admin/users/toggle-admin',
+  'admin/users/update-tier',
+] as const;
+
+describe('rateLimit route wiring', () => {
+  for (const route of RATE_LIMITED_ROUTES) {
+    it(`/api/${route} calls rateLimit() and returns tooManyResponse()`, () => {
+      const src = readFileSync(
+        resolve(__dirname, `../src/app/api/${route}/route.ts`),
+        'utf8',
+      );
+      expect(src).toMatch(/rateLimit\(/);
+      expect(src).toMatch(/tooManyResponse\(/);
+      expect(src).toMatch(/from '@\/lib\/rate-limit'/);
+    });
+  }
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { jsonResponse } from '@/lib/api-response';
 import { getEnvSafe } from '@/lib/cloudflare';
 
 /**
@@ -39,6 +40,18 @@ export async function GET(req: Request) {
 
         const status = hasAI || hasGoogleKey ? 'healthy' : 'degraded';
 
+        // Surface the Cloudflare Pages deployment metadata that the
+        // platform sets at build time. Bug-hunt May 2026: deployment
+        // freshness was previously only verifiable by behavioural probes
+        // (does `modelUsed` reflect the post-PR shape?). Surfacing the
+        // commit SHA directly lets operators and CI verify "is the
+        // current deploy the commit I think it is?" in one curl. Keys
+        // come from CF Pages build env — see
+        //   https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables
+        const sha = (env as any)?.CF_PAGES_COMMIT_SHA || null;
+        const branch = (env as any)?.CF_PAGES_BRANCH || null;
+        const pagesUrl = (env as any)?.CF_PAGES_URL || null;
+
         const response: Record<string, any> = {
             status,
             timestamp: new Date().toISOString(),
@@ -52,7 +65,20 @@ export async function GET(req: Request) {
                 database: dbStatus,
                 runtime: isCloudflareRuntime ? 'cloudflare' : 'node',
             },
-            version: process.env.npm_package_version || 'unknown',
+            // Deployment metadata. Fields are null in local dev (env
+            // vars only set by Cloudflare Pages at build time); null
+            // is the correct sentinel for "not running on Pages".
+            deployment: {
+                sha,
+                shaShort: sha ? String(sha).slice(0, 7) : null,
+                branch,
+                pagesUrl,
+            },
+            // NEXT_PUBLIC_APP_VERSION is inlined from package.json at build
+            // time (next.config.js); npm_package_version is only set when
+            // running via npm scripts, which isn't the case in the
+            // Cloudflare runtime — hence the previous "unknown".
+            version: process.env.NEXT_PUBLIC_APP_VERSION || process.env.npm_package_version || 'unknown',
         };
 
         // Verbose mode: include safe env keys for debugging deploy issues
@@ -67,12 +93,12 @@ export async function GET(req: Request) {
             };
         }
 
-        return NextResponse.json(response, {
+        return jsonResponse(response, {
             status: status === 'healthy' ? 200 : 503,
             headers: { 'Cache-Control': 'no-store' },
         });
     } catch (error: any) {
-        return NextResponse.json({
+        return jsonResponse({
             status: 'error',
             timestamp: new Date().toISOString(),
             latencyMs: Date.now() - startTime,

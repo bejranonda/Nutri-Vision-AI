@@ -1,8 +1,7 @@
 {
   "brand": {
     "name": "Shinny Guide",
-    "tagline": "Lecker in der richtigen Reihenfolge",
-    "tagline_thai": "อร่อย ตาม ลำดับ"
+    "tagline": "Lecker in der richtigen Reihenfolge"
   },
   "mascot": {
     "name": "Shinny",
@@ -22,20 +21,23 @@
     "recipes": "Rezepte",
     "learn": "Lernen",
     "profile": "Profil",
-    "pricing": "Preise"
+    "pricing": "Preise",
+    "open_menu": "Menü öffnen",
+    "close_menu": "Menü schließen"
   },
   "home": {
     "title": "Shinny Guide",
     "subtitle": "Clever essen, länger leben",
     "description": "Entdecke, wie die richtige Essreihenfolge Blutzuckerspitzen um bis zu 70% reduzieren kann",
-    "cta": "Jetzt scannen",
+    "cta": "Scan starten",
     "demo": "So funktioniert's",
     "concept_badge": "Das Geheimnis: Die richtige Reihenfolge",
     "concept": {
       "title": "Wie isst man ohne zu altern?",
       "description": "Unsere KI zählt nicht nur Kalorien — sie hilft dir, deine Mahlzeiten optimal zu sequenzieren:",
       "sequence_short": "Gemüse → Protein → Kohlenhydrate → Süßes",
-      "spike_reduction": "Bis zu 70% weniger Blutzuckerspitzen",
+      "spike_reduction": "Bis zu 70% weniger Blutzuckerspitzen*",
+      "spike_reduction_source": "*Basierend auf einer Studie des Weill Cornell Medical Center (Shukla et al., 2015) mit Typ-2-Diabetes-Patienten. Individuelle Ergebnisse variieren.",
       "steps": {
         "fiber": "1. Gemüse",
         "fiber_desc": "Ballaststoffe beschichten den Darm und verlangsamen die Zuckeraufnahme",
@@ -64,7 +66,9 @@
         "title": "Gamifizierte Gesundheit",
         "description": "Sammle Punkte, halte Streaks und steige in deinen Essgewohnheiten auf"
       }
-    }
+    },
+    "free_no_signup": "Kostenlos · Kein Konto nötig zum Ausprobieren",
+    "gamify_preview_note": "Beispiel-Vorschau – starte mit dem Scannen und sammle deine eigene Serie und Punkte!"
   },
   "scan": {
     "title": "Essen scannen",
@@ -85,9 +89,18 @@
     "fiber_g": "Ballaststoffe",
     "try_again": "Erneut scannen",
     "error_title": "Entschuldigung! 🙏",
-    "error_oops": "Hoppla!",
     "error_message": "Shinny konnte dieses Bild nicht analysieren",
+    "upload_unsupported": "Dieser Dateityp wird nicht unterstützt – probier ein JPG-, PNG- oder HEIC-Foto.",
+    "upload_too_large": "Dieses Foto ist zu groß ({mb} MB) – das Limit liegt bei 15 MB.",
+    "upload_skipped": "{n} Datei(en) übersprungen, die nicht unterstützt oder zu groß waren.",
+    "history_meal": "Mahlzeit",
+    "history_menu": "Menü-Scan",
+    "history_drink_snack": "Getränk/Snack",
+    "history_more": "+ {n} weitere",
     "timeout_message": "Die Analyse dauert zu lange. Bitte versuche es erneut mit einem einfacheren Foto.",
+    "error_quota": "Du hast deine Scans für diesen Monat aufgebraucht. Upgrade, um weiterzuscannen!",
+    "error_rate_limited": "Viele Scans in kurzer Zeit – warte bitte eine Minute und versuch es erneut.",
+    "error_overloaded": "Shinnys KI ist gerade stark ausgelastet. Bitte versuch es gleich noch einmal.",
     "low_confidence": {
       "title": "Shinny ist sich nicht sicher!",
       "message": "Das sieht nicht nach einem Essen aus, das ich klar erkennen kann. Die Analyse unten könnte ungenau sein. Versuche ein näheres, klareres Foto."
@@ -97,13 +110,7 @@
     "sequence": {
       "title": "Optimale Essreihenfolge",
       "subtitle": "Folge dieser Sequenz, um Blutzuckerspitzen zu reduzieren",
-      "spike_reduction": "Geschätzte Spitzenreduktion",
-      "current_step": "Aktueller Schritt",
-      "completed": "Sequenz abgeschlossen!",
-      "eat_first": "Zuerst essen",
-      "eat_second": "Als Zweites essen",
-      "eat_third": "Als Drittes essen",
-      "eat_last": "Zuletzt essen"
+      "spike_reduction": "Geschätzte Spitzenreduktion"
     },
     "scores": {
       "blood_sugar": "Blutzucker-Auswirkung",
@@ -114,17 +121,6 @@
       "protein_quality": "Proteinqualität",
       "micronutrient": "Vitamine & Minerale",
       "overall": "Gesamtscore"
-    },
-    "suggestions": {
-      "add_fiber": "Füge Gemüse hinzu, um Blutzuckerspitzen zu reduzieren",
-      "great_balance": "Tolle Balance! Diese Mahlzeit hat alle Komponenten."
-    },
-    "mock_foods": {
-      "pad_thai": "Pad Thai",
-      "som_tam": "Som Tam (Papayasalat)",
-      "tom_yum": "Tom Yum Kung",
-      "green_curry": "Grünes Curry mit Reis",
-      "mango_sticky": "Mango Sticky Rice"
     },
     "loading_phases": {
       "stitching": "Fotos werden zusammengefügt...",
@@ -173,7 +169,6 @@
       "items_found": "Gefundene Menüeinträge",
       "items_label": "Einträge",
       "scanned_label": "Menü gescannt",
-      "health_rating": "Gesundheitsbewertung",
       "recommendations": "Shinny empfiehlt",
       "combo_title": "Beste Kombination",
       "scenarios": {
@@ -196,7 +191,8 @@
     "dishes_found": "Gefundene Gerichte",
     "score_label": "Score",
     "not_food_title": "Hm, ich sehe hier kein Essen",
-    "scan_tip": "Lade ein klares Foto deiner Mahlzeit, eines Getränks oder einer Speisekarte hoch!"
+    "scan_tip": "Lade ein klares Foto deiner Mahlzeit, eines Getränks oder einer Speisekarte hoch!",
+    "privacy_note": "🔒 Dein Foto wird nur für diese Analyse verwendet. Nicht gespeichert. Nicht für KI-Training genutzt."
   },
   "demo": {
     "title": "So funktioniert Shinny Guide",
@@ -235,7 +231,7 @@
     "try_it": {
       "title": "Probier es selbst!",
       "description": "Scanne deine nächste Mahlzeit und lass Shinny dich durch die optimale Essreihenfolge führen.",
-      "cta_scan": "Jetzt Essen scannen",
+      "cta_scan": "Scan starten",
       "cta_register": "Kostenloses Konto erstellen"
     }
   },
@@ -268,15 +264,30 @@
     "quiz": "Quiz starten"
   },
   "chat": {
-    "title": "Frag Shinny",
-    "subtitle": "Dein KI-Ernährungsberater",
-    "placeholder": "Frag zu Essen, Ernährung oder Essreihenfolge...",
+    "title": "Coach Shinny",
+    "back": "Zurück zum Dashboard",
+    "clear": "Chat löschen",
     "send": "Senden",
-    "examples": {
-      "title": "Probier zu fragen:",
-      "1": "Wie beeinflusst Pad Thai meinen Blutzucker?",
-      "2": "Was ist die beste Reihenfolge für Som Tam?",
-      "3": "Kann ich noch Süßes essen? Wie?"
+    "thinking": "Shinny denkt nach…",
+    "input_placeholder": "Frag zu deiner Mahlzeit, Zutaten, Reihenfolge…",
+    "welcome_title": "Hi! Ich bin Shinny, dein Ernährungscoach 🍜",
+    "welcome_subtitle": "Frag mich zu thailändischem Essen, Blutzucker oder wie du klug isst, ohne Lieblingsessen aufzugeben.",
+    "starter": {
+      "q1": "In welcher Reihenfolge esse ich Pad Thai mit thailändischem Eistee?",
+      "q2": "Ich esse gleich Sushi — was trinken?",
+      "q3": "Bester Snack gegen das 15-Uhr-Tief?"
+    },
+    "quota_remaining": "Noch {n} Fragen heute",
+    "retry": "Erneut versuchen",
+    "not_sent": "Nicht gesendet — unten erneut versuchen",
+    "error_generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "error_network": "Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.",
+    "error_rate_limited": "Zu viele Anfragen — bitte kurz warten und erneut versuchen.",
+    "limit": {
+      "title": "Tageslimit erreicht",
+      "body": "Der Gratis-Tarif erlaubt 3 Fragen pro Tag. Upgrade auf Premium für unbegrenztes Coaching.",
+      "cta": "Tarife ansehen",
+      "placeholder": "Tageslimit erreicht — Upgrade für mehr"
     }
   },
   "recipes": {
@@ -298,7 +309,9 @@
       "diabetic_friendly": "Diabetikerfreundlich",
       "low_carb": "Low Carb"
     },
-    "sequence_hint": "Beste Essreihenfolge für dieses Rezept"
+    "sequence_hint": "Beste Essreihenfolge für dieses Rezept",
+    "placeholder_title": "Rezepte kommen bald",
+    "placeholder_body": "Shinny stellt gerade gesunde Thai-Rezepte für dich zusammen. Möchtest du in der Zwischenzeit deine heutige Mahlzeit scannen?"
   },
   "gamification": {
     "points": "Punkte",
@@ -364,9 +377,6 @@
     "confirm_password": "Passwort bestätigen",
     "display_name": "Anzeigename",
     "or": "oder",
-    "login_with_google": "Mit Google anmelden",
-    "login_with_line": "Mit Line anmelden",
-    "forgot_password": "Passwort vergessen?",
     "no_account": "Noch kein Konto?",
     "has_account": "Bereits ein Konto?",
     "register_here": "Hier registrieren",
@@ -386,11 +396,9 @@
       "name_required": "Anzeigename ist erforderlich"
     },
     "social_coming_soon": "Social Login kommt bald!",
-    "promo_section": "Hast du einen Promotioncode?",
+    "social_badge_soon": "Bald",
     "promo_placeholder": "Code eingeben (z.B. SHINNY2024)",
     "promo_apply": "Code einlösen",
-    "promo_success": "Code erfolgreich eingelöst!",
-    "promo_error": "Ungültiger oder abgelaufener Code",
     "voucher_label": "Gutscheincode",
     "voucher_placeholder": "BETA-CHULA-01",
     "voucher_help": "Während der Pilotphase erforderlich. Frage die Person, die dich eingeladen hat.",
@@ -404,7 +412,16 @@
       "wrong_scope": "Dieser Code kann nicht für neue Konten verwendet werden.",
       "rate_limited": "Zu viele Prüfungen — bitte kurz warten und neu versuchen.",
       "check_failed": "Der Code konnte gerade nicht geprüft werden. Bitte später erneut versuchen."
-    }
+    },
+    "server_errors": {
+      "voucher_required": "Während der Pilotphase ist die Registrierung nur mit Einladung möglich – bitte gib deinen Voucher-Code ein.",
+      "email_in_use": "Diese E-Mail hat bereits ein Konto. Versuch dich stattdessen einzuloggen!",
+      "invalid_credentials": "E-Mail oder Passwort stimmen nicht – probier es noch einmal.",
+      "rate_limited": "Zu viele Versuche – warte kurz und versuch es dann erneut.",
+      "server_error": "Bei uns ist etwas schiefgelaufen. Bitte versuch es gleich noch einmal.",
+      "network": "Keine Verbindung zum Server – prüfe deine Internetverbindung und versuch es erneut."
+    },
+    "toggle_password_visibility": "Passwort anzeigen"
   },
   "pricing": {
     "title": "Wähle deinen Plan",
@@ -418,7 +435,6 @@
     "current_plan": "Aktueller Plan",
     "get_started": "Kostenlos starten",
     "upgrade_now": "Jetzt upgraden",
-    "contact_sales": "Vertrieb kontaktieren",
     "free_tier": {
       "name": "Starter",
       "description": "Erste Schritte mit Food Scanning",
@@ -463,6 +479,21 @@
       "cta": "Kontaktieren Sie uns"
     },
     "promo_code": "Hast du einen Promotioncode?",
+    "score_breakdown": {
+      "title": "Was ist der 8-dimensionale Gesundheitsscore?",
+      "intro": "Jeder Scan bewertet deine Mahlzeit in diesen 8 Dimensionen. Free schaltet 3 frei, Premium und Family alle 8.",
+      "free_badge": "Kostenlos",
+      "dimensions": {
+        "blood_sugar": "Wie schnell diese Mahlzeit deinen Blutzucker erhöht (glykämische Last).",
+        "gut_health": "Ballaststoffe, fermentierte Lebensmittel und Mikrobiom-Unterstützung.",
+        "inflammation": "Balance zwischen entzündungsfördernden und entzündungshemmenden Zutaten.",
+        "nutrient_density": "Vitamine und Mineralstoffe pro Kalorie.",
+        "processing": "Wie weit entfernt von unverarbeiteten Lebensmitteln (NOVA-Klassifikation).",
+        "protein_quality": "Vollständigkeit der Aminosäuren und Verdaulichkeit.",
+        "micronutrient": "Spezifische Vitamin- und Mineralstoff-Abdeckung.",
+        "overall": "Gewichteter Durchschnitt — dein einziger Score auf einen Blick."
+      }
+    },
     "faq": {
       "title": "Häufig gestellte Fragen",
       "q1": "Kann ich Premium kostenlos testen?",
@@ -473,7 +504,8 @@
       "a3": "Wir akzeptieren PromptPay, Kredit-/Debitkarten, TrueMoney Wallet und Rabbit LINE Pay.",
       "q4": "Gibt es einen Studentenrabatt?",
       "a4": "Ja! Studenten erhalten Premium zum Sonderpreis von 999 THB/Jahr."
-    }
+    },
+    "promo_login_first": "Bitte melde dich zuerst an, um einen Code einzulösen."
   },
   "dashboard": {
     "welcome": "Willkommen zurück",
@@ -482,15 +514,17 @@
     "scans_used": "Verwendete Scans",
     "streak": "Tage-Streak",
     "points": "Gesamtpunkte",
-    "tier_badge": "Dein Plan",
     "recent_scans": "Letzte Scans",
     "no_scans": "Noch keine Scans. Probiere deinen ersten Scan!",
     "daily_challenge": "Heutige Herausforderung",
     "challenge_text": "Scanne eine Mahlzeit und folge der Esssequenz perfekt",
     "challenge_reward": "+50 Punkte",
     "upgrade_cta": "Alle Funktionen mit Premium freischalten",
+    "upgrade_subtitle": "฿{price}/Monat – unbegrenzte Scans + alle 8 Score-Dimensionen",
     "trial_expires": "Testversion läuft in {days} Tagen ab",
-    "scan_now": "Jetzt Essen scannen"
+    "scan_now": "Scan starten",
+    "chat_card_title": "Coach Shinny",
+    "chat_card_subtitle": "Frag alles über Essen"
   },
   "common": {
     "loading": "Laden...",
@@ -511,8 +545,7 @@
     "free": "Kostenlos",
     "premium": "Premium",
     "family": "Familie",
-    "unlimited": "Unbegrenzt",
-    "coming_soon_feature": "Kommt bald!"
+    "unlimited": "Unbegrenzt"
   },
   "coming_soon": {
     "scan": "Dieses Feature kommt bald! Unsere KI lernt noch die optimalen Essreihenfolgen.",
@@ -520,5 +553,12 @@
     "login": "Dieses Feature kommt bald! Authentifizierung wird gerade implementiert.",
     "dashboard": "Dieses Feature kommt bald! Dein persönliches Dashboard wird vorbereitet.",
     "recipes": "Dieses Feature kommt bald! Unsere Köche und KI arbeiten an Rezepten."
+  },
+  "not_found": {
+    "title": "Entschuldigung! 🙏",
+    "headline": "Diese Seite konnte nicht gefunden werden",
+    "subtitle": "Die gesuchte Seite wurde möglicherweise verschoben oder existiert nicht.",
+    "back_to_home": "Zurück zur Startseite",
+    "start_scan": "Scan starten"
   }
 }

@@ -29,6 +29,13 @@
       "when": 1777856400000,
       "tag": "0003_voucher_registration_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1781073484178,
+      "tag": "0004_fk_user_id_indexes",
+      "breakpoints": true
     }
   ]
 }

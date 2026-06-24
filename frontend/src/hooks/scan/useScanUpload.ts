@@ -67,11 +67,11 @@ export function useScanUpload({ tier, onReset }: { tier: string, onReset: () => 
                 invalidCount++; return false;
             }
             if (!ALLOWED_TYPES.includes(file.type)) {
-                lastErrorMsg = `Unsupported format: ${file.type}`;
+                lastErrorMsg = t('upload_unsupported');
                 invalidCount++; return false;
             }
             if (file.size > MAX_FILE_SIZE) {
-                lastErrorMsg = `File too large (${(file.size/1024/1024).toFixed(1)}MB)`;
+                lastErrorMsg = t('upload_too_large', { mb: (file.size / 1024 / 1024).toFixed(1) });
                 invalidCount++; return false;
             }
             if (file.size < MIN_FILE_SIZE) {
@@ -82,7 +82,11 @@ export function useScanUpload({ tier, onReset }: { tier: string, onReset: () => 
         }).slice(0, availableSlots);
 
         if (invalidCount > 0) {
-            setUploadError(files.length === 1 ? lastErrorMsg : `Skipped ${invalidCount} unsupported/oversized file(s).`);
+            // Single rejected file → the specific reason; a multi-file batch
+            // with some rejects → a localized count summary. All strings go
+            // through t() — this used to mix hardcoded English into an
+            // otherwise-localized scan flow (Round 13).
+            setUploadError(files.length === 1 ? lastErrorMsg : t('upload_skipped', { n: invalidCount }));
             if (validFiles.length === 0) return;
         }
 

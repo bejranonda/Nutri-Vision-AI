@@ -1,0 +1,76 @@
+name: CI
+
+# Runs on every PR + every push to main. Cloudflare Pages handles the
+# actual deploy build; this workflow's job is to prove the two test
+# suites pass before code lands. Background: prior to Round 11 there
+# was no CI workflow at all, which is part of why the standalone
+# backend went 6 weeks without verification (Round 9 found 3 latent
+# bcrypt failures and a phantom `python-cors` dep that broke
+# `pip install` outright — both invisible without CI).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs when a PR is force-pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (Next.js Edge)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          # The ONLY lockfile lives at the repo root (npm workspaces
+          # hoists it there) — frontend/package-lock.json does not
+          # exist. Pointing setup-node at it failed every frontend CI
+          # run since this workflow was introduced in Round 11; with
+          # no branch protection enforcing the check, nobody noticed.
+          cache-dependency-path: package-lock.json
+      - name: Install (repo root — workspaces install covers frontend/)
+        run: npm ci
+        working-directory: .
+      - name: Type-check, i18n key parity, Vitest unit suite
+        run: npm run check:all
+      # NB: Playwright e2e suite is opt-in (`npm run test:e2e`) — it
+      # targets the LIVE production URL and needs Chromium installed
+      # plus network egress. Running it from CI against prod on every
+      # PR would risk false-positives from in-flight deploys. Reserve
+      # for manual post-deploy verification (see ITERATION_PROCESS.md
+      # §3 and §5).
+
+  backend:
+    name: Backend (FastAPI standalone — reference implementation)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install deps
+        # python-cors==1.0.0 (a phantom package) was removed in PR #65;
+        # bcrypt is pinned <4 so passlib 1.7.4's bcrypt-version detection
+        # doesn't AttributeError. If either of those regressions resurfaces,
+        # this step fails immediately, catching the breakage at PR time
+        # rather than weeks later.
+        run: pip install -r requirements.txt
+      - name: Pytest
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q

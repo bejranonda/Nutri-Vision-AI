@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { ArrowLeft, Check, Star, Gift, ChevronRight, Building } from 'lucide-react';
+import { Check, Star, Gift, ChevronRight, Building, Activity } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_PRICING } from '@/lib/tier-config';
 import { logger } from '@/lib/logger';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function PricingPage() {
     const t = useTranslations('pricing');
     const tCommon = useTranslations('common');
     const tAuth = useTranslations('auth');
+    const tScores = useTranslations('scan.scores');
     const locale = useLocale();
     const { isAuthenticated, user, redeemCode } = useAuthStore();
 
@@ -28,7 +29,8 @@ export default function PricingPage() {
     async function handlePromo() {
         if (!promoInput.trim()) return;
         if (!isAuthenticated) {
-            setPromoMsg(locale === 'th' ? 'กรุณาเข้าสู่ระบบก่อน' : 'Please login first');
+            // Was a th/en-only ternary — de/da users got English (Round 13).
+            setPromoMsg(t('promo_login_first'));
             setPromoOk(false);
             return;
         }
@@ -37,7 +39,12 @@ export default function PricingPage() {
         setPromoMsg(result.message);
     }
 
-    const currentTier = user?.subscriptionTier || 'free';
+    // Only a logged-in user HAS a current plan. The old fallback treated
+    // anonymous visitors as free-tier members, so the Starter card showed
+    // a dead "Current Plan" chip to people with no account at all —
+    // confusing first-impression copy (Round 13). Anonymous visitors now
+    // get the "Get Started" CTA into registration instead.
+    const currentTier = isAuthenticated ? (user?.subscriptionTier || 'free') : null;
 
     const tiers = [
         {
@@ -92,14 +99,11 @@ export default function PricingPage() {
 
             <div className="container mx-auto px-4 pt-6 pb-4 relative z-50">
                 <div className="flex items-center justify-between">
-                    <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl text-gray-600 hover:text-brand-primary-500 transition-colors border border-gray-200">
-                        <ArrowLeft className="w-4 h-4" /> {tCommon('back_to_home')}
-                    </Link>
-                    <LanguageSwitcher currentLocale={locale} />
+                    <SiteHeader locale={locale} />
                 </div>
             </div>
 
-            <div className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
+            <main className="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
                 {/* Header */}
                 <div className="text-center mb-10">
                     <h1 className="text-3xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-brand-primary-500 to-brand-secondary-500 mb-3">{t('title')}</h1>
@@ -167,7 +171,10 @@ export default function PricingPage() {
                                     {t('current_plan')}
                                 </div>
                             ) : (
-                                <Link href={tier.key === 'free' ? `/${locale}/login` : `/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
+                                // All anonymous CTAs lead to account creation — the
+                                // auth page defaults to the Register tab, which is the
+                                // right first step for both free and paid plans.
+                                <Link href={`/${locale}/login`} className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${tier.popular
                                     ? 'bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white shadow-brand hover:shadow-brand-lg'
                                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}>
@@ -177,6 +184,46 @@ export default function PricingPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* 8-dimension score disclosure — fresh-user audit iter 5:
+                    "Full 8-dimension scoring" is opaque jargon unless we
+                    show what's measured. A single details block below the
+                    tier cards lists all 8 with one-line explanations.
+                    Free tier covers 3 (blood-sugar, gut-health, overall)
+                    so we badge those. */}
+                <details className="group max-w-3xl mx-auto mb-10 backdrop-blur-md bg-white/80 rounded-3xl border border-gray-200 shadow-glass">
+                    <summary className="cursor-pointer p-5 md:p-6 list-none flex items-center justify-between gap-3 hover:text-brand-primary-500 transition-colors">
+                        <span className="flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-primary-400 to-brand-secondary-400 flex items-center justify-center shadow-brand">
+                                <Activity className="w-5 h-5 text-white" />
+                            </span>
+                            <span className="text-left">
+                                <span className="block font-bold text-gray-800">{t('score_breakdown.title')}</span>
+                                <span className="block text-sm text-gray-500">{t('score_breakdown.intro')}</span>
+                            </span>
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-open:rotate-90 transition-transform flex-shrink-0" />
+                    </summary>
+                    <ul className="px-5 md:px-6 pb-5 md:pb-6 grid sm:grid-cols-2 gap-3">
+                        {['blood_sugar', 'gut_health', 'inflammation', 'nutrient_density', 'processing', 'protein_quality', 'micronutrient', 'overall'].map((key) => {
+                            const isFree = key === 'blood_sugar' || key === 'gut_health' || key === 'overall';
+                            return (
+                                <li key={key} className="flex items-start gap-2 text-sm">
+                                    <Check className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <span className="font-semibold text-gray-800">{tScores(key)}</span>
+                                        {isFree && (
+                                            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-700 align-middle">
+                                                {t('score_breakdown.free_badge')}
+                                            </span>
+                                        )}
+                                        <p className="text-gray-500 text-xs mt-0.5">{t(`score_breakdown.dimensions.${key}`)}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </details>
 
                 {/* Enterprise CTA */}
                 <div className="backdrop-blur-md bg-gradient-to-r from-gray-50 to-brand-secondary-50 rounded-3xl p-8 max-w-3xl mx-auto shadow-glass text-center mb-10">
@@ -198,7 +245,16 @@ export default function PricingPage() {
                         <input
                             type="text" value={promoInput} onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                             placeholder={tAuth('promo_placeholder')}
-                            className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
+                            // aria-label makes the input accessible to screen
+                            // readers — the visible "Have a promotion code?"
+                            // heading is not associated via htmlFor/id.
+                            aria-label={t('promo_code')}
+                            // min-w-0: flex items default to min-width:auto (= content
+                            // min-width). With the placeholder "Enter code (e.g., …)"
+                            // and the whitespace-nowrap button next to it, the row
+                            // overflowed by ~24px on iPhone-SE-class viewports (375px).
+                            // min-w-0 lets the input shrink so the row stays bounded.
+                            className="flex-1 min-w-0 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-accent-400 focus:border-transparent outline-none text-gray-900"
                         />
                         <button onClick={handlePromo} className="px-5 py-3 bg-gradient-to-r from-brand-accent-400 to-brand-accent-500 text-white font-semibold rounded-xl hover:shadow-warning transition-all whitespace-nowrap">
                             {tAuth('promo_apply')}
@@ -224,7 +280,7 @@ export default function PricingPage() {
                         ))}
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

@@ -145,9 +145,6 @@ class Recipe(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    favorites = relationship("FavoriteRecipe", back_populates="recipe", cascade="all, delete-orphan")
-
     def __repr__(self):
         return f"<Recipe {self.name_en}>"
 
@@ -211,30 +208,3 @@ class Ingredient(Base):
 
     def __repr__(self):
         return f"<Ingredient {self.name_en}>"
-
-
-class FavoriteRecipe(Base):
-    """User's favorite recipes."""
-
-    __tablename__ = "favorite_recipes"
-
-    # Primary key
-    id = Column(Integer, primary_key=True, index=True)
-
-    # Foreign keys
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False, index=True)
-
-    # User notes
-    notes = Column(Text, nullable=True)
-    user_rating = Column(Integer, nullable=True)  # 1-5 stars
-
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    # Relationships
-    user = relationship("User", back_populates="favorite_recipes")
-    recipe = relationship("Recipe", back_populates="favorites")
-
-    def __repr__(self):
-        return f"<FavoriteRecipe User {self.user_id} Recipe {self.recipe_id}>"

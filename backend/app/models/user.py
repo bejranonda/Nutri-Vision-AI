@@ -105,7 +105,6 @@ class User(Base):
     scans = relationship("FoodScan", back_populates="user", cascade="all, delete-orphan")
     meal_plans = relationship("MealPlan", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
-    favorite_recipes = relationship("FavoriteRecipe", back_populates="user", cascade="all, delete-orphan")
 
     @property
     def is_premium(self) -> bool:

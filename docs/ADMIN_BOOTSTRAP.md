@@ -136,6 +136,19 @@ To distribute pilot codes:
 
 The recipient pastes the code on the registration form. If the code is valid the form's voucher field shows ✓ and an inline message ("Code unlocks family tier for 30 days · 12 seats left"). On submit, the user's account is created, the voucher's `usageCount` is incremented, and a row is added to `code_redemptions` so the voucher trail is auditable.
 
+## Optional: enable Groq for the AI Coach (chat) route
+
+`/api/chat` (Coach Shinny) cascades through Groq → Gemini → Cloudflare Workers AI. With **no key set**, chat still works but uses Gemini Flash (slower) or the CF safety net. With a Groq key set, chat is sub-300ms latency on Llama 3.3 70B and counts against Groq's free tier (30 req/min, no credit card).
+
+Get a free key at https://console.groq.com/keys, then:
+
+```bash
+echo -n "gsk_yourkeyhere" | \
+  npx wrangler pages secret put GROQ_API_KEY --project-name=eatinorder
+```
+
+Read at request time — flipping requires no redeploy. Free-tier provider, so no billing impact.
+
 ## Optional: register the admin email as a Cloudflare Pages secret
 
 If you want server code to recognise the bootstrap admin without

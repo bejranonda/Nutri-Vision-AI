@@ -63,6 +63,13 @@ export const RegisterRequest = z.object({
     .max(64)
     .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, 0-9, - and _')
     .optional(),
+  /**
+   * Locale the user registered from. Persists into users.language so
+   * a German visitor doesn't silently land with language='th' in the
+   * DB. Optional with a server-side default to 'th' (the primary
+   * launch locale) so older clients without this field still register.
+   */
+  locale: LocaleField.optional(),
 });
 export type RegisterRequestBody = z.infer<typeof RegisterRequest>;
 
@@ -89,6 +96,34 @@ export const AnalyzeRequest = z.object({
   forceModel: z.string().max(64).optional(),
 });
 export type AnalyzeRequestBody = z.infer<typeof AnalyzeRequest>;
+
+// ---------------------------------------------------------------------------
+// Chat (AI Coach Shinny)
+// ---------------------------------------------------------------------------
+
+/**
+ * One turn in the chat conversation history sent up by the client.
+ * `role` is restricted to user/assistant — the system prompt is
+ * server-controlled and never accepted from the client (otherwise a
+ * caller could overwrite Shinny's persona).
+ */
+const ChatTurnField = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().trim().min(1).max(2000),
+});
+
+export const ChatRequest = z.object({
+  /** The new user message about to be sent. */
+  message: z.string().trim().min(1).max(2000),
+  /**
+   * Recent conversation context so the model can stay coherent. We cap
+   * at 20 turns (= roughly 10 user/assistant pairs) to bound the
+   * upstream token cost; the client should already be trimming.
+   */
+  history: z.array(ChatTurnField).max(20).optional(),
+  locale: LocaleField.optional(),
+});
+export type ChatRequestBody = z.infer<typeof ChatRequest>;
 
 // ---------------------------------------------------------------------------
 // Promo

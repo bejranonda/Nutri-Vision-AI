@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da"/>
+  </url>
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th/scan</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th/scan"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en/scan"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de/scan"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da/scan"/>
+  </url>
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th/demo</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th/demo"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en/demo"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de/demo"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da/demo"/>
+  </url>
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th/pricing</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th/pricing"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en/pricing"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de/pricing"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da/pricing"/>
+  </url>
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th/recipes</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th/recipes"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en/recipes"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de/recipes"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da/recipes"/>
+  </url>
+  <url>
+    <loc>https://shinnyguide.autobahn.bot/th/login</loc>
+    <lastmod>2026-05-17T03:43:17.245Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="th" href="https://shinnyguide.autobahn.bot/th/login"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shinnyguide.autobahn.bot/en/login"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://shinnyguide.autobahn.bot/de/login"/>
+    <xhtml:link rel="alternate" hreflang="da" href="https://shinnyguide.autobahn.bot/da/login"/>
+  </url>
+</urlset>
