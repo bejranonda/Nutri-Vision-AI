@@ -1,4 +1,4 @@
-# 🍜 Shinny Guide (Nutri-Vision AI)
+# 🍜 Shinny Guide: AI Food Scanner & Sequencing App for Blood Sugar Management (Nutri-Vision AI)
 
 **อร่อย ตาม ลำดับ — Delicious in Order**
 
@@ -9,9 +9,9 @@
 
 ## What is Shinny Guide?
 
-Shinny Guide is an AI-powered food sequencing app that helps you eat Thai food (and any cuisine) in the right order to reduce blood sugar spikes by up to **70%**. Based on real science — eat **Veggies → Protein → Carbs → Sweets**.
+Shinny Guide is an advanced **AI food scanner** and **food sequencing app** designed for **blood sugar management**. Snap a photo of Thai food (or any cuisine) to learn exactly what to eat first. By eating in the right order—**Veggies → Protein → Carbs → Sweets**—you can reduce blood sugar spikes by up to **70%**. 
 
-Meet **Shinny** (ชินนี่), your AI food coach who guides you through every meal!
+Meet **Shinny** (ชินนี่), your personalized **AI nutrition coach** who tracks your calories, provides an 8-dimension health score, and guides you through 1000+ healthy recipes!
 
 ## ✨ Key Features
 
