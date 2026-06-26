@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Round 16 (discoverability) — SEO + social + package metadata rework (v2.1.14)
+
+The product was indexed under brand-led copy ("Smart Food Sequencing") while real users search by **problem and tool** ("AI food scanner", "blood sugar", "what to eat first"). This round rewrote the discovery surface — search metadata, social cards, repo/package topic tags, and the README hero — to match search intent. Pure metadata/docs; no runtime behaviour, no test-posture change.
+
+| Surface | Before | After |
+|---|---|---|
+| `layout.tsx` `<title>` | "Shinny Guide — Smart Food Sequencing for Better Health" | "Shinny Guide: AI Food Scanner & Sequencing App for Blood Sugar Management" — keyword-front-loaded |
+| `layout.tsx` description | brand/concept-led | intent-led: "AI food scanner that tells you what to eat first… 8-dimension health scoring and personalized meal plans" |
+| `layout.tsx` keywords | 7 loose phrases | 12 hyphenated topic tags (`ai-food-recognition`, `blood-sugar`, `food-sequencing`, `nutrition-scoring`, …) |
+| `layout.tsx` openGraph | generic | action-led social copy ("Snap a photo of your meal and let AI tell you the perfect eating sequence…") |
+| `package.json` description + keywords | npm-generic | search-rich description + 20 topic/stack tags (incl. `cloudflare-workers`, `drizzle-orm`, `nextjs`, `typescript`, `zustand`, `llama`, `progressive-web-app`, `i18n`) for repo + npm discovery |
+| `package.json` homepage | `…/Nutri-Vision-AI#readme` (GitHub anchor) | `https://nutri-vision-ai.pages.dev` (the live product) |
+| `README.md` / `README-TH.md` | brand H1, no hero image | keyword-rich H1, hero screenshot, AI-food-scanner / blood-sugar-management positioning, AI nutrition coach + 1000+ recipes |
+
+**Method recorded** in `docs/GUIDELINE.md → The discoverability / SEO-metadata lens`: audit title/description/keywords against *search intent* (what a stranger types), not brand vocabulary; front-load the primary keyword in `<title>`; keep `metadataBase`-absolute `og:image` (already shipped round 4) so social cards render; point `homepage` at the live deploy, not a repo anchor. The existing e2e SEO/PWA + share-metadata pins (`smoke`, `deep-probes`) continue to guard the structural invariants (hreflang graph, og:image absolute URL, unique per-locale `<title>`, meta-description length bounds).
+
+Bumped to **v2.1.14**.
+
+### Round 15 (observability) — /admin/scans feed + handled-timeout console hygiene (PR #82)
+
+Closed two tracked KNOWN_ISSUES items: the `/admin/scans` next-phase admin surface (item 0b) and the handled-timeout "console error" half of the benign-noise item (item 5, pattern 2).
+
+| # | Item | What shipped |
+|---|---|---|
+| 1 | `/admin/scans` observability (KNOWN_ISSUES 0b) | New `frontend/src/app/[locale]/admin/scans/page.tsx` — a **metadata-only** scan feed. Design decision: photos were never stored (`/api/analyze` writes `imageUrl: null`), so the page shows truncated userIds + item counts + `errorClass`, **no emails, no food-name lists, no images** — observability without a PII-exposure design fight. Filterable by `errorClass`. |
+| 2 | `errorClass` gets writers | `/api/analyze` now persists a failure row at the 503 funnel tagged `timeout` / `parse_error` / `provider_error` / `binding_missing`. The previously-dead `errorClass` column finally has writers, so AI-pipeline regressions are visible in `/admin/scans` **without** needing Cloudflare log-stream access. |
+| 3 | Handled-timeout console hygiene (KNOWN_ISSUES 5, pattern 2) | `lib/logger.ts`: handled scan timeouts now emit via `console.warn`, not `console.error`. The scan UI already absorbs them (renders the retry card) — `warn` keeps the telemetry without tripping "red console error" guards or crying wolf. The e2e benign-noise filter entry stays for old cached bundles but should no longer fire on fresh deploys. |
+
+**Test posture:** unchanged from Round 14 — frontend unit **193/193**, e2e **99 cases**, backend **129/129**. `/admin/scans` is gated by the existing `isAdmin` server check (non-admins redirect to `/login`), so it inherits the admin-auth test coverage.
+
 ### UX-audit Round 14 (backlog burn-down) — security, resilience, schema, a11y (PR #81)
 
 Worked the tracked follow-ups from KNOWN_ISSUES that were achievable without external credentials or product decisions:

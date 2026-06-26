@@ -223,7 +223,7 @@ export function ScoreCard({ score }: { score: NutritionScore }) {
 
 ```bash
 cd frontend
-npm run check:all       # = type-check + check:i18n + test (171/171)
+npm run check:all       # = type-check + check:i18n + test (193/193)
 
 cd ../backend
 PYTHONPATH=. python -m pytest -q   # 129/129

@@ -172,8 +172,8 @@ Instead of relying solely on Cloudflare Dashboard logs, use built-in tools for r
 
 | Layer | Runner | Location | Count |
 |-------|--------|----------|-------|
-| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404 + auth-store) | Vitest | `frontend/tests/*.test.ts` (14 files) | **171** |
-| E2e (Playwright, opt-in via `npm run test:e2e`) | Playwright + Chromium | `frontend/tests/e2e/*.spec.ts` (6 files: smoke, ui-ux, deep-probes, a11y, responsive-perf, user-journey) | **97** |
+| Frontend unit (edge-safe libs + AI fallback + rate-limit + health + API-response + SEO/PWA + share-metadata + locale-404 + auth-store + admin-route wiring) | Vitest | `frontend/tests/*.test.ts` (14 files) | **193** |
+| E2e (Playwright, opt-in via `npm run test:e2e`) | Playwright + Chromium | `frontend/tests/e2e/*.spec.ts` (6 files: smoke, ui-ux, deep-probes, a11y, responsive-perf, user-journey) | **99** |
 | Backend unit (security, scorer, gemini, config) | pytest | `backend/tests/` | **129** |
 | TypeScript strict | `tsc --noEmit` | whole `frontend/` | gates on CI |
 | i18n key drift | `scripts/check-i18n-keys.mjs` | whole `frontend/src/**` | gates on `check:all` |
@@ -372,6 +372,36 @@ The per-surface e2e specs probe one thing at a time (a header, a tag, a payload 
 cd frontend && npx playwright test tests/e2e/user-journey.spec.ts
 # ~17s warm; up to ~2 min if the scan phase hits a cold cascade.
 ```
+
+### The discoverability / SEO-metadata lens (Round 16, June 2026)
+
+Round 4 made the SEO *structure* correct (og:image absolute via `metadataBase`, hreflang graph, sitemap, unique per-locale `<title>`) and the e2e suite pins all of it. But structurally-perfect metadata can still target the wrong audience: Round 16 found the product indexed under **brand vocabulary** ("Smart Food Sequencing") when real users search by **problem and tool** ("AI food scanner", "blood sugar", "what to eat first"). The structural tests can't catch this — the title was unique, present, and the right length; it just said the wrong thing.
+
+**Approach — write metadata for search intent, not for the brand:**
+
+1. **Front-load the keyword in `<title>`.** The brand name is the click target once the user is already looking at the SERP; the *ranking* terms are what got them there. Lead "Brand: Primary Keyword + Secondary Keyword", not "Brand — Aspirational Tagline". Round 16: "Shinny Guide: AI Food Scanner & Sequencing App for Blood Sugar Management".
+2. **Description is verb-first and benefit-first, inside ~120 chars** (before Google's desktop truncation). "AI food scanner that tells you what to eat first. Reduce blood sugar spikes by 70%…" beats "Discover how eating in the right order can transform your health".
+3. **Keep keyword tags hyphenated and aligned across three surfaces**: `layout.tsx` `metadata.keywords`, `package.json` `keywords`, and GitHub repo topics (the last is set manually in the repo UI — note it in the PR so the maintainer syncs it). End-user topic tags (`ai-food-recognition`, `blood-sugar`, `food-sequencing`) belong everywhere; developer/stack tags (`cloudflare-workers`, `nextjs`, `typescript`, `zustand`) belong only on the dev-facing `package.json` + repo topics, not in the user-facing page `<head>`.
+4. **openGraph copy is action-led** for feed scrollers — verb + payoff in one line ("Snap a photo of your meal and let AI tell you the perfect eating sequence…").
+5. **`package.json` `homepage` points at the live product**, not a `#readme` anchor — npm and search treat it as canonical.
+
+**Method — the audit + the guardrail:**
+
+```bash
+# 1. Read the live <head> the way a crawler does. Are the words the ones a
+#    stranger would TYPE, or the ones the founder would SAY?
+curl -sS https://shinnyguide.autobahn.bot/en \
+  | grep -oE '<title>[^<]+</title>|<meta (name|property)="(description|keywords|og:title|og:description)"[^>]*>'
+
+# 2. Confirm the structural pins still hold AFTER any copy rewrite — the
+#    e2e SEO/PWA + share-metadata specs guard og:image-absolute, hreflang
+#    graph, unique-per-locale title, meta-description length bounds.
+cd frontend && npx playwright test tests/e2e/smoke.spec.ts tests/e2e/deep-probes.spec.ts
+```
+
+The guardrail is the point: a metadata copy change is *editorial* (use the fresh-user lens — read it as a stranger), but it rides on top of *structural* invariants the e2e suite owns. Rewrite the words freely; let the existing pins prove you didn't break the og:image URL or the title-uniqueness contract while doing it. Don't add new assertions for the copy itself — copy is a judgment call that will keep evolving, and pinning it to an exact string just creates churn.
+
+**When to run it**: any PR touching `layout.tsx` metadata, `package.json` description/keywords/homepage, the README hero/positioning, or whenever the product's positioning shifts (new primary feature, new target audience).
 
 ### Where to add a new check
 
