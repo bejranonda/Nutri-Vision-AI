@@ -77,16 +77,20 @@ Run the **Web Vitals + a11y inventory lens** (added Round 11). Quick version: ca
 
 Run the **full user-journey spec**: `cd frontend && npx playwright test tests/e2e/user-journey.spec.ts` (~17s warm). It walks production end-to-end through the rendered UI — landing + locale switch, file upload → Analyze → terminal result, register round-trip, recipes/chat/dashboard — and asserts every flow reaches a terminal UI state, never a stuck spinner or error boundary. Known traps it encodes: sub-500-byte files are silently dropped by `useScanUpload.ts`; the `/login` tab and submit share a label (pin `button[type=submit]`); console noise is filtered by documented pattern only. Method: `docs/GUIDELINE.md → The full user-journey lens`.
 
+## When changing SEO metadata, positioning, or package tags (added Round 16)
+
+Run the **discoverability / SEO-metadata lens** (`docs/GUIDELINE.md → The discoverability / SEO-metadata lens`). Write `<title>`/description/keywords for search intent ("ai food scanner", "blood sugar"), not brand vocabulary. Structural pins (og:image absolute, hreflang, unique title, meta-description bounds) stay green through copy rewrites via `smoke`/`deep-probes` — don't string-pin the copy itself.
+
 ## CI on every PR (added Round 11)
 
 `.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.
 
-## Current Status (May 2026)
-- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
-- ✅ Member system with promo codes (D1 persistent)
+## Current Status (June 2026, v2.1.14 — through Round 16)
+- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat, admin + `/admin/scans`)
+- ✅ Member system with promo codes + voucher-gated registration (D1 persistent)
 - ✅ i18n in 4 languages
-- ✅ Backend API integration (Cloudflare Workers & D1)
-- ✅ Real AI food analysis with Primary + Gemini Cascade Fallback (v2.3)
-- ✅ AI Coach Shinny (chat) with Groq → Gemini → CF cascade
-- 🔜 Payment integration (PromptPay, Rabbit LINE Pay)
-- 🐛 Cloudflare AI vision primary frequently failing on real images — cascade absorbs it, but diagnostic PR pending (see `KNOWN_ISSUES.md → §0`)
+- ✅ Backend API integration (Cloudflare Workers & D1); CI green on every PR since Round 13
+- ✅ Real AI food analysis with Gemini cascade primary + CF safety-net; chat cascade walks all Gemini ids (Round 14)
+- ✅ `/admin/scans` observability + `errorClass` writers (Round 15); SEO retargeted to search intent (Round 16)
+- ✅ Test posture: frontend unit **193/193**, e2e **99**, backend **129/129**
+- 🔜 Payment integration (PromptPay, Rabbit LINE Pay); CSP enforcing mode (Report-Only today)

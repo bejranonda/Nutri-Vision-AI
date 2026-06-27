@@ -110,9 +110,27 @@ Headers apply to every non-`/api/*` route. API routes don't render HTML, and the
 
 Auth-gated routes (`/dashboard`, `/chat`, `/admin/*`) are deliberately excluded from the sitemap — indexing them would point search users at a redirect-to-login experience.
 
+### Search-intent metadata (Round 16, June 2026)
+
+Round 4 made the *structural* SEO surface correct (og:image absolute, hreflang graph, sitemap, per-locale title). Round 16 made the *copy* discoverable. The distinction matters: the structure can be perfect while the words target the wrong audience.
+
+- **Title front-loads the keyword, not the brand.** `<title>` went from "Shinny Guide — Smart Food Sequencing for Better Health" (brand-led) to "Shinny Guide: AI Food Scanner & Sequencing App for Blood Sugar Management" (intent-led). A stranger searches for the *tool* and the *problem* ("ai food scanner", "blood sugar"), not the product name they've never heard. The brand still leads the string (it's the click target once they're on the SERP) but the ranking keywords come right after.
+- **Description answers "what does it do for me", in the first 120 chars.** "AI food scanner that tells you what to eat first. Reduce blood sugar spikes by 70%…" — verb-first, benefit-first, before Google's truncation point.
+- **Keywords are hyphenated topic tags**, aligned across `layout.tsx` `metadata.keywords`, `package.json` `keywords`, and (manually) GitHub repo topics: `ai-food-recognition`, `blood-sugar`, `food-sequencing`, `nutrition-scoring`, etc. `package.json` additionally carries stack tags (`cloudflare-workers`, `drizzle-orm`, `nextjs`, `typescript`, `zustand`, `llama`, `progressive-web-app`, `i18n`) for npm + GitHub developer discovery — a different audience than the product's end users, deliberately served on the dev-facing surface only.
+- **openGraph copy is action-led** for social feeds ("Snap a photo of your meal and let AI tell you the perfect eating sequence…") — a feed scroller needs the verb and the payoff in one line.
+- **`package.json` homepage points at the live product** (`https://nutri-vision-ai.pages.dev`), not a `#readme` repo anchor — npm and search both treat `homepage` as the canonical destination.
+
+What did NOT change: `metadataBase` stays the production origin (Round 4), the hreflang/sitemap graph is untouched, and the e2e SEO/PWA + share-metadata pins (`smoke`, `deep-probes`) still enforce the structural invariants — so the copy rewrite can't silently break the og:image absolute URL or the unique-per-locale title contract. See `docs/GUIDELINE.md → The discoverability / SEO-metadata lens` for the audit recipe.
+
+### Admin observability — /admin/scans + errorClass writers (Round 15, June 2026)
+
+`/admin/scans` (`frontend/src/app/[locale]/admin/scans/page.tsx`) is a **metadata-only** scan feed. The design decision that made it shippable without a PII review: photos were never persisted in the first place — `/api/analyze` writes `imageUrl: null` — so the page can show truncated userIds, item counts, and `errorClass` with **no emails, no food-name lists, no images**. Observability without an exposure surface to argue about.
+
+It became useful because Round 15 also gave the dormant `errorClass` column **writers**: `/api/analyze` now persists a failure row tagged `timeout` / `parse_error` / `provider_error` / `binding_missing` at the 503 funnel. Before this, the column existed in the schema but nothing wrote it, so AI-pipeline regressions were only visible by streaming Cloudflare logs live. Now they show up in a filterable admin table. Paired change: `lib/logger.ts` routes *handled* scan timeouts through `console.warn` instead of `console.error` — the UI already absorbs them (retry card), so `error` was crying wolf and tripping the e2e red-console guards.
+
 ### Playwright e2e suite (`frontend/tests/e2e/`)
 
-UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit suite. Six spec files, 97 cases (as of Round 12), run via `npm run test:e2e` (opt-in — needs network + Chromium browser, ~1.1 min full suite).
+UX-audit round 6 introduced a real-browser test layer on top of the Vitest unit suite. Six spec files, 99 cases (as of Round 16; unit suite is 193), run via `npm run test:e2e` (opt-in — needs network + Chromium browser, ~1.1 min full suite).
 
 | File | Pin |
 |---|---|

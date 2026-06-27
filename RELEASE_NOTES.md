@@ -1,3 +1,72 @@
+# 🔎 Round 16 — discoverability (SEO + social + package metadata), June 2026 (v2.1.14)
+
+> The product was indexed under brand-led copy while users search by problem
+> and tool. This round retargets the discovery surface to search intent.
+> Pure metadata/docs — no runtime behaviour change, no test-posture change.
+
+## What this round shipped
+
+| Surface | Change |
+|---|---|
+| **Search metadata** (`layout.tsx`) | `<title>` keyword-front-loaded ("AI Food Scanner & Sequencing App for Blood Sugar Management"); description rewritten for intent ("tells you what to eat first"); keywords → 12 hyphenated topic tags. |
+| **Social cards** (`layout.tsx` openGraph) | Action-led copy: "Snap a photo of your meal and let AI tell you the perfect eating sequence…". `og:image` stays `metadataBase`-absolute (round 4). |
+| **Package/repo** (`package.json`) | Search-rich description + 20 topic/stack tags for npm + GitHub discovery; `homepage` → the live deploy (`nutri-vision-ai.pages.dev`), not a repo anchor. |
+| **README / README-TH** | Keyword-rich H1, hero screenshot, AI-food-scanner / blood-sugar-management positioning. |
+
+Method captured in `docs/GUIDELINE.md → The discoverability / SEO-metadata lens`. Existing e2e SEO/PWA + share-metadata pins continue to guard the structural invariants (hreflang graph, og:image absolute URL, unique per-locale title, meta-description bounds).
+
+Released as **v2.1.14**.
+
+---
+
+# 🔭 Round 15 — observability, June 2026 (v2.1.14)
+
+> Closed two tracked KNOWN_ISSUES items (#82): `/admin/scans` (next-phase
+> admin surface) and the handled-timeout console-hygiene half of the
+> benign-noise item.
+
+## What this round shipped
+
+| Item | Outcome |
+|------|---------|
+| **`/admin/scans` feed** | Metadata-only scan feed — truncated userIds + item counts + `errorClass`, **no emails / food-names / images** (photos were never stored; `imageUrl: null`). Observability without a PII fight. Filterable by `errorClass`. |
+| **`errorClass` writers** | `/api/analyze` persists a failure row (`timeout` / `parse_error` / `provider_error` / `binding_missing`) at the 503 funnel — the dead column now has writers, and pipeline regressions show up in `/admin/scans` without CF log access. |
+| **Console hygiene** | Handled scan timeouts log via `console.warn`, not `console.error` (`lib/logger.ts`) — the UI already renders the retry card; `warn` keeps telemetry without tripping red-console guards. |
+
+Test posture unchanged: frontend unit **193/193**, e2e **99**, backend **129/129**.
+
+---
+
+# 🧱 UX-audit Round 14 — backlog burn-down, June 2026 (PR #81)
+
+> Worked the tracked KNOWN_ISSUES follow-ups achievable without external
+> credentials or product decisions.
+
+| # | Item | What shipped |
+|---|------|--------------|
+| 1 | Admin throttling | All four `/api/admin/*` mutation routes rate-limit 30/min per IP; route-wiring suite pins all **ten** throttled routes. |
+| 2 | Chat Gemini cascade | `callGemini` only ever hit `GEMINI_VISION_MODELS[0]` — the exact single-hardcoded-id outage mode the cascade prevents. Now walks the list (skip 404/429, fail-fast 5xx, per-model timeout split) + reports the answering model. |
+| 3 | CSP | `Content-Security-Policy-Report-Only` on every HTML response (origin allowlist + Cloudflare Insights, `frame-ancestors 'none'`); `'unsafe-inline'` remains pending nonce work. Preview e2e doubled as the violation scan — zero violations. |
+| 4 | Duplicate middleware | Removed the root `middleware.ts` that duplicated `src/middleware.ts` with a hardcoded locale list (drift trap). |
+| 5 | FK indexes | Migration `0004` — secondary indexes on `sessions/code_redemptions/food_scans/chat_messages.user_id` (+ Drizzle `index()` defs). Remote D1 apply runs at merge. |
+| 6 | Demo a11y | Emoji-only step-navigator buttons get localized `aria-label` + `aria-pressed`. |
+
+Test posture: frontend unit **193/193** (+8 over Round 13), e2e **99**, backend **129/129**, ESLint 0.
+
+---
+
+# 🔧 UX-audit Round 13 — login intent, error localization, CI resurrection, June 2026 (PR #80)
+
+> Continuation review-and-fix pass. Baseline before changes: 97/97 e2e green,
+> 171/171 unit. The round hunted what green suites can't see — and found one
+> of the suites was fiction.
+
+**Headline:** CI had **never passed** — every `ci.yml` run (including on `main`) failed since Round 11 shipped it, unnoticed because no branch protection enforced the check. Two infra bugs: the frontend job pointed `npm ci` at a non-existent `frontend/package-lock.json` (npm workspaces hoists the lockfile to root), and `requirements.txt` pinned `pydantic==2.5.0` against `pydantic-settings>=2.3.0` (ResolutionImpossible). Both fixed; PR #80 carries the **first fully green CI run in the repo's history**. Process lesson in `ITERATION_PROCESS.md`: *a gate nobody watches is not a gate — "CI added" is only true once a run has been seen green.*
+
+Plus user-facing fixes (login intent, error-message localization). Test posture climbed toward Round 14's 193 unit.
+
+---
+
 # 🧭 UX-audit Round 12 — full user-journey e2e, June 2026 (unreleased)
 
 > User asked: "can we test as a real user for the whole user journey." Added

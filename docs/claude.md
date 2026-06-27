@@ -80,18 +80,26 @@ cd frontend && npx playwright test tests/e2e/user-journey.spec.ts
 
 Four traps it already encodes (don't rediscover them): files under 500 bytes are **silently dropped** by `useScanUpload.ts` (generate noise-filled fixtures); the `/login` register tab and submit share the same Thai label (pin `button[type=submit]`); benign console noise must be filtered by documented pattern via `isBenignConsoleError()` (see `KNOWN_ISSUES.md → Known-benign console-error noise`); the scan phase needs its own 180s timeout for cold cascades. Full method: `docs/GUIDELINE.md → The full user-journey lens`. Phase 3 carries a crash sentinel for the intermittent register error-boundary bug (`KNOWN_ISSUES.md § 2a`) — if it fires, that bug is back.
 
+## When changing SEO metadata, positioning, or package tags (added Round 16)
+
+Run the **discoverability / SEO-metadata lens**. Recipe in `docs/GUIDELINE.md → The discoverability / SEO-metadata lens`. The core idea: write `<title>`/description/keywords for **search intent** (what a stranger types — "ai food scanner", "blood sugar") not brand vocabulary ("Smart Food Sequencing"). Front-load the keyword in `<title>`, keep the description verb/benefit-first inside ~120 chars, align hyphenated topic tags across `layout.tsx` + `package.json` + GitHub repo topics, point `package.json` `homepage` at the live deploy.
+
+The structural SEO pins (og:image absolute, hreflang graph, unique-per-locale title, meta-description bounds) live in `tests/e2e/smoke.spec.ts` + `deep-probes.spec.ts` and stay green through copy rewrites — **don't add string-exact assertions for the copy itself** (it keeps evolving; pinning it just churns). Round 16 caught the title targeting brand vocabulary while every structural pin was green.
+
 ## CI on every PR (added Round 11)
 
 `.github/workflows/ci.yml` runs frontend `check:all` + backend `pytest` on every PR. If a local `npm run check:all` + `pytest -q` pass, CI will too. Before Round 11 the project had no CI; the standalone backend went 6 weeks unverified between Round 8 → Round 9.
 
-## Current Status (May 2026)
-- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat)
-- ✅ Member system with promo codes (D1 persistent)
+## Current Status (June 2026, v2.1.14 — through Round 16)
+- ✅ All pages functional (scan, demo, login, dashboard, pricing, recipes, chat, admin + `/admin/scans`)
+- ✅ Member system with promo codes + voucher-gated registration (D1 persistent)
 - ✅ i18n in 4 languages
-- ✅ Backend API integration (Cloudflare Workers & D1)
-- ✅ Real AI food analysis with Primary + Gemini Cascade Fallback (v2.3)
-- ✅ AI Coach Shinny (chat) with Groq → Gemini → CF cascade
+- ✅ Backend API integration (Cloudflare Workers & D1); CI green on every PR since Round 13
+- ✅ Real AI food analysis with Gemini cascade primary + CF safety-net; chat cascade now walks all Gemini ids (Round 14)
+- ✅ Admin-route throttling, CSP `Report-Only`, FK indexes (Round 14); `/admin/scans` observability + `errorClass` writers (Round 15)
+- ✅ SEO/discoverability metadata retargeted to search intent (Round 16)
+- ✅ Test posture: frontend unit **193/193**, e2e **99**, backend **129/129**
 - 🔜 Payment integration (PromptPay, Rabbit LINE Pay)
-- 🐛 Cloudflare AI vision primary frequently failing on real images — cascade absorbs it, but diagnostic PR pending (see `KNOWN_ISSUES.md → §0`)
+- 🔜 CSP enforcing mode (currently Report-Only pending nonce work); remote D1 apply of migration 0004 at merge time
 
 
