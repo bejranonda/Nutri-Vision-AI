@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Round 17 (simplify the core loop) — capture → suggest → ask on chat
+
+Product direction: *"the app should be not complex — just capture photos and then suggest users; if any question, just ask on chat further."* This round removes the upfront friction on the scan flow and adds the chat hand-off that was missing.
+
+| Change | Detail |
+|---|---|
+| **Lead with the photo, not a mode choice** | The scan page no longer opens with the 3-button Meal/Menu/Drink picker above the upload area. Meal is pre-selected and the upload area leads, so a first-time user can just snap a photo. Menu/Drink move behind an optional **"Scanning a menu or a drink instead?"** toggle (`scan.more_options`). No capability removed — only the *required choice* before capture. |
+| **"Ask Shinny about this" on every result** | Each suggestion now carries a primary `💬 Ask Shinny about this` CTA (beside the existing "Scan Another", which becomes secondary) on both the desktop meal sidebar and the mobile result block (covers meal/menu/drink). |
+| **Scan → chat context hand-off** | New `lib/chat-seed.ts` stashes a pre-written question (`scan.ask_seed` with the identified dish name, or `scan.ask_seed_generic`) in `localStorage`; the chat page reads it **read-once** on mount and pre-fills the composer (never auto-sends, never clobbers an in-progress draft). localStorage (not a query param) so the seed survives the login-gate redirect for logged-out users. |
+
+**Decisions taken** (the in-product picker for these didn't resolve, so safe/reversible defaults were chosen and are easy to revisit): kept the existing tested meal pipeline rather than building AI mode auto-detection; kept the chat **login gate** (opening chat to anonymous users has real AI-cost/abuse exposure — a deliberate, separate decision). The "Ask Shinny" CTA only renders on an actual suggestion (`hasResult`), not on the not-food/error cards — you ask about a result, not a rejection.
+
+4 new i18n keys × 4 locales (`ask_shinny`, `ask_seed`, `ask_seed_generic`, `more_options`); locale key count 216 → **233**. Type-check + i18n + **193/193** unit green; `next build` clean. The live scan→chat round-trip against the real AI is covered by the post-deploy `user-journey` e2e gate (the noise-PNG fixture routes to the not-food branch, so the CTA itself is a manual/post-deploy check with a real food photo).
+
 ### Round 16 (discoverability) — SEO + social + package metadata rework (v2.1.14)
 
 The product was indexed under brand-led copy ("Smart Food Sequencing") while real users search by **problem and tool** ("AI food scanner", "blood sugar", "what to eat first"). This round rewrote the discovery surface — search metadata, social cards, repo/package topic tags, and the README hero — to match search intent. Pure metadata/docs; no runtime behaviour, no test-posture change.
