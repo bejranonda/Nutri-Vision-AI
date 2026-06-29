@@ -3,7 +3,10 @@
 import { useRef, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Scan, Cpu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Scan, Cpu, MessageCircle } from 'lucide-react';
+
+import { setChatSeed } from '@/lib/chat-seed';
 
 import { useAuthStore } from '@/lib/auth-store';
 import { TIER_LIMITS } from '@/lib/tier-config';
@@ -50,6 +53,7 @@ export default function ScanPage() {
     const tCommon = useTranslations('common');
     const tMascot = useTranslations('mascot');
     const locale = useLocale();
+    const router = useRouter();
 
     const { user, isAuthenticated } = useAuthStore();
     const tier = (isAuthenticated && user?.subscriptionTier) ? user.subscriptionTier : 'free';
@@ -58,7 +62,12 @@ export default function ScanPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
+    // Default flow is "just snap a meal": meal mode is pre-selected and the
+    // upload area leads. The Menu / Drink modes live behind an optional
+    // toggle so a first-time user never has to choose a mode before they
+    // can take a photo.
     const [scanMode, setScanMode] = useState<ScanMode>('meal');
+    const [showModeOptions, setShowModeOptions] = useState(false);
 
     // Debug Hook
     const debug = useScanDebug();
@@ -110,6 +119,19 @@ export default function ScanPage() {
         analysis.resetAnalysis();
     };
 
+    // "Ask Shinny about this" — hand the just-scanned result to the chat
+    // page as a pre-written question so a follow-up is one tap away. Use
+    // the first identified dish name when we have it; otherwise a generic
+    // "about my meal" seed. The chat page reads + clears this on mount.
+    const askShinnyAboutScan = () => {
+        const dishName = analysis.mealResult?.dishes?.[0]?.name?.trim();
+        const seed = dishName
+            ? t('ask_seed', { dish: dishName })
+            : t('ask_seed_generic');
+        setChatSeed(seed);
+        router.push(`/${locale}/chat`);
+    };
+
     const isUploading = upload.uploadedImages.length > 0 && !analysis.isAnalyzing && !analysis.hasResult && !analysis.nonFoodReason && !upload.uploadError && !analysis.analysisError;
     const isReadyForUpload = upload.uploadedImages.length === 0 && !analysis.isAnalyzing && !analysis.hasResult && !analysis.nonFoodReason;
 
@@ -151,7 +173,9 @@ export default function ScanPage() {
 
                 {isReadyForUpload && (
                     <>
-                        <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
+                        {/* Upload area leads — the default path is "just snap a
+                            meal". Meal mode is pre-selected; no choice required
+                            before taking a photo. */}
                         <ScanUploadArea
                             scanMode={scanMode}
                             tier={tier}
@@ -182,6 +206,24 @@ export default function ScanPage() {
                         <p className="mt-3 text-xs text-gray-500 text-center max-w-md mx-auto">
                             {t('privacy_note')}
                         </p>
+
+                        {/* Menu / Drink modes are optional — tucked behind a
+                            toggle so they don't make the default "snap a meal"
+                            path feel like a decision. Picking a non-meal mode
+                            keeps the picker open. */}
+                        <div className="mt-6 text-center">
+                            {!showModeOptions ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModeOptions(true)}
+                                    className="text-sm font-medium text-brand-primary-500 hover:text-brand-primary-600 hover:underline"
+                                >
+                                    {t('more_options')}
+                                </button>
+                            ) : (
+                                <ScanModeSelector selectedMode={scanMode} onSelect={setScanMode} />
+                            )}
+                        </div>
                     </>
                 )}
 
@@ -290,7 +332,10 @@ export default function ScanPage() {
                                 <div className="hidden lg:block">
                                     <div className="backdrop-blur-md bg-white/90 p-6 rounded-3xl shadow-glass border border-white/40text-center">
                                         <img src="/images/shinny_avatar_celebrating.png" alt="Shinny" className="w-20 h-20 mx-auto drop-shadow-md pb-4" />
-                                        <button onClick={resetScan} className="w-full py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                                        <button onClick={askShinnyAboutScan} className="w-full py-3 mb-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                                            <MessageCircle className="w-5 h-5 inline mr-2" /> {t('ask_shinny')}
+                                        </button>
+                                        <button onClick={resetScan} className="w-full py-3 bg-white border border-brand-primary-200 text-brand-primary-600 font-bold rounded-xl hover:bg-brand-primary-50 transition-all">
                                             <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                                         </button>
                                         {analysis.modelUsed && (
@@ -393,8 +438,11 @@ export default function ScanPage() {
                         <div className="mb-4">
                             <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
                         </div>
-                        <div className="flex items-center justify-center gap-3">
-                            <button onClick={resetScan} className="px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                        <div className="flex flex-col items-center justify-center gap-3 max-w-xs mx-auto">
+                            <button onClick={askShinnyAboutScan} className="w-full px-8 py-3 bg-gradient-to-r from-brand-primary-400 to-brand-secondary-400 text-white font-bold rounded-xl shadow-brand hover:shadow-brand-lg transition-all">
+                                <MessageCircle className="w-5 h-5 inline mr-2" /> {t('ask_shinny')}
+                            </button>
+                            <button onClick={resetScan} className="w-full px-8 py-3 bg-white border border-brand-primary-200 text-brand-primary-600 font-bold rounded-xl hover:bg-brand-primary-50 transition-all">
                                 <Scan className="w-5 h-5 inline mr-2" /> {t('try_again')}
                             </button>
                         </div>

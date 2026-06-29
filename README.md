@@ -165,7 +165,7 @@ Individually:
 | Script | Purpose |
 |--------|---------|
 | `npm run type-check` | Strict TypeScript (`tsc --noEmit`) across the whole frontend |
-| `npm run check:i18n` | Ensures every `t('…')` key used in code exists in **all 4 locale JSONs** (th/en/de/da) — 216 keys each |
+| `npm run check:i18n` | Ensures every `t('…')` key used in code exists in **all 4 locale JSONs** (th/en/de/da) — 233 keys each |
 | `npm test` | Vitest unit tests — crypto (PBKDF2 + constant-time compare), ai-prompt validators, zod schemas, auth-store `authChecked` lifecycle |
 | `npm run test:e2e` | Playwright e2e against the live deploy — **99 cases** across `smoke`, `ui-ux`, `deep-probes`, `a11y`, `responsive-perf`, `user-journey` (opt-in, needs Chromium + network) |
 | `npm run build` | Full Next.js production build, same thing Cloudflare Pages runs |

@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Send, Sparkles, AlertCircle, RotateCcw } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { takeChatSeed } from '@/lib/chat-seed';
 
 const STORAGE_KEY = 'shinny-chat-history-v1';
 const MAX_HISTORY_TURNS = 50;
@@ -105,6 +106,16 @@ export default function ChatPage() {
   // Hydrate history from localStorage (client-only).
   useEffect(() => {
     setTurns(loadHistory());
+  }, []);
+
+  // Pick up a pending "Ask Shinny about this" question handed over from the
+  // scan result. Read-once (takeChatSeed clears it), and only pre-fill an
+  // empty composer so it never clobbers something the user is mid-typing.
+  // The user still taps Send — we don't auto-fire, so they can tweak the
+  // question first and the login gate stays in control of delivery.
+  useEffect(() => {
+    const seed = takeChatSeed();
+    if (seed) setDraft((current) => (current ? current : seed));
   }, []);
 
   // Auto-scroll to the latest message whenever turns or sending changes.
