@@ -28,6 +28,8 @@ Product direction: *"the app should be not complex — just capture photos and t
 
 Also: the generic seed subject is neutral ("this") instead of "my meal", since it fires for menu/drink scans where "meal" was wrong.
 
+**Scan page decluttered further:** the "scans remaining" quota counter no longer shows on every visit. It appears only as a gentle nudge when a free-tier user is genuinely low (≤3 left); premium/family never see it (a permanent "∞" was just noise). Keeps the default page focused on "just take a photo".
+
 ### Round 16 (discoverability) — SEO + social + package metadata rework (v2.1.14)
 
 The product was indexed under brand-led copy ("Smart Food Sequencing") while real users search by **problem and tool** ("AI food scanner", "blood sugar", "what to eat first"). This round rewrote the discovery surface — search metadata, social cards, repo/package topic tags, and the README hero — to match search intent. Pure metadata/docs; no runtime behaviour, no test-posture change.
