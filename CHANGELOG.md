@@ -21,6 +21,13 @@ Product direction: *"the app should be not complex — just capture photos and t
 
 4 new i18n keys × 4 locales (`ask_shinny`, `ask_seed`, `ask_seed_generic`, `more_options`); locale key count 216 → **233**. Type-check + i18n + **193/193** unit green; `next build` clean. The live scan→chat round-trip against the real AI is covered by the post-deploy `user-journey` e2e gate (the noise-PNG fixture routes to the not-food branch, so the CTA itself is a manual/post-deploy check with a real food photo).
 
+**Follow-up hardening** (same round, adversarial self-review of the above): the first cut of the chat hand-off had three interacting bugs on the *logged-out* path that would have silently dropped the follow-up question — all fixed:
+- **Seed consumed on the throwaway mount.** `takeChatSeed()` ran on chat mount before the auth redirect fired, so a logged-out visit cleared the seed during the brief pre-redirect render and it was gone by the time the user came back. Now gated on `authChecked && isAuthenticated`, so it's consumed exactly once — on the mount that actually renders the composer.
+- **No return path through login.** Chat's unauth redirect went to `/login?mode=login` with no way back; login always bounced to `/dashboard`. Chat now passes `next=/{locale}/chat`, and login honours a `?next=` return path (validated same-origin absolute path only — rejects `//host`, `/\host`, and scheme URLs, so no open redirect). A logged-out "Ask Shinny" now round-trips: scan → chat → login → back to chat with the question pre-filled.
+- **Desktop Menu/Drink dead-end.** The result-action block (Ask Shinny + Scan Another) lived only in the meal branch's desktop sidebar; the shared bottom block was `lg:hidden`. On a large screen a Menu or Drink scan had *no* action buttons at all. The bottom block is now `lg:hidden` only for meal results (which have the sidebar), and visible on all viewports for menu/drink.
+
+Also: the generic seed subject is neutral ("this") instead of "my meal", since it fires for menu/drink scans where "meal" was wrong.
+
 ### Round 16 (discoverability) — SEO + social + package metadata rework (v2.1.14)
 
 The product was indexed under brand-led copy ("Smart Food Sequencing") while real users search by **problem and tool** ("AI food scanner", "blood sugar", "what to eat first"). This round rewrote the discovery surface — search metadata, social cards, repo/package topic tags, and the README hero — to match search intent. Pure metadata/docs; no runtime behaviour, no test-posture change.

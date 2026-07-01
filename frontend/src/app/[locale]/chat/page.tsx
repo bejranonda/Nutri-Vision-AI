@@ -99,7 +99,12 @@ export default function ChatPage() {
     // mode=login: a gated-page bounce usually means an expired session,
     // i.e. an existing account — open the auth page on the Login tab.
     if (authChecked && !isAuthenticated && !sending) {
-      router.push(`/${locale}/login?mode=login`);
+      // Carry a return path so that after signing in the user lands back
+      // here (not on /dashboard) — otherwise a logged-out "Ask Shinny
+      // about this" hand-off from a scan result would silently strand
+      // them and the seeded question would never be delivered.
+      const next = encodeURIComponent(`/${locale}/chat`);
+      router.push(`/${locale}/login?mode=login&next=${next}`);
     }
   }, [authChecked, isAuthenticated, sending, locale, router]);
 
@@ -113,10 +118,18 @@ export default function ChatPage() {
   // empty composer so it never clobbers something the user is mid-typing.
   // The user still taps Send — we don't auto-fire, so they can tweak the
   // question first and the login gate stays in control of delivery.
+  //
+  // Gate on `isAuthenticated`: a logged-out visit to /chat mounts briefly
+  // and then redirects to /login. If we consumed the seed on that throwaway
+  // mount, takeChatSeed would clear it and the question would be lost by the
+  // time the user returned post-login. Waiting for the authenticated state
+  // means the seed survives the round-trip and is consumed exactly once, on
+  // the mount that actually renders the composer.
   useEffect(() => {
+    if (!authChecked || !isAuthenticated) return;
     const seed = takeChatSeed();
     if (seed) setDraft((current) => (current ? current : seed));
-  }, []);
+  }, [authChecked, isAuthenticated]);
 
   // Auto-scroll to the latest message whenever turns or sending changes.
   useEffect(() => {

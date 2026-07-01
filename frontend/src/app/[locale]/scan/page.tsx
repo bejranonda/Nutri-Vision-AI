@@ -432,9 +432,14 @@ export default function ScanPage() {
                     )}
                 </div>
 
-                {/* Mobile scan again button */}
+                {/* Result actions (Ask Shinny + Scan Another). Meal results
+                    carry their own copy of these in the desktop sidebar, so
+                    this block is hidden on lg for meal to avoid duplication —
+                    but Menu/Drink have no sidebar, so it must stay visible on
+                    desktop for them (otherwise a desktop menu/drink scan has
+                    no way forward at all). */}
                 {analysis.hasResult && !analysis.isAnalyzing && (
-                    <div className="lg:hidden text-center mt-8 pb-8">
+                    <div className={`${analysis.mealResult ? 'lg:hidden ' : ''}text-center mt-8 pb-8`}>
                         <div className="mb-4">
                             <img src="/images/shinny_avatar_celebrating.png" alt="Shinny Celebrating" className="w-16 h-16 mx-auto drop-shadow-md animate-bounce-light" />
                         </div>
