@@ -83,7 +83,16 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            setTimeout(() => router.push(`/${locale}/dashboard`), 1500);
+            // Honour a ?next= return path (e.g. a logged-out user tapped
+            // "Ask Shinny about this" on a scan result → /chat → bounced
+            // here with ?next=/th/chat). Only same-origin absolute paths
+            // are accepted, to avoid an open-redirect. Falls back to the
+            // dashboard when absent or unsafe.
+            const raw = new URLSearchParams(window.location.search).get('next');
+            const next = raw && raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\')
+                ? raw
+                : `/${locale}/dashboard`;
+            setTimeout(() => router.push(next), 1500);
         }
     }, [isAuthenticated, locale, router]);
 

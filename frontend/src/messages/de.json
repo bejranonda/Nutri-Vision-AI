@@ -90,7 +90,7 @@
     "try_again": "Erneut scannen",
     "ask_shinny": "💬 Frag Shinny dazu",
     "ask_seed": "Ich habe gerade {dish} gescannt. Hast du Tipps, um es gesünder zu machen oder in der besten Reihenfolge zu essen?",
-    "ask_seed_generic": "Ich habe gerade meine Mahlzeit gescannt. Hast du Tipps, um sie gesünder zu machen oder in der besten Reihenfolge zu essen?",
+    "ask_seed_generic": "Ich habe das gerade gescannt. Hast du Tipps, um es gesünder zu machen oder in der besten Reihenfolge zu essen?",
     "more_options": "Scannst du stattdessen eine Speisekarte oder ein Getränk?",
     "error_title": "Entschuldigung! 🙏",
     "error_message": "Shinny konnte dieses Bild nicht analysieren",

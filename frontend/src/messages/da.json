@@ -90,7 +90,7 @@
     "try_again": "Scan Igen",
     "ask_shinny": "💬 Spørg Shinny om dette",
     "ask_seed": "Jeg har lige scannet {dish}. Har du tips til at gøre det sundere eller spise det i den bedste rækkefølge?",
-    "ask_seed_generic": "Jeg har lige scannet mit måltid. Har du tips til at gøre det sundere eller spise det i den bedste rækkefølge?",
+    "ask_seed_generic": "Jeg har lige scannet dette. Har du tips til at gøre det sundere eller spise det i den bedste rækkefølge?",
     "more_options": "Scanner du en menu eller en drik i stedet?",
     "error_title": "Undskyld! 🙏",
     "error_message": "Shinny kunne ikke analysere dette billede",

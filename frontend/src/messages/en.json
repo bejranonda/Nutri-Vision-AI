@@ -90,7 +90,7 @@
     "try_again": "Scan Another",
     "ask_shinny": "💬 Ask Shinny about this",
     "ask_seed": "I just scanned {dish}. Any tips to make it healthier or eat it in the best order?",
-    "ask_seed_generic": "I just scanned my meal. Any tips to make it healthier or eat it in the best order?",
+    "ask_seed_generic": "I just scanned this. Any tips to make it healthier or eat it in the best order?",
     "more_options": "Scanning a menu or a drink instead?",
     "error_title": "Sorry! 🙏",
     "error_message": "Shinny couldn't analyze this image",
