@@ -145,9 +145,14 @@ export default function ScanPage() {
                 <SiteHeader locale={locale} />
                 <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-3">
-                        {isAuthenticated && (
+                        {/* Keep the page clean by default — "just capture a photo".
+                            The quota counter only appears as a gentle nudge when a
+                            free-tier user is actually running low (≤3 left).
+                            Premium/family are unlimited, so it never shows for them
+                            (a permanent "∞" is just noise). */}
+                        {isAuthenticated && activeTier === 'free' && (scansLimit - scansUsed) <= 3 && (
                             <div className="text-sm text-gray-500">
-                                {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{activeTier === 'premium' || activeTier === 'family' ? '∞' : (scansLimit - scansUsed)}</span>
+                                {t('scans_remaining')}: <span className="font-bold text-brand-primary-500">{Math.max(0, scansLimit - scansUsed)}</span>
                             </div>
                         )}
                     </div>
